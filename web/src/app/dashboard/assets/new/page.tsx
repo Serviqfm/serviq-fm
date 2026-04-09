@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -10,15 +10,21 @@ export default function NewAssetPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [sites, setSites] = useState<any[]>([])
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     name: '',
     category: '',
     site_id: '',
+    sub_location: '',
     serial_number: '',
     manufacturer: '',
     model: '',
     purchase_date: '',
+    purchase_cost: '',
     warranty_expiry: '',
+    expected_lifespan_years: '',
     description: '',
     location_notes: '',
   })
@@ -38,6 +44,31 @@ export default function NewAssetPage() {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    const toAdd = files.slice(0, 10 - photos.length)
+    setPhotos(prev => [...prev, ...toAdd])
+    setPhotoPreviewUrls(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+  }
+
+  function removePhoto(index: number) {
+    setPhotos(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviewUrls(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function uploadPhotos(orgId: string): Promise<string[]> {
+    const urls: string[] = []
+    for (const file of photos) {
+      const fileName = orgId + '/' + Date.now() + '-asset-' + file.name
+      const { data, error } = await supabase.storage.from('work-order-media').upload(fileName, file)
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from('work-order-media').getPublicUrl(data.path)
+        urls.push(urlData.publicUrl)
+      }
+    }
+    return urls
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -46,18 +77,24 @@ export default function NewAssetPage() {
     if (!user) { setError('Not logged in'); setLoading(false); return }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setError('User profile not found'); setLoading(false); return }
+    let photoUrls: string[] = []
+    if (photos.length > 0) photoUrls = await uploadPhotos(profile.organisation_id)
     const qrCode = 'SERVIQ-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase()
     const { error: insertError } = await supabase.from('assets').insert({
       name: form.name,
       category: form.category || null,
       site_id: form.site_id || null,
+      sub_location: form.sub_location || null,
       serial_number: form.serial_number || null,
       manufacturer: form.manufacturer || null,
       model: form.model || null,
       purchase_date: form.purchase_date || null,
+      purchase_cost: form.purchase_cost ? parseFloat(form.purchase_cost) : null,
       warranty_expiry: form.warranty_expiry || null,
+      expected_lifespan_years: form.expected_lifespan_years ? parseInt(form.expected_lifespan_years) : null,
       description: form.description || null,
       location_notes: form.location_notes || null,
+      photo_urls: photoUrls,
       organisation_id: profile.organisation_id,
       status: 'active',
       qr_code: qrCode,
@@ -100,11 +137,21 @@ export default function NewAssetPage() {
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Site / Location</label>
+            <label style={labelStyle}>Site</label>
             <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
               <option value=''>Select site</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Sub-location</label>
+            <input name='sub_location' value={form.sub_location} onChange={handleChange} placeholder='e.g. Floor 2, Room 204' style={fieldStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Location Notes</label>
+            <input name='location_notes' value={form.location_notes} onChange={handleChange} placeholder='e.g. Near east stairwell' style={fieldStyle} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -127,17 +174,43 @@ export default function NewAssetPage() {
             <input name='purchase_date' type='date' value={form.purchase_date} onChange={handleChange} style={fieldStyle} />
           </div>
           <div>
+            <label style={labelStyle}>Purchase Cost (SAR)</label>
+            <input name='purchase_cost' type='number' value={form.purchase_cost} onChange={handleChange} placeholder='e.g. 12500' style={fieldStyle} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
             <label style={labelStyle}>Warranty Expiry</label>
             <input name='warranty_expiry' type='date' value={form.warranty_expiry} onChange={handleChange} style={fieldStyle} />
           </div>
-        </div>
-        <div>
-          <label style={labelStyle}>Location Notes</label>
-          <input name='location_notes' value={form.location_notes} onChange={handleChange} placeholder='e.g. Building A, 2nd Floor, Room 204' style={fieldStyle} />
+          <div>
+            <label style={labelStyle}>Expected Lifespan (years)</label>
+            <input name='expected_lifespan_years' type='number' value={form.expected_lifespan_years} onChange={handleChange} placeholder='e.g. 10' style={fieldStyle} />
+          </div>
         </div>
         <div>
           <label style={labelStyle}>Description</label>
-          <textarea name='description' value={form.description} onChange={handleChange} rows={3} placeholder='Additional notes about this asset...' style={{ ...fieldStyle, resize: 'vertical' }} />
+          <textarea name='description' value={form.description} onChange={handleChange} rows={3} placeholder='Additional notes...' style={{ ...fieldStyle, resize: 'vertical' }} />
+        </div>
+        <div>
+          <label style={labelStyle}>
+            Photos (up to 10)
+            <span style={{ fontWeight: 400, color: '#999', marginLeft: 8, fontSize: 12 }}>6-month media retention</span>
+          </label>
+          <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed #ddd', borderRadius: 8, padding: '1.5rem', textAlign: 'center', cursor: 'pointer', color: '#999', fontSize: 13 }}>
+            {photos.length < 10 ? 'Click to add photos (' + photos.length + '/10)' : 'Maximum 10 photos reached'}
+          </div>
+          <input ref={fileInputRef} type='file' accept='image/*' multiple onChange={handlePhotoChange} style={{ display: 'none' }} />
+          {photoPreviewUrls.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              {photoPreviewUrls.map((url, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img src={url} alt='' style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
+                  <button type='button' onClick={() => removePhoto(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#c62828', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12 }}>x</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ background: '#f0f7ff', border: '1px solid #b3d4f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#1565c0' }}>
           A unique QR code will be automatically generated for this asset when saved.

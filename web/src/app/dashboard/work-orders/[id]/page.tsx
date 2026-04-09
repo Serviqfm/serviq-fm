@@ -182,7 +182,15 @@ export default function WorkOrderDetailPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 860, margin: '0 auto' }}>
-      <a href="/dashboard/work-orders" style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>← Back to Work Orders</a>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <a href="/dashboard/work-orders" style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Work Orders</a>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href={'/dashboard/work-orders/' + id + '/edit'}>
+            <button style={{ padding: '6px 16px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13 }}>Edit</button>
+          </a>
+          <button onClick={() => window.print()} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13 }}>Export PDF</button>
+        </div>
+      </div>
 
       {/* Title */}
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
