@@ -1,4 +1,4 @@
-'use client'
+﻿content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -16,9 +16,6 @@ export default function WorkOrdersPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<string[]>([])
-  const [bulkTech, setBulkTech] = useState('')
-  const [bulkAssigning, setBulkAssigning] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchWorkOrders(); fetchTechnicians() }, [statusFilter, priorityFilter, categoryFilter, technicianFilter])
@@ -45,28 +42,6 @@ export default function WorkOrdersPage() {
     const { data, error } = await query
     if (!error && data) setWorkOrders(data)
     setLoading(false)
-  }
-
-  async function handleBulkAssign() {
-    if (!bulkTech || selected.length === 0) return
-    setBulkAssigning(true)
-    await supabase.from('work_orders').update({ assigned_to: bulkTech, status: 'assigned', updated_at: new Date().toISOString() }).in('id', selected)
-    setSelected([])
-    setBulkTech('')
-    await fetchWorkOrders()
-    setBulkAssigning(false)
-  }
-
-  function toggleSelect(id: string) {
-    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  function toggleSelectAll() {
-    if (selected.length === filtered.length) {
-      setSelected([])
-    } else {
-      setSelected(filtered.map(w => w.id))
-    }
   }
 
   const filtered = workOrders.filter(wo => {
@@ -116,6 +91,7 @@ export default function WorkOrdersPage() {
   }
 
   const categories = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
+
   const selectStyle = { padding: '7px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, background: 'white', cursor: 'pointer' }
 
   return (
@@ -144,7 +120,7 @@ export default function WorkOrdersPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         {['all','new','assigned','in_progress','on_hold','completed','closed'].map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} style={btnStyle(statusFilter === s)}>
-            {s === 'all' ? 'All' : s.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {s === 'all' ? 'All' : s.replace('_',' ').replace(/\\b\\w/g, l => l.toUpperCase())}
           </button>
         ))}
       </div>
@@ -157,7 +133,7 @@ export default function WorkOrdersPage() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={selectStyle}>
           <option value='all'>All Categories</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -181,26 +157,6 @@ export default function WorkOrdersPage() {
         )}
       </div>
 
-      {selected.length > 0 && (
-        <div style={{ background: '#e8eaf6', border: '1px solid #c5cae9', borderRadius: 10, padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#283593' }}>{selected.length} work order{selected.length > 1 ? 's' : ''} selected</span>
-          <select value={bulkTech} onChange={e => setBulkTech(e.target.value)} style={{ ...selectStyle, borderColor: '#9fa8da' }}>
-            <option value=''>Select technician to assign...</option>
-            {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-          </select>
-          <button
-            onClick={handleBulkAssign}
-            disabled={!bulkTech || bulkAssigning}
-            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#283593', color: 'white', cursor: bulkTech ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 500, opacity: bulkTech ? 1 : 0.5 }}
-          >
-            {bulkAssigning ? 'Assigning...' : 'Assign All'}
-          </button>
-          <button onClick={() => setSelected([])} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #9fa8da', background: 'white', cursor: 'pointer', fontSize: 13, color: '#666' }}>
-            Cancel
-          </button>
-        </div>
-      )}
-
       {loading ? (
         <p style={{ color: '#999' }}>Loading...</p>
       ) : filtered.length === 0 ? (
@@ -213,9 +169,6 @@ export default function WorkOrdersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                <th style={{ padding: '12px 16px', width: 40 }}>
-                  <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
-                </th>
                 {['Title','Asset','Site','Category','Priority','Status','Assigned To','Due Date','Created'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
@@ -226,12 +179,8 @@ export default function WorkOrdersPage() {
                 const overdue = isOverdue(wo)
                 const pCfg = priorityConfig[wo.priority] ?? priorityConfig.medium
                 const sCfg = statusConfig[wo.status] ?? statusConfig.new
-                const isSelected = selected.includes(wo.id)
                 return (
-                  <tr key={wo.id} style={{ borderBottom: '1px solid #f0f0f0', background: isSelected ? '#f3f4fd' : overdue ? '#fff8f8' : i % 2 === 0 ? 'white' : '#fafafa' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} />
-                    </td>
+                  <tr key={wo.id} style={{ borderBottom: '1px solid #f0f0f0', background: overdue ? '#fff8f8' : i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={{ padding: '12px 16px' }}>
                       <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>
                         {wo.title}
@@ -242,7 +191,7 @@ export default function WorkOrdersPage() {
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.site?.name ?? '—'}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.category ?? '—'}</td>
                     <td style={{ padding: '12px 16px' }}>{badge(wo.priority.charAt(0).toUpperCase()+wo.priority.slice(1), pCfg)}</td>
-                    <td style={{ padding: '12px 16px' }}>{badge(wo.status.replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase()), sCfg)}</td>
+                    <td style={{ padding: '12px 16px' }}>{badge(wo.status.replace('_',' ').replace(/\\b\\w/g,l=>l.toUpperCase()), sCfg)}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.assignee?.full_name ?? 'Unassigned'}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: overdue ? '#c62828' : '#666' }}>
                       {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
@@ -259,4 +208,8 @@ export default function WorkOrdersPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/work-orders/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Work orders list page updated with technician, category, and date range filters')

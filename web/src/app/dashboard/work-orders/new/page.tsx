@@ -26,6 +26,8 @@ export default function NewWorkOrderPage() {
     assigned_to: '',
     due_at: '',
     sla_hours: '',
+    is_recurring: 'false',
+    recurrence_frequency: 'monthly',
   })
 
   useEffect(() => { loadFormData() }, [])
@@ -111,7 +113,7 @@ export default function NewWorkOrderPage() {
       created_by: user.id,
       organisation_id: profile.organisation_id,
       status: form.assigned_to ? 'assigned' : 'new',
-      source: 'manual',
+      source: form.is_recurring === 'true' ? 'recurring' : 'manual',
       photo_urls: photoUrls,
     })
     if (insertError) { setError(insertError.message); setLoading(false) }
@@ -207,6 +209,34 @@ export default function NewWorkOrderPage() {
           <label style={labelStyle}>Due Date</label>
           <input name="due_at" type="datetime-local" value={form.due_at} onChange={handleChange} style={fieldStyle} />
         </div>
+        <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <input
+              type='checkbox'
+              id='is_recurring'
+              checked={form.is_recurring === 'true'}
+              onChange={e => setForm(prev => ({ ...prev, is_recurring: e.target.checked ? 'true' : 'false' }))}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <label htmlFor='is_recurring' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>
+              Recurring work order
+            </label>
+          </div>
+          {form.is_recurring === 'true' && (
+            <div>
+              <p style={{ fontSize: 12, color: '#999', margin: '0 0 8px' }}>This work order will be linked to a PM schedule. Select the recurrence frequency:</p>
+              <select name='recurrence_frequency' value={form.recurrence_frequency} onChange={handleChange} style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, background: 'white' }}>
+                <option value='daily'>Daily</option>
+                <option value='weekly'>Weekly</option>
+                <option value='monthly'>Monthly</option>
+                <option value='quarterly'>Quarterly</option>
+                <option value='biannual'>Every 6 Months</option>
+                <option value='annual'>Annual</option>
+              </select>
+            </div>
+          )}
+        </div>
+
         <div>
           <label style={labelStyle}>
             Photos (up to 8)

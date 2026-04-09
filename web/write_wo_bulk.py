@@ -1,4 +1,4 @@
-'use client'
+﻿content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -144,7 +144,7 @@ export default function WorkOrdersPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         {['all','new','assigned','in_progress','on_hold','completed','closed'].map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} style={btnStyle(statusFilter === s)}>
-            {s === 'all' ? 'All' : s.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {s === 'all' ? 'All' : s.replace('_',' ').replace(/\\b\\w/g, l => l.toUpperCase())}
           </button>
         ))}
       </div>
@@ -242,7 +242,7 @@ export default function WorkOrdersPage() {
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.site?.name ?? '—'}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.category ?? '—'}</td>
                     <td style={{ padding: '12px 16px' }}>{badge(wo.priority.charAt(0).toUpperCase()+wo.priority.slice(1), pCfg)}</td>
-                    <td style={{ padding: '12px 16px' }}>{badge(wo.status.replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase()), sCfg)}</td>
+                    <td style={{ padding: '12px 16px' }}>{badge(wo.status.replace('_',' ').replace(/\\b\\w/g,l=>l.toUpperCase()), sCfg)}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.assignee?.full_name ?? 'Unassigned'}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: overdue ? '#c62828' : '#666' }}>
                       {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
@@ -259,4 +259,8 @@ export default function WorkOrdersPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/work-orders/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Bulk assignment added to work orders list page')
