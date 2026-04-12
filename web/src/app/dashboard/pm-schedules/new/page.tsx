@@ -114,6 +114,8 @@ export default function NewPMSchedulePage() {
             <select name='frequency' value={form.frequency} onChange={handleChange} style={fieldStyle}>
               <option value='daily'>Daily</option>
               <option value='weekly'>Weekly</option>
+              <option value='fortnightly'>Fortnightly (Every 2 weeks)</option>
+              <option value='fortnightly'>Fortnightly (Every 2 weeks)</option>
               <option value='monthly'>Monthly</option>
               <option value='quarterly'>Quarterly</option>
               <option value='biannual'>Every 6 Months</option>

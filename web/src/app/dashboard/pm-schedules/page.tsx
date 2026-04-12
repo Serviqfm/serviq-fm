@@ -26,7 +26,8 @@ export default function PMSchedulesPage() {
   function calculateNextDue(frequency: string): string {
     const now = new Date()
     switch (frequency) {
-      case 'daily':     now.setDate(now.getDate() + 1); break
+      case 'daily':       now.setDate(now.getDate() + 1); break
+      case 'fortnightly': now.setDate(now.getDate() + 14); break
       case 'weekly':    now.setDate(now.getDate() + 7); break
       case 'monthly':   now.setMonth(now.getMonth() + 1); break
       case 'quarterly': now.setMonth(now.getMonth() + 3); break
@@ -72,7 +73,7 @@ export default function PMSchedulesPage() {
   }
 
   const freqLabel: Record<string, string> = {
-    daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
+    daily: 'Daily', weekly: 'Weekly', fortnightly: 'Fortnightly',
     quarterly: 'Quarterly', biannual: 'Every 6 Months', annual: 'Annual',
   }
 
@@ -96,11 +97,31 @@ export default function PMSchedulesPage() {
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Preventive Maintenance</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
-            {stats.total} schedules · {stats.active} active
-            {stats.due > 0 && <span style={{ color: '#c62828' }}> · {stats.due} overdue</span>}
-            {stats.soon > 0 && <span style={{ color: '#f57f17' }}> · {stats.soon} due this week</span>}
+            {stats.total} schedules Â· {stats.active} active
+            {stats.due > 0 && <span style={{ color: '#c62828' }}> Â· {stats.due} overdue</span>}
+            {stats.soon > 0 && <span style={{ color: '#f57f17' }}> Â· {stats.soon} due this week</span>}
           </p>
         </div>
+        <Link href='/dashboard/pm-schedules/calendar'>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+            Calendar
+          </button>
+        </Link>
+        <Link href='/dashboard/pm-schedules/compliance'>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+            Compliance
+          </button>
+        </Link>
+        <Link href='/dashboard/pm-schedules/calendar'>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+            Calendar
+          </button>
+        </Link>
+        <Link href='/dashboard/pm-schedules/compliance'>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+            Compliance
+          </button>
+        </Link>
         <Link href='/dashboard/pm-schedules/new'>
           <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
             + New PM Schedule
@@ -120,7 +141,7 @@ export default function PMSchedulesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                {['Schedule','Asset','Frequency','Assigned To','Next Due','Status','Actions'].map(h => (
+                {['Schedule','Asset','Frequency','Assigned To','Next Due','Compliance','Status','Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -135,7 +156,7 @@ export default function PMSchedulesPage() {
                       <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{s.title}</p>
                       {s.description && <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{s.description.slice(0, 60)}{s.description.length > 60 ? '...' : ''}</p>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.asset?.name ?? '—'}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.asset?.name ?? 'â€”'}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{ background: '#e8eaf6', color: '#283593', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>
                         {freqLabel[s.frequency] ?? s.frequency}
@@ -149,7 +170,7 @@ export default function PMSchedulesPage() {
                           {due && ' (Overdue)'}
                           {soon && !due && ' (Due soon)'}
                         </span>
-                      ) : '—'}
+                      ) : 'â€”'}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{ background: s.is_active ? '#e8f5e9' : '#f5f5f5', color: s.is_active ? '#2e7d32' : '#666', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>
