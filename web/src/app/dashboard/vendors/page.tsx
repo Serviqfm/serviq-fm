@@ -8,6 +8,8 @@ export default function VendorsPage() {
   const [vendors, setVendors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchVendors() }, [])
@@ -23,9 +25,32 @@ export default function VendorsPage() {
     setLoading(false)
   }
 
+  async function deleteSelected() {
+    if (!confirm('Delete ' + selected.length + ' vendor(s)? This cannot be undone.')) return
+    setDeleting(true)
+    await supabase.from('vendors').delete().in('id', selected)
+    setSelected([])
+    await fetchVendors()
+    setDeleting(false)
+  }
+
+  async function deleteOne(id: string) {
+    if (!confirm('Delete this vendor?')) return
+    await supabase.from('vendors').delete().eq('id', id)
+    fetchVendors()
+  }
+
   async function toggleActive(id: string, current: boolean) {
     await supabase.from('vendors').update({ is_active: !current }).eq('id', id)
     fetchVendors()
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function toggleSelectAll() {
+    setSelected(prev => prev.length === filtered.length ? [] : filtered.map(v => v.id))
   }
 
   const filtered = vendors.filter(v =>
@@ -35,8 +60,8 @@ export default function VendorsPage() {
   )
 
   const stars = (rating: number) => {
-    if (!rating) return ''
-    return Array.from({ length: 5 }, (_, i) => i < Math.round(rating) ? '' : '').join('')
+    if (!rating) return '—'
+    return Array.from({ length: 5 }, (_, i) => i < Math.round(rating) ? '★' : '☆').join('')
   }
 
   return (
@@ -47,22 +72,23 @@ export default function VendorsPage() {
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{vendors.length} vendors registered</p>
         </div>
         <Link href='/dashboard/vendors/new'>
-          <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-            + Add Vendor
-          </button>
+          <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>+ Add Vendor</button>
         </Link>
       </div>
 
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder='Search by company name, contact, or specialisation...'
-        style={{ width: '100%', padding: '9px 14px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: '1.5rem', boxSizing: 'border-box' }}
-      />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder='Search by company name, contact, or specialisation...' style={{ width: '100%', padding: '9px 14px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: '1rem', boxSizing: 'border-box' }} />
 
-      {loading ? (
-        <p style={{ color: '#999' }}>Loading...</p>
-      ) : filtered.length === 0 ? (
+      {selected.length > 0 && (
+        <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} vendor(s) selected</span>
+          <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+            {deleting ? 'Deleting...' : 'Delete Selected'}
+          </button>
+          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>Cancel</button>
+        </div>
+      )}
+
+      {loading ? <p style={{ color: '#999' }}>Loading...</p> : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: '#999' }}>
           <p style={{ fontSize: 18, marginBottom: 8 }}>No vendors yet</p>
           <p style={{ fontSize: 14 }}>Add your first vendor to assign them to work orders</p>
@@ -72,23 +98,28 @@ export default function VendorsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                {['Company','Contact','Phone','Specialisation','Rating','VAT No.','Status','Actions'].map(h => (
+                <th style={{ padding: '12px 16px', width: 40 }}>
+                  <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
+                </th>
+                {['Company','Contact','Phone','Specialisation','Rating','Status','Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((v, i) => (
-                <tr key={v.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                <tr key={v.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(v.id) ? '#fff3f3' : i % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <td style={{ padding: '12px 16px' }}>
+                    <input type='checkbox' checked={selected.includes(v.id)} onChange={() => toggleSelect(v.id)} />
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
                     <Link href={'/dashboard/vendors/' + v.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>{v.company_name}</Link>
                     {v.company_name_ar && <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0', direction: 'rtl' }}>{v.company_name_ar}</p>}
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.contact_name ?? ''}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.phone ?? ''}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.specialisation ?? ''}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.contact_name ?? '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.phone ?? '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.specialisation ?? '—'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#f57f17' }}>{stars(v.average_rating)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666', fontFamily: 'monospace' }}>{v.vat_number ?? ''}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ background: v.is_active ? '#e8f5e9' : '#f5f5f5', color: v.is_active ? '#2e7d32' : '#666', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>
                       {v.is_active ? 'Active' : 'Inactive'}
@@ -97,11 +128,15 @@ export default function VendorsPage() {
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <Link href={'/dashboard/vendors/' + v.id}>
-                        <button style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}>View</button>
+                        <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>View</button>
                       </Link>
-                      <button onClick={() => toggleActive(v.id, v.is_active)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>
+                      <Link href={'/dashboard/vendors/' + v.id + '/edit'}>
+                        <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>Edit</button>
+                      </Link>
+                      <button onClick={() => toggleActive(v.id, v.is_active)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11, color: '#666' }}>
                         {v.is_active ? 'Deactivate' : 'Activate'}
                       </button>
+                      <button onClick={() => deleteOne(v.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>Delete</button>
                     </div>
                   </td>
                 </tr>

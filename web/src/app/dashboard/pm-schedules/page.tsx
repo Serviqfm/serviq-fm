@@ -9,6 +9,8 @@ export default function PMSchedulesPage() {
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchSchedules() }, [])
@@ -65,6 +67,29 @@ export default function PMSchedulesPage() {
       fetchSchedules()
     }
     setGenerating(null)
+  }
+
+  async function deleteSelected() {
+    if (!confirm('Delete ' + selected.length + ' schedule(s)?')) return
+    setDeleting(true)
+    await supabase.from('pm_schedules').delete().in('id', selected)
+    setSelected([])
+    await fetchSchedules()
+    setDeleting(false)
+  }
+
+  async function deleteOne(id: string) {
+    if (!confirm('Delete this PM schedule?')) return
+    await supabase.from('pm_schedules').delete().eq('id', id)
+    fetchSchedules()
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function toggleSelectAll() {
+    setSelected(prev => prev.length === schedules.length ? [] : schedules.map(s => s.id))
   }
 
   async function toggleActive(id: string, current: boolean) {
@@ -129,6 +154,16 @@ export default function PMSchedulesPage() {
         </Link>
       </div>
 
+      {selected.length > 0 && (
+        <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} schedule(s) selected</span>
+          <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+            {deleting ? 'Deleting...' : 'Delete Selected'}
+          </button>
+          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>Cancel</button>
+        </div>
+      )}
+
       {loading ? (
         <p style={{ color: '#999' }}>Loading...</p>
       ) : schedules.length === 0 ? (
@@ -141,7 +176,10 @@ export default function PMSchedulesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                {['Schedule','Asset','Frequency','Assigned To','Next Due','Compliance','Status','Actions'].map(h => (
+                <th style={{ padding: '12px 16px', width: 40 }}>
+                <input type='checkbox' checked={selected.length === schedules.length && schedules.length > 0} onChange={toggleSelectAll} />
+              </th>
+              {['Schedule','Asset','Frequency','Assigned To','Next Due','Compliance','Status','Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -151,7 +189,10 @@ export default function PMSchedulesPage() {
                 const due = isDue(s)
                 const soon = isDueSoon(s)
                 return (
-                  <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0', background: due && s.is_active ? '#fff8f8' : i % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(s.id) ? '#f3f4fd' : due && s.is_active ? '#fff8f8' : i % 2 === 0 ? 'white' : '#fafafa' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <input type='checkbox' checked={selected.includes(s.id)} onChange={() => toggleSelect(s.id)} />
+                    </td>
                     <td style={{ padding: '12px 16px' }}>
                       <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{s.title}</p>
                       {s.description && <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{s.description.slice(0, 60)}{s.description.length > 60 ? '...' : ''}</p>}
@@ -184,9 +225,13 @@ export default function PMSchedulesPage() {
                             {generating === s.id ? '...' : 'Generate WO'}
                           </button>
                         )}
+                        <a href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
+                          <button style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                        </a>
                         <button onClick={() => toggleActive(s.id, s.is_active)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', color: '#666', cursor: 'pointer', fontSize: 12 }}>
                           {s.is_active ? 'Pause' : 'Resume'}
                         </button>
+                        <button onClick={() => deleteOne(s.id)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 12 }}>Delete</button>
                       </div>
                     </td>
                   </tr>

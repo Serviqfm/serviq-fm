@@ -11,9 +11,34 @@ export default function AssetsPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [selected, setSelected] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchAssets() }, [categoryFilter, statusFilter])
+
+  async function deleteSelected() {
+    if (!confirm('Delete ' + selected.length + ' asset(s)? This cannot be undone.')) return
+    setDeleting(true)
+    await supabase.from('assets').delete().in('id', selected)
+    setSelected([])
+    await fetchAssets()
+    setDeleting(false)
+  }
+
+  async function deleteOne(id: string) {
+    if (!confirm('Delete this asset?')) return
+    await supabase.from('assets').delete().eq('id', id)
+    fetchAssets()
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function toggleSelectAll() {
+    setSelected(prev => prev.length === filtered.length ? [] : filtered.map(a => a.id))
+  }
 
   async function fetchAssets() {
     setLoading(true)
@@ -105,6 +130,16 @@ export default function AssetsPage() {
         ))}
       </div>
 
+      {selected.length > 0 && (
+        <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} asset(s) selected</span>
+          <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+            {deleting ? 'Deleting...' : 'Delete Selected'}
+          </button>
+          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>Cancel</button>
+        </div>
+      )}
+
       {loading ? (
         <p style={{ color: '#999' }}>Loading...</p>
       ) : filtered.length === 0 ? (
@@ -117,7 +152,10 @@ export default function AssetsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                {['Asset Name','Category','Site','Serial Number','Status','Warranty Expiry','Added'].map(h => (
+                <th style={{ padding: '12px 16px', width: 40 }}>
+                <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
+              </th>
+              {['Asset Name','Category','Site','Serial Number','Status','Warranty Expiry','Added','Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -128,7 +166,10 @@ export default function AssetsPage() {
                 const warningSoon = isWarrantyExpiringSoon(asset.warranty_expiry)
                 const expired = isWarrantyExpired(asset.warranty_expiry)
                 return (
-                  <tr key={asset.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <tr key={asset.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(asset.id) ? '#f3f4fd' : i % 2 === 0 ? 'white' : '#fafafa' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <input type='checkbox' checked={selected.includes(asset.id)} onChange={() => toggleSelect(asset.id)} />
+                    </td>
                     <td style={{ padding: '12px 16px' }}>
                       <Link href={'/dashboard/assets/' + asset.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>
                         {asset.name}
@@ -151,6 +192,14 @@ export default function AssetsPage() {
                       ) : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{format(new Date(asset.created_at), 'dd MMM yyyy')}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <a href={'/dashboard/assets/' + asset.id + '/edit'}>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>Edit</button>
+                        </a>
+                        <button onClick={() => deleteOne(asset.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>Delete</button>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
