@@ -14,6 +14,7 @@ export default function EditWorkOrderPage() {
   const [assets, setAssets] = useState<any[]>([])
   const [sites, setSites] = useState<any[]>([])
   const [technicians, setTechnicians] = useState<any[]>([])
+  const [vendors, setVendors] = useState<any[]>([])
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -42,11 +43,13 @@ export default function EditWorkOrderPage() {
       supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
       supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
+      supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
     ])
 
     if (assetData) setAssets(assetData)
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
+    if (vendorData) setVendors(vendorData)
 
     if (wo) {
       setForm({
@@ -164,7 +167,12 @@ export default function EditWorkOrderPage() {
             <label style={labelStyle}>Assign To</label>
             <select name='assigned_to' value={form.assigned_to} onChange={handleChange} style={fieldStyle}>
               <option value=''>Unassigned</option>
-              {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              {technicians.length > 0 && <optgroup label='Internal Technicians'>
+                {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </optgroup>}
+              {vendors.length > 0 && <optgroup label='External Vendors'>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+              </optgroup>}
             </select>
           </div>
           <div>

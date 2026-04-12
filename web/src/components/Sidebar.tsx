@@ -11,12 +11,13 @@ const navItems = [
   { label: 'Assets', href: '/dashboard/assets', icon: 'A', badge: '', exact: false },
   { label: 'PM Schedules', href: '/dashboard/pm-schedules', icon: 'P', badge: 'due', exact: false },
   { label: 'Sites', href: '/dashboard/sites', icon: 'S', badge: '', exact: false },
+  { label: 'Vendors', href: '/dashboard/vendors', icon: 'N', badge: '', exact: false },
 ]
 
 const soonItems = [
   { label: 'Inspections', icon: 'I' },
   { label: 'Inventory', icon: 'V' },
-  { label: 'Vendors', icon: 'N' },
+
 ]
 
 export default function Sidebar() {

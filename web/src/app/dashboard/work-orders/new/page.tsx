@@ -12,6 +12,7 @@ export default function NewWorkOrderPage() {
   const [assets, setAssets] = useState<any[]>([])
   const [sites, setSites] = useState<any[]>([])
   const [technicians, setTechnicians] = useState<any[]>([])
+  const [vendors, setVendors] = useState<any[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
   const [duplicateWarning, setDuplicateWarning] = useState('')
@@ -38,14 +39,16 @@ export default function NewWorkOrderPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
     const orgId = profile.organisation_id
-    const [{ data: assetData }, { data: siteData }, { data: techData }] = await Promise.all([
+    const [{ data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }] = await Promise.all([
       supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
       supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
+      supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
     ])
     if (assetData) setAssets(assetData)
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
+    if (vendorData) setVendors(vendorData)
   }
 
   async function checkDuplicate(assetId: string, title: string) {
