@@ -38,7 +38,7 @@ export default function EditWorkOrderPage() {
     if (!profile) return
     const orgId = profile.organisation_id
 
-    const [{ data: wo }, { data: assetData }, { data: siteData }, { data: techData }] = await Promise.all([
+    const [{ data: wo }, { data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }] = await Promise.all([
       supabase.from('work_orders').select('*').eq('id', id).single(),
       supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),

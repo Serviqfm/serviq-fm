@@ -13,11 +13,12 @@ const navItems = [
   { label: 'Sites', href: '/dashboard/sites', icon: 'S', badge: '', exact: false },
   { label: 'Vendors', href: '/dashboard/vendors', icon: 'N', badge: '', exact: false },
   { label: 'Inspections', href: '/dashboard/inspections', icon: 'I', badge: '', exact: false },
+  { label: 'Inventory', href: '/dashboard/inventory', icon: 'V', badge: '', exact: false },
 ]
 
 const soonItems = [
 
-  { label: 'Inventory', icon: 'V' },
+
 
 ]
 
