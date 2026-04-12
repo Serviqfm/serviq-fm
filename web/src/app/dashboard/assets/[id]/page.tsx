@@ -13,7 +13,7 @@ export default function AssetDetailPage() {
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [pmSchedules, setPmSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom'>('details')
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -75,6 +75,9 @@ export default function AssetDetailPage() {
   return (
     <div style={{ padding: '2rem', maxWidth: 900, margin: '0 auto' }}>
       <a href='/dashboard/assets' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Assets</a>
+      <a href={'/dashboard/assets/' + id + '/edit'}>
+        <button style={{ padding: '6px 16px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13 }}>Edit Asset</button>
+      </a>
 
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -106,6 +109,29 @@ export default function AssetDetailPage() {
         <Link href={'/dashboard/work-orders/new?asset_id=' + asset.id}>
           <button style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>+ New Work Order</button>
         </Link>
+        {asset.status !== 'retired' && (
+          <button
+            onClick={async () => {
+              if (!confirm('Decommission this asset? This will retire it and suspend all active PM schedules.')) return
+              await supabase.from('assets').update({ status: 'retired', updated_at: new Date().toISOString() }).eq('id', id)
+              await supabase.from('pm_schedules').update({ is_active: false }).eq('asset_id', id)
+              await supabase.from('work_orders').insert({
+                title: 'Decommission: ' + asset.name,
+                description: 'Final decommission work order. Asset has been retired.',
+                priority: 'medium',
+                status: 'new',
+                source: 'manual',
+                asset_id: id,
+                organisation_id: asset.organisation_id,
+                created_by: (await supabase.auth.getUser()).data.user?.id,
+              })
+              fetchAll()
+            }}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #c62828', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 13 }}
+          >
+            Decommission Asset
+          </button>
+        )}
       </div>
 
       <div style={{ borderBottom: '1px solid #eee', marginBottom: '1rem', display: 'flex', flexWrap: 'wrap' }}>
@@ -114,6 +140,7 @@ export default function AssetDetailPage() {
         <button style={tabStyle(activeTab === 'pm')} onClick={() => setActiveTab('pm')}>PM Schedules ({pmSchedules.length})</button>
         <button style={tabStyle(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
         <button style={tabStyle(activeTab === 'qr')} onClick={() => setActiveTab('qr')}>QR Code</button>
+        <button style={tabStyle(activeTab === 'custom')} onClick={() => setActiveTab('custom')}>Custom Fields</button>
       </div>
 
       {activeTab === 'details' && (
@@ -245,6 +272,62 @@ export default function AssetDetailPage() {
           <button onClick={() => window.print()} style={{ marginTop: '1rem', padding: '8px 20px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Print QR Code</button>
         </div>
       )}
+      {activeTab === 'custom' && (
+        <CustomFieldsTab assetId={id as string} initialFields={asset.custom_fields ?? {}} supabase={supabase} />
+      )}
+    </div>
+  )
+}
+
+function CustomFieldsTab({ assetId, initialFields, supabase }: { assetId: string; initialFields: Record<string, string>; supabase: any }) {
+  const [fields, setFields] = useState<Record<string, string>>(initialFields)
+  const [newKey, setNewKey] = useState('')
+  const [newValue, setNewValue] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function addField() {
+    if (!newKey.trim()) return
+    const updated = { ...fields, [newKey.trim()]: newValue.trim() }
+    setSaving(true)
+    await supabase.from('assets').update({ custom_fields: updated }).eq('id', assetId)
+    setFields(updated)
+    setNewKey('')
+    setNewValue('')
+    setSaving(false)
+  }
+
+  async function removeField(key: string) {
+    const updated = { ...fields }
+    delete updated[key]
+    await supabase.from('assets').update({ custom_fields: updated }).eq('id', assetId)
+    setFields(updated)
+  }
+
+  const inputStyle = { padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, flex: 1 }
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: '#666', marginBottom: '1rem' }}>Add custom fields to capture asset-specific data like hotel room number, classroom ID, or target temperature.</p>
+      {Object.keys(fields).length === 0 ? (
+        <p style={{ fontSize: 13, color: '#999', marginBottom: '1rem' }}>No custom fields yet.</p>
+      ) : (
+        <div style={{ marginBottom: '1rem' }}>
+          {Object.entries(fields).map(([key, value]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, background: '#f9f9f9', borderRadius: 8, padding: '8px 12px' }}>
+              <span style={{ fontSize: 13, fontWeight: 500, minWidth: 150 }}>{key}</span>
+              <span style={{ fontSize: 13, color: '#666', flex: 1 }}>{value}</span>
+              <button onClick={() => removeField(key)} style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 13 }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder='Field name (e.g. Room Number)' style={inputStyle} />
+        <input value={newValue} onChange={e => setNewValue(e.target.value)} placeholder='Value (e.g. 204)' style={inputStyle} />
+        <button onClick={addField} disabled={saving || !newKey.trim()} style={{ padding: '8px 18px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+          {saving ? '...' : 'Add Field'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -66,6 +66,16 @@ export default function AssetsPage() {
           <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Assets</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{assets.length} total assets registered</p>
         </div>
+        <Link href='/dashboard/assets/import'>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+            Import CSV
+          </button>
+        </Link>
+        <Link href='/dashboard/assets/export'>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
+            Export
+          </button>
+        </Link>
         <Link href='/dashboard/assets/new'>
           <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
             + Add Asset
