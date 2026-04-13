@@ -14,10 +14,13 @@ export default function VendorDetailPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'invoices'>('details')
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+  const [invoiceForm, setInvoiceForm] = useState({ invoice_number: '', amount: '', description: '', invoice_date: '', work_order_id: '' })
+  const [savingInvoice, setSavingInvoice] = useState(false)
   const [rating, setRating] = useState(0)
   const [savingRating, setSavingRating] = useState(false)
 
-  useEffect(() => { fetchAll() }, [id])
+  useEffect(() => { fetchAll(); fetchVendorWOs() }, [id])
 
   async function fetchAll() {
     const [{ data: v }, { data: wos }, { data: inv }] = await Promise.all([
@@ -40,6 +43,35 @@ export default function VendorDetailPage() {
 
   if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>
   if (!vendor) return <div style={{ padding: '2rem' }}>Vendor not found.</div>
+
+  async function fetchVendorWOs() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+    if (!profile) return
+    const { data } = await supabase.from('work_orders').select('id, title').eq('organisation_id', profile.organisation_id).eq('assigned_vendor_id', id as string).order('created_at', { ascending: false })
+    if (data) setWorkOrders(data)
+  }
+
+  async function saveInvoice(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingInvoice(true)
+    const { error } = await supabase.from('vendor_invoices').insert({
+      vendor_id: id,
+      invoice_number: invoiceForm.invoice_number,
+      amount: parseFloat(invoiceForm.amount),
+      description: invoiceForm.description || null,
+      invoice_date: invoiceForm.invoice_date || null,
+      work_order_id: invoiceForm.work_order_id || null,
+      status: 'pending',
+    })
+    if (!error) {
+      setInvoiceForm({ invoice_number: '', amount: '', description: '', invoice_date: '', work_order_id: '' })
+      setShowInvoiceForm(false)
+      fetchAll()
+    }
+    setSavingInvoice(false)
+  }
 
   const tabStyle = (active: boolean) => ({
     padding: '8px 16px', border: 'none',
@@ -106,7 +138,7 @@ export default function VendorDetailPage() {
           <div style={{ display: 'flex', gap: 4 }}>
             {[1,2,3,4,5].map(star => (
               <button key={star} onClick={() => saveRating(star)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, color: star <= rating ? '#f57f17' : '#ddd', padding: 0 }}>
-                
+                {star <= rating ? '★' : '☆'}
               </button>
             ))}
           </div>
@@ -179,8 +211,51 @@ export default function VendorDetailPage() {
 
       {activeTab === 'invoices' && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{invoices.length} invoice{invoices.length !== 1 ? 's' : ''}</p>
+            <button onClick={() => setShowInvoiceForm(!showInvoiceForm)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+              {showInvoiceForm ? 'Cancel' : '+ Add Invoice'}
+            </button>
+          </div>
+
+          {showInvoiceForm && (
+            <form onSubmit={saveInvoice} style={{ background: '#f9f9f9', borderRadius: 10, padding: '1.25rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>New Invoice</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Invoice Number *</label>
+                  <input value={invoiceForm.invoice_number} onChange={e => setInvoiceForm(p => ({ ...p, invoice_number: e.target.value }))} required placeholder='INV-2024-001' style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Amount (SAR) *</label>
+                  <input type='number' value={invoiceForm.amount} onChange={e => setInvoiceForm(p => ({ ...p, amount: e.target.value }))} required placeholder='0.00' min='0' step='0.01' style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' as const }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Invoice Date</label>
+                  <input type='date' value={invoiceForm.invoice_date} onChange={e => setInvoiceForm(p => ({ ...p, invoice_date: e.target.value }))} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Linked Work Order</label>
+                  <select value={invoiceForm.work_order_id} onChange={e => setInvoiceForm(p => ({ ...p, work_order_id: e.target.value }))} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, background: 'white', boxSizing: 'border-box' as const }}>
+                    <option value=''>None</option>
+                    {workOrders.map(wo => <option key={wo.id} value={wo.id}>{wo.title}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Description</label>
+                <input value={invoiceForm.description} onChange={e => setInvoiceForm(p => ({ ...p, description: e.target.value }))} placeholder='e.g. HVAC service — 3 units' style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' as const }} />
+              </div>
+              <button type='submit' disabled={savingInvoice} style={{ padding: '9px', background: '#2e7d32', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, opacity: savingInvoice ? 0.7 : 1 }}>
+                {savingInvoice ? 'Saving...' : 'Save Invoice'}
+              </button>
+            </form>
+          )}
+
           {invoices.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#999' }}>No invoices recorded for this vendor yet.</p>
+            <p style={{ fontSize: 13, color: '#999' }}>No invoices yet. Click Add Invoice to record one.</p>
           ) : (
             <div style={{ border: '1px solid #eee', borderRadius: 12, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>

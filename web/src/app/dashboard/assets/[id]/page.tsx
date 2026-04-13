@@ -13,7 +13,8 @@ export default function AssetDetailPage() {
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [pmSchedules, setPmSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory'>('details')
+  const [pmHistory, setPmHistory] = useState<any[]>([])
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -140,6 +141,7 @@ export default function AssetDetailPage() {
         <button style={tabStyle(activeTab === 'pm')} onClick={() => setActiveTab('pm')}>PM Schedules ({pmSchedules.length})</button>
         <button style={tabStyle(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
         <button style={tabStyle(activeTab === 'qr')} onClick={() => setActiveTab('qr')}>QR Code</button>
+        <button style={tabStyle(activeTab === 'pmhistory')} onClick={() => setActiveTab('pmhistory')}>PM History ({pmHistory.length})</button>
         <button style={tabStyle(activeTab === 'custom')} onClick={() => setActiveTab('custom')}>Custom Fields</button>
       </div>
 
@@ -272,6 +274,43 @@ export default function AssetDetailPage() {
           <button onClick={() => window.print()} style={{ marginTop: '1rem', padding: '8px 20px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Print QR Code</button>
         </div>
       )}
+      {activeTab === 'pmhistory' && (
+        <div>
+          <p style={{ fontSize: 13, color: '#666', marginBottom: '1rem' }}>All completed preventive maintenance tasks for this asset.</p>
+          {pmHistory.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#999' }}>No PM history yet. PMs will appear here once completed.</p>
+          ) : (
+            <div style={{ border: '1px solid #eee', borderRadius: 10, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
+                    {['Task','Schedule','Technician','Status','Due Date','Completed'].map(h => (
+                      <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pmHistory.map((pm: any, i: number) => (
+                    <tr key={pm.id} style={{ borderBottom: '1px solid #f5f5f5', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 500 }}>{pm.title ?? pm.schedule?.title ?? '—'}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: '#666' }}>{pm.schedule?.frequency ?? '—'}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: '#666' }}>{pm.technician?.full_name ?? 'Unassigned'}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span style={{ background: pm.status === 'completed' ? '#e8f5e9' : pm.status === 'overdue' ? '#fce4ec' : '#fff8e1', color: pm.status === 'completed' ? '#2e7d32' : pm.status === 'overdue' ? '#b71c1c' : '#f57f17', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 500 }}>
+                          {pm.status?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: '#666' }}>{pm.due_date ? new Date(pm.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: '#666' }}>{pm.completed_at ? new Date(pm.completed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'custom' && (
         <CustomFieldsTab assetId={id as string} initialFields={asset.custom_fields ?? {}} supabase={supabase} />
       )}
