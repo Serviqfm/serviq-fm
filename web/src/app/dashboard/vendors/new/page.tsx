@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function NewVendorPage() {
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -54,8 +56,8 @@ export default function NewVendorPage() {
   return (
     <div style={{ padding: '2rem', maxWidth: 600, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href='/dashboard/vendors' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Vendors</a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>Add New Vendor</h1>
+        <a href='/dashboard/vendors' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{lang === 'ar' ? 'رجوع للموردين' : 'Back to Vendors'}</a>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>{lang === 'ar' ? 'إضافة مورد جديد' : 'Add New Vendor'}</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
@@ -63,27 +65,27 @@ export default function NewVendorPage() {
           <input name='company_name' value={form.company_name} onChange={handleChange} required placeholder='e.g. Al Faris Technical Services' style={fieldStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Company Name (Arabic)</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'اسم الشركة (عربي)' : 'Company Name (Arabic)'}</label>
           <input name='company_name_ar' value={form.company_name_ar} onChange={handleChange} placeholder='اسم الشركة بالعربية' style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Contact Name</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'اسم جهة الاتصال' : 'Contact Name'}</label>
             <input name='contact_name' value={form.contact_name} onChange={handleChange} placeholder='e.g. Ahmed Al-Rashid' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Phone</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الهاتف' : 'Phone'}</label>
             <input name='phone' value={form.phone} onChange={handleChange} placeholder='e.g. +966 50 000 0000' style={fieldStyle} />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Email</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</label>
           <input name='email' type='email' value={form.email} onChange={handleChange} placeholder='e.g. info@vendor.com' style={fieldStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Specialisation</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'التخصص' : 'Specialisation'}</label>
           <select name='specialisation' value={form.specialisation} onChange={handleChange} style={fieldStyle}>
-            <option value=''>Select specialisation</option>
+            <option value=''>{lang === 'ar' ? 'اختر التخصص' : 'Select specialisation'}</option>
             <option value='HVAC'>HVAC</option>
             <option value='Electrical'>Electrical</option>
             <option value='Plumbing'>Plumbing</option>
@@ -100,17 +102,17 @@ export default function NewVendorPage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>VAT Number</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الرقم الضريبي' : 'VAT Number'}</label>
             <input name='vat_number' value={form.vat_number} onChange={handleChange} placeholder='e.g. 300000000000003' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>CR Number</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'رقم السجل التجاري' : 'CR Number'}</label>
             <input name='cr_number' value={form.cr_number} onChange={handleChange} placeholder='e.g. 1010000000' style={fieldStyle} />
           </div>
         </div>
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <button type='submit' disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Saving...' : 'Save Vendor'}
+          {loading ? t('common.saving') : t('common.save')}
         </button>
       </form>
     </div>

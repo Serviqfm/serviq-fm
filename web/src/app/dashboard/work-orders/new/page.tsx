@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -131,8 +133,8 @@ export default function NewWorkOrderPage() {
   return (
     <div style={{ padding: '2rem', maxWidth: 680, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href="/dashboard/work-orders" style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Work Orders</a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>New Work Order</h1>
+        <a href="/dashboard/work-orders" style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{t('common.back')}</a>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>{t('wo.new')}</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
@@ -140,51 +142,51 @@ export default function NewWorkOrderPage() {
           <input name="title" value={form.title} onChange={handleChange} required placeholder="e.g. AC unit not cooling - Room 204" style={fieldStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Description</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'الوصف' : 'Description'}</label>
           <textarea name="description" value={form.description} onChange={handleChange} rows={3} placeholder="Describe the issue in detail..." style={{ ...fieldStyle, resize: 'vertical' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>Priority *</label>
             <select name="priority" value={form.priority} onChange={handleChange} style={fieldStyle}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
+              <option value="low">{t('wo.priority.low')}</option>
+              <option value="medium">{t('wo.priority.medium')}</option>
+              <option value="high">{t('wo.priority.high')}</option>
+              <option value="critical">{t('wo.priority.critical')}</option>
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Category</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الفئة' : 'Category'}</label>
             <select name="category" value={form.category} onChange={handleChange} style={fieldStyle}>
-              <option value="">Select category</option>
-              <option value="HVAC">HVAC</option>
-              <option value="Electrical">Electrical</option>
-              <option value="Plumbing">Plumbing</option>
+              <option value="">{lang === 'ar' ? 'اختر الفئة' : 'Select category'}</option>
+              <option value="HVAC">{t('cat.hvac')}</option>
+              <option value="Electrical">{t('cat.electrical')}</option>
+              <option value="Plumbing">{t('cat.plumbing')}</option>
               <option value="Elevator / Lift">Elevator / Lift</option>
-              <option value="Fire Safety">Fire Safety</option>
+              <option value="Fire Safety">{t('cat.fire')}</option>
               <option value="Furniture">Furniture</option>
               <option value="Kitchen Equipment">Kitchen Equipment</option>
               <option value="Pool / Gym">Pool / Gym</option>
               <option value="IT Equipment">IT Equipment</option>
               <option value="Signage">Signage</option>
               <option value="Vehicle">Vehicle</option>
-              <option value="Other">Other</option>
+              <option value="Other">{t('cat.other')}</option>
             </select>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Site / Location</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site / Location'}</label>
             <select name="site_id" value={form.site_id} onChange={handleChange} style={fieldStyle}>
-              <option value="">Select site</option>
+              <option value="">{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             {sites.length === 0 && <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>No sites added yet</p>}
           </div>
           <div>
-            <label style={labelStyle}>Asset</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الأصل' : 'Asset'}</label>
             <select name="asset_id" value={form.asset_id} onChange={handleChange} style={fieldStyle}>
-              <option value="">Select asset</option>
+              <option value="">{lang === 'ar' ? 'اختر الأصل' : 'Select asset'}</option>
               {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
             {assets.length === 0 && <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>No assets added yet</p>}
@@ -197,19 +199,19 @@ export default function NewWorkOrderPage() {
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Assign To</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'تعيين إلى' : 'Assign To'}</label>
             <select name="assigned_to" value={form.assigned_to} onChange={handleChange} style={fieldStyle}>
-              <option value="">Unassigned</option>
+              <option value="">{t('common.unassigned')}</option>
               {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>SLA (hours to resolve)</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'ساعات الخدمة' : 'SLA (hours to resolve)'}</label>
             <input name="sla_hours" type="number" value={form.sla_hours} onChange={handleChange} placeholder="e.g. 24" min="1" style={fieldStyle} />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Due Date</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'تاريخ الاستحقاق' : 'Due Date'}</label>
           <input name="due_at" type="datetime-local" value={form.due_at} onChange={handleChange} style={fieldStyle} />
         </div>
         <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem' }}>
@@ -262,7 +264,7 @@ export default function NewWorkOrderPage() {
         </div>
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <button type="submit" disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Creating...' : 'Create Work Order'}
+          {loading ? t('common.saving') : t('wo.new')}
         </button>
       </form>
     </div>

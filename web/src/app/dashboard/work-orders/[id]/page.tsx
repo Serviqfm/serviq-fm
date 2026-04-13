@@ -17,6 +17,8 @@ export default function WorkOrderDetailPage() {
   const [comment, setComment] = useState('')
   const [comments, setComments] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
+  const { lang } = useLanguage()
+  const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
   const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'photos' | 'parts' | 'activity'>('comments')
   const [inventoryItems, setInventoryItems] = useState<any[]>([])
   const [partsUsed, setPartsUsed] = useState<any[]>([])
@@ -256,7 +258,20 @@ export default function WorkOrderDetailPage() {
       {/* Title */}
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>{wo.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
+          {lang === 'ar' && (
+            <TranslateButton
+              texts={{ title: wo.title, description: wo.description ?? '' }}
+              onTranslated={setTranslatedWO}
+            />
+          )}
+        </div>
+        {translatedWO.description && lang === 'ar' && (
+          <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', direction: 'rtl', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
+            {translatedWO.description}
+          </p>
+        )}
           <PriorityBadge priority={wo.priority} />
           <StatusBadge status={wo.status} />
           {(wo as any).category && (

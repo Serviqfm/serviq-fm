@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function InspectionsPage() {
   const [inspections, setInspections] = useState<any[]>([])
@@ -13,6 +14,7 @@ export default function InspectionsPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
+  const { t } = useLanguage()
 
   useEffect(() => { fetchAll() }, [])
 
@@ -83,15 +85,15 @@ export default function InspectionsPage() {
     <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Inspections</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('insp.title')}</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{inspections.length} inspections · {templates.length} templates</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href='/dashboard/inspections/templates/new'>
-            <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>+ New Template</button>
+            <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>{t('btn.new_template')}</button>
           </Link>
           <Link href='/dashboard/inspections/new'>
-            <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>+ Start Inspection</button>
+            <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>{t('btn.start_inspection')}</button>
           </Link>
         </div>
       </div>
@@ -107,7 +109,7 @@ export default function InspectionsPage() {
             <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} inspection(s) selected</span>
               <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
-                {deleting ? 'Deleting...' : 'Delete Selected'}
+                {deleting ? 'Deleting...' : t('btn.delete_selected')}
               </button>
               <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>Cancel</button>
             </div>
@@ -126,7 +128,7 @@ export default function InspectionsPage() {
                     <th style={{ padding: '12px 16px', width: 40 }}>
                       <input type='checkbox' checked={selected.length === inspections.length && inspections.length > 0} onChange={toggleSelectAll} />
                     </th>
-                    {['Template','Vertical','Site','Asset','Conducted By','Result','Status','Date','Actions'].map(h => (
+                    {[t('insp.col.template'),t('insp.col.vertical'),'Site','Asset',t('insp.col.by'),t('insp.col.result'),'Status','Date','Actions'].map(h => (
                       <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                     ))}
                   </tr>
@@ -168,7 +170,7 @@ export default function InspectionsPage() {
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <Link href={'/dashboard/inspections/' + insp.id}>
-                              <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>View</button>
+                              <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>{t('common.view')}</button>
                             </Link>
                             <button
                               onClick={async () => {
@@ -213,10 +215,10 @@ export default function InspectionsPage() {
                   {t.is_default && <span style={{ fontSize: 11, background: '#e8eaf6', color: '#283593', padding: '2px 8px', borderRadius: 6 }}>Default template</span>}
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     <Link href={'/dashboard/inspections/new?template=' + t.id} style={{ flex: 1 }}>
-                      <button style={{ width: '100%', padding: '7px', borderRadius: 7, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Use Template</button>
+                      <button style={{ width: '100%', padding: '7px', borderRadius: 7, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>{t('insp.new')}</button>
                     </Link>
                     <Link href={'/dashboard/inspections/templates/' + t.id + '/edit'}>
-                      <button style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                      <button style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}>{t('common.edit')}</button>
                     </Link>
                     <button
                       onClick={() => deleteTemplate(t.id)}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function PMSchedulesPage() {
   const [schedules, setSchedules] = useState<any[]>([])
@@ -12,6 +13,7 @@ export default function PMSchedulesPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
+  const { t, lang } = useLanguage()
 
   useEffect(() => { fetchSchedules() }, [])
 
@@ -120,31 +122,23 @@ export default function PMSchedulesPage() {
     <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Preventive Maintenance</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('pm.title')}</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
             {stats.total} schedules Â· {stats.active} active
-            {stats.due > 0 && <span style={{ color: '#c62828' }}> Â· {stats.due} overdue</span>}
+            {stats.due > 0 && <span style={{ color: '#c62828' }}> · {stats.due} {t('wo.overdue')}</span>}
             {stats.soon > 0 && <span style={{ color: '#f57f17' }}> Â· {stats.soon} due this week</span>}
           </p>
         </div>
+        
+        
         <Link href='/dashboard/pm-schedules/calendar'>
           <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
-            Calendar
+            {t('pm.calendar')}
           </button>
         </Link>
         <Link href='/dashboard/pm-schedules/compliance'>
           <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
-            Compliance
-          </button>
-        </Link>
-        <Link href='/dashboard/pm-schedules/calendar'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
-            Calendar
-          </button>
-        </Link>
-        <Link href='/dashboard/pm-schedules/compliance'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
-            Compliance
+            {t('pm.compliance')}
           </button>
         </Link>
         <Link href='/dashboard/pm-schedules/new'>
@@ -158,7 +152,7 @@ export default function PMSchedulesPage() {
         <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} schedule(s) selected</span>
           <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
-            {deleting ? 'Deleting...' : 'Delete Selected'}
+            {deleting ? 'Deleting...' : t('btn.delete_selected')}
           </button>
           <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>Cancel</button>
         </div>
@@ -168,7 +162,7 @@ export default function PMSchedulesPage() {
         <p style={{ color: '#999' }}>Loading...</p>
       ) : schedules.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: '#999' }}>
-          <p style={{ fontSize: 18, marginBottom: 8 }}>No PM schedules yet</p>
+          <p style={{ fontSize: 18, marginBottom: 8 }}>{t('pm.no_schedules')}</p>
           <p style={{ fontSize: 14 }}>Create your first preventive maintenance schedule to get started</p>
         </div>
       ) : (
@@ -179,7 +173,7 @@ export default function PMSchedulesPage() {
                 <th style={{ padding: '12px 16px', width: 40 }}>
                 <input type='checkbox' checked={selected.length === schedules.length && schedules.length > 0} onChange={toggleSelectAll} />
               </th>
-              {['Schedule','Asset','Frequency','Assigned To','Next Due','Compliance','Status','Actions'].map(h => (
+              {[t('pm.col.schedule'),'Asset',t('pm.col.freq'),t('wo.col.assigned'),t('pm.col.due'),t('pm.compliance'),'Status','Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -203,7 +197,7 @@ export default function PMSchedulesPage() {
                         {freqLabel[s.frequency] ?? s.frequency}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.assignee?.full_name ?? 'Unassigned'}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.assignee?.full_name ?? t('common.unassigned')}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13 }}>
                       {s.next_due_at ? (
                         <span style={{ color: due ? '#c62828' : soon ? '#f57f17' : '#666', fontWeight: due || soon ? 600 : 400 }}>
@@ -215,23 +209,23 @@ export default function PMSchedulesPage() {
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{ background: s.is_active ? '#e8f5e9' : '#f5f5f5', color: s.is_active ? '#2e7d32' : '#666', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>
-                        {s.is_active ? 'Active' : 'Paused'}
+                        {s.is_active ? t('common.active') : 'Paused'}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {s.is_active && (
                           <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #1a1a2e', background: 'white', color: '#1a1a2e', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
-                            {generating === s.id ? '...' : 'Generate WO'}
+                            {generating === s.id ? '...' : t('pm.generate')}
                           </button>
                         )}
                         <a href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
-                          <button style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                          <button style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}>{t('common.edit')}</button>
                         </a>
                         <button onClick={() => toggleActive(s.id, s.is_active)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', color: '#666', cursor: 'pointer', fontSize: 12 }}>
-                          {s.is_active ? 'Pause' : 'Resume'}
+                          {s.is_active ? t('pm.pause') : t('pm.resume')}
                         </button>
-                        <button onClick={() => deleteOne(s.id)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                        <button onClick={() => deleteOne(s.id)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 12 }}>{t('common.delete')}</button>
                       </div>
                     </td>
                   </tr>

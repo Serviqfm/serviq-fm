@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState<any[]>([])
@@ -14,6 +15,7 @@ export default function AssetsPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
+  const { t } = useLanguage()
 
   useEffect(() => { fetchAssets() }, [categoryFilter, statusFilter])
 
@@ -58,8 +60,8 @@ export default function AssetsPage() {
   )
 
   const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    active:            { bg: '#e8f5e9', color: '#2e7d32', label: 'Active' },
-    under_maintenance: { bg: '#fff8e1', color: '#f57f17', label: 'Under Maintenance' },
+    active:            { bg: '#e8f5e9', color: '#2e7d32', label: t('assets.status.active') },
+    under_maintenance: { bg: '#fff8e1', color: '#f57f17', label: t('assets.status.under_maintenance') },
     retired:           { bg: '#f5f5f5', color: '#424242', label: 'Retired' },
   }
 
@@ -88,22 +90,22 @@ export default function AssetsPage() {
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Assets</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('assets.title')}</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{assets.length} total assets registered</p>
         </div>
         <Link href='/dashboard/assets/import'>
           <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
-            Import CSV
+            {t('btn.import')}
           </button>
         </Link>
         <Link href='/dashboard/assets/export'>
           <button style={{ background: 'white', color: '#1a1a2e', padding: '8px 16px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>
-            Export
+            {t('btn.export')}
           </button>
         </Link>
         <Link href='/dashboard/assets/new'>
           <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-            + Add Asset
+            {t('btn.add_asset')}
           </button>
         </Link>
       </div>
@@ -111,22 +113,24 @@ export default function AssetsPage() {
       <input
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder='Search by name, serial number, manufacturer, or site...'
+        placeholder={t('assets.search')}
         style={{ width: '100%', padding: '9px 14px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: '1rem', boxSizing: 'border-box' }}
       />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         {['all','active','under_maintenance','retired'].map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} style={btnStyle(statusFilter === s)}>
-            {s === 'all' ? 'All Status' : s.replace('_',' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+            {s === 'all' ? t('common.all') : s === 'active' ? t('assets.status.active') : s === 'under_maintenance' ? t('assets.status.under_maintenance') : t('assets.status.retired')}
           </button>
         ))}
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <button onClick={() => setCategoryFilter('all')} style={{ ...btnStyle(categoryFilter === 'all'), fontSize: 12, padding: '4px 12px' }}>All Categories</button>
+        <button onClick={() => setCategoryFilter('all')} style={{ ...btnStyle(categoryFilter === 'all'), fontSize: 12, padding: '4px 12px' }}>{t('filter.all_cats')}</button>
         {categories.map(c => (
-          <button key={c} onClick={() => setCategoryFilter(c)} style={{ ...btnStyle(categoryFilter === c), fontSize: 12, padding: '4px 12px' }}>{c}</button>
+          <button key={c} onClick={() => setCategoryFilter(c)} style={{ ...btnStyle(categoryFilter === c), fontSize: 12, padding: '4px 12px' }}>
+              {c === 'all' ? t('common.all') : c === 'HVAC' ? t('cat.hvac') : c === 'Electrical' ? t('cat.electrical') : c === 'Plumbing' ? t('cat.plumbing') : c === 'Elevator / Lift' ? t('cat.elevator') : c === 'Fire Safety' ? t('cat.fire') : c === 'Furniture' ? t('cat.furniture') : c === 'Kitchen Equipment' ? t('cat.kitchen') : c === 'Pool / Gym' ? t('cat.pool') : c === 'IT Equipment' ? t('cat.it') : c === 'Signage' ? t('cat.signage') : c === 'Vehicle' ? t('cat.vehicle') : t('cat.other')}
+            </button>
         ))}
       </div>
 
@@ -134,7 +138,7 @@ export default function AssetsPage() {
         <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} asset(s) selected</span>
           <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
-            {deleting ? 'Deleting...' : 'Delete Selected'}
+            {deleting ? 'Deleting...' : t('btn.delete_selected')}
           </button>
           <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12, color: '#666' }}>Cancel</button>
         </div>
@@ -155,7 +159,7 @@ export default function AssetsPage() {
                 <th style={{ padding: '12px 16px', width: 40 }}>
                 <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
               </th>
-              {['Asset Name','Category','Site','Serial Number','Status','Warranty Expiry','Added','Actions'].map(h => (
+              {[t('assets.col.name'),t('assets.col.cat'),t('common.site'),t('assets.col.serial'),t('common.status'),t('assets.col.warranty'),t('assets.col.added'),t('common.actions')].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -195,9 +199,9 @@ export default function AssetsPage() {
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <a href={'/dashboard/assets/' + asset.id + '/edit'}>
-                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>Edit</button>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>{t('common.edit')}</button>
                         </a>
-                        <button onClick={() => deleteOne(asset.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>Delete</button>
+                        <button onClick={() => deleteOne(asset.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>{t('common.delete')}</button>
                       </div>
                     </td>
                   </tr>

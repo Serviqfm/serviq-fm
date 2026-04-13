@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function NewAssetPage() {
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -109,19 +111,19 @@ export default function NewAssetPage() {
   return (
     <div style={{ padding: '2rem', maxWidth: 680, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href='/dashboard/assets' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Assets</a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>Add New Asset</h1>
+        <a href='/dashboard/assets' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{lang === 'ar' ? 'رجوع للأصول' : 'Back to Assets'}</a>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>{lang === 'ar' ? 'إضافة أصل جديد' : 'Add New Asset'}</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
-          <label style={labelStyle}>Asset Name *</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'اسم الأصل *' : 'Asset Name *'}</label>
           <input name='name' value={form.name} onChange={handleChange} required placeholder='e.g. Carrier AC Unit - Room 204' style={fieldStyle} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Category</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الفئة' : 'Category'}</label>
             <select name='category' value={form.category} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Select category</option>
+              <option value=''>{lang === 'ar' ? 'اختر الفئة' : 'Select category'}</option>
               <option value='HVAC'>HVAC</option>
               <option value='Electrical'>Electrical</option>
               <option value='Plumbing'>Plumbing</option>
@@ -137,59 +139,59 @@ export default function NewAssetPage() {
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Site</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
             <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Select site</option>
+              <option value=''>{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Sub-location</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الموقع الفرعي' : 'Sub-location'}</label>
             <input name='sub_location' value={form.sub_location} onChange={handleChange} placeholder='e.g. Floor 2, Room 204' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Location Notes</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'ملاحظات الموقع' : 'Location Notes'}</label>
             <input name='location_notes' value={form.location_notes} onChange={handleChange} placeholder='e.g. Near east stairwell' style={fieldStyle} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Manufacturer</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الشركة المصنعة' : 'Manufacturer'}</label>
             <input name='manufacturer' value={form.manufacturer} onChange={handleChange} placeholder='e.g. Carrier' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Model</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الموديل' : 'Model'}</label>
             <input name='model' value={form.model} onChange={handleChange} placeholder='e.g. 42QHC018DS' style={fieldStyle} />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Serial Number</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'الرقم التسلسلي' : 'Serial Number'}</label>
           <input name='serial_number' value={form.serial_number} onChange={handleChange} placeholder='e.g. SN-2024-00123' style={fieldStyle} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Purchase Date</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'تاريخ الشراء' : 'Purchase Date'}</label>
             <input name='purchase_date' type='date' value={form.purchase_date} onChange={handleChange} style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Purchase Cost (SAR)</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'تكلفة الشراء (ريال)' : 'Purchase Cost (SAR)'}</label>
             <input name='purchase_cost' type='number' value={form.purchase_cost} onChange={handleChange} placeholder='e.g. 12500' style={fieldStyle} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Warranty Expiry</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'انتهاء الضمان' : 'Warranty Expiry'}</label>
             <input name='warranty_expiry' type='date' value={form.warranty_expiry} onChange={handleChange} style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Expected Lifespan (years)</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'العمر الافتراضي (سنوات)' : 'Expected Lifespan (years)'}</label>
             <input name='expected_lifespan_years' type='number' value={form.expected_lifespan_years} onChange={handleChange} placeholder='e.g. 10' style={fieldStyle} />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Description</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'الوصف' : 'Description'}</label>
           <textarea name='description' value={form.description} onChange={handleChange} rows={3} placeholder='Additional notes...' style={{ ...fieldStyle, resize: 'vertical' }} />
         </div>
         <div>
@@ -217,7 +219,7 @@ export default function NewAssetPage() {
         </div>
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <button type='submit' disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Saving...' : 'Save Asset'}
+          {loading ? t('common.saving') : t('common.save')}
         </button>
       </form>
     </div>

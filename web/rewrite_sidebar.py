@@ -1,4 +1,4 @@
-'use client'
+content = """'use client'
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
@@ -158,4 +158,8 @@ export default function Sidebar() {
       </div>
     </div>
   )
-}
+}"""
+
+with open('src/components/Sidebar.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Sidebar completely rewritten')

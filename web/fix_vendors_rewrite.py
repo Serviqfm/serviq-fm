@@ -1,4 +1,4 @@
-'use client'
+content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -62,8 +62,8 @@ export default function VendorsPage() {
   )
 
   const stars = (rating: number) => {
-    if (!rating) return '—'
-    return Array.from({ length: 5 }, (_, i) => i < Math.round(rating) ? '★' : '☆').join('')
+    if (!rating) return '\u2014'
+    return Array.from({ length: 5 }, (_, i) => i < Math.round(rating) ? '\u2605' : '\u2606').join('')
   }
 
   return (
@@ -117,9 +117,9 @@ export default function VendorsPage() {
                     <Link href={'/dashboard/vendors/' + v.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>{v.company_name}</Link>
                     {v.company_name_ar && <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0', direction: 'rtl' }}>{v.company_name_ar}</p>}
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.contact_name ?? '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.phone ?? '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.specialisation ?? '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.contact_name ?? '\u2014'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.phone ?? '\u2014'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{v.specialisation ?? '\u2014'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#f57f17' }}>{stars(v.average_rating)}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ background: v.is_active ? '#e8f5e9' : '#f5f5f5', color: v.is_active ? '#2e7d32' : '#666', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>
@@ -148,4 +148,8 @@ export default function VendorsPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/vendors/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Vendors page completely rewritten')

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, isAfter } from 'date-fns'
 import Link from 'next/link'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState<any[]>([])
@@ -20,6 +21,7 @@ export default function WorkOrdersPage() {
   const [bulkTech, setBulkTech] = useState('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
   const supabase = createClient()
+  const { t } = useLanguage()
 
   useEffect(() => { fetchWorkOrders(); fetchTechnicians() }, [statusFilter, priorityFilter, categoryFilter, technicianFilter])
 
@@ -122,14 +124,14 @@ export default function WorkOrdersPage() {
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Work Orders</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('wo.title')}</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
             {counts.all} total · {counts.in_progress} in progress · <span style={{ color: counts.overdue > 0 ? '#c62828' : '#999' }}>{counts.overdue} overdue</span>
           </p>
         </div>
         <Link href='/dashboard/work-orders/new'>
           <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-            + New Work Order
+            {t('btn.new_wo')}
           </button>
         </Link>
       </div>
@@ -137,14 +139,14 @@ export default function WorkOrdersPage() {
       <input
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder='Search by title, asset, or site...'
+        placeholder={t('wo.search')}
         style={{ width: '100%', padding: '9px 14px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: '1rem', boxSizing: 'border-box' }}
       />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         {['all','new','assigned','in_progress','on_hold','completed','closed'].map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} style={btnStyle(statusFilter === s)}>
-            {s === 'all' ? 'All' : s.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {s === 'all' ? t('common.all') : s === 'new' ? t('wo.status.new') : s === 'assigned' ? t('wo.status.assigned') : s === 'in_progress' ? t('wo.status.in_progress') : s === 'on_hold' ? t('wo.status.on_hold') : s === 'completed' ? t('wo.status.completed') : s === 'closed' ? t('wo.status.closed') : s}
           </button>
         ))}
       </div>
@@ -152,18 +154,18 @@ export default function WorkOrdersPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
         {['all','critical','high','medium','low'].map(p => (
           <button key={p} onClick={() => setPriorityFilter(p)} style={{ ...btnStyle(priorityFilter === p), fontSize: 12, padding: '4px 12px' }}>
-            {p === 'all' ? 'All Priorities' : p.charAt(0).toUpperCase() + p.slice(1)}
+            {p === 'all' ? t('filter.all_priorities') : p === 'critical' ? t('wo.priority.critical') : p === 'high' ? t('wo.priority.high') : p === 'medium' ? t('wo.priority.medium') : t('wo.priority.low')}
           </button>
         ))}
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={selectStyle}>
-          <option value='all'>All Categories</option>
+          <option value='all'>{t('filter.all_cats')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={technicianFilter} onChange={e => setTechnicianFilter(e.target.value)} style={selectStyle}>
-          <option value='all'>All Technicians</option>
+          <option value='all'>{t('filter.all_techs')}</option>
           {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
         </select>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -216,7 +218,7 @@ export default function WorkOrdersPage() {
                 <th style={{ padding: '12px 16px', width: 40 }}>
                   <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                 </th>
-                {['Title','Asset','Site','Category','Priority','Status','Assigned To','Due Date','Created'].map(h => (
+                {[t('wo.col.title'),t('wo.col.asset'),t('wo.col.site'),t('assets.col.cat'),t('wo.col.priority'),t('wo.col.status'),t('wo.col.assigned'),t('wo.col.due'),t('common.created')].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -241,9 +243,9 @@ export default function WorkOrdersPage() {
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.asset?.name ?? '—'}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.site?.name ?? '—'}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.category ?? '—'}</td>
-                    <td style={{ padding: '12px 16px' }}>{badge(wo.priority.charAt(0).toUpperCase()+wo.priority.slice(1), pCfg)}</td>
-                    <td style={{ padding: '12px 16px' }}>{badge(wo.status.replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase()), sCfg)}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.assignee?.full_name ?? 'Unassigned'}</td>
+                    <td style={{ padding: '12px 16px' }}>{badge(wo.priority === 'critical' ? t('wo.priority.critical') : wo.priority === 'high' ? t('wo.priority.high') : wo.priority === 'medium' ? t('wo.priority.medium') : t('wo.priority.low'), pCfg)}</td>
+                    <td style={{ padding: '12px 16px' }}>{badge(wo.status === 'new' ? t('wo.status.new') : wo.status === 'assigned' ? t('wo.status.assigned') : wo.status === 'in_progress' ? t('wo.status.in_progress') : wo.status === 'on_hold' ? t('wo.status.on_hold') : wo.status === 'completed' ? t('wo.status.completed') : t('wo.status.closed'), sCfg)}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: overdue ? '#c62828' : '#666' }}>
                       {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
                     </td>

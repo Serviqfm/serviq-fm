@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { useLanguage } from '@/context/LanguageContext'
 
 function NewInspectionForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const { t, lang } = useLanguage()
   const [templates, setTemplates] = useState<any[]>([])
   const [sites, setSites] = useState<any[]>([])
   const [assets, setAssets] = useState<any[]>([])
@@ -154,9 +156,9 @@ function NewInspectionForm() {
   return (
     <div style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href='/dashboard/inspections' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Inspections</a>
+        <a href='/dashboard/inspections' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{lang === 'ar' ? 'رجوع للتفتيش' : 'Back to Inspections'}</a>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>
-          {step === 'setup' ? 'Start Inspection' : selectedTemplate?.name ?? 'Inspection'}
+          {step === 'setup' ? t('btn.start_inspection') : selectedTemplate?.name ?? 'Inspection'}
         </h1>
         {step === 'checklist' && (
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
@@ -170,7 +172,7 @@ function NewInspectionForm() {
           <div>
             <label style={labelStyle}>Inspection Template *</label>
             <select value={templateId} onChange={e => setTemplateId(e.target.value)} required style={fieldStyle}>
-              <option value=''>Select a template</option>
+              <option value=''>{lang === 'ar' ? 'اختر نموذجاً' : 'Select a template'}</option>
               {templates.map(t => (
                 <option key={t.id} value={t.id}>
                   {t.name} {t.vertical ? '(' + t.vertical + ')' : ''}
@@ -186,16 +188,16 @@ function NewInspectionForm() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Site</label>
+              <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
               <select value={siteId} onChange={e => setSiteId(e.target.value)} style={fieldStyle}>
-                <option value=''>Select site</option>
+                <option value=''>{lang === 'ar' ? 'اختر موقعاً' : 'Select site'}</option>
                 {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Asset (optional)</label>
+              <label style={labelStyle}>{lang === 'ar' ? 'الأصل (اختياري)' : 'Asset (optional)'}</label>
               <select value={assetId} onChange={e => setAssetId(e.target.value)} style={fieldStyle}>
-                <option value=''>Select asset</option>
+                <option value=''>{lang === 'ar' ? 'اختر أصلاً' : 'Select asset'}</option>
                 {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
@@ -224,7 +226,7 @@ function NewInspectionForm() {
               {siteId ? sites.find(s => s.id === siteId)?.name : 'No site'} ·
               {assetId ? ' ' + assets.find(a => a.id === assetId)?.name : ' No asset'}
             </p>
-            <button type='button' onClick={() => setStep('setup')} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 12 }}>← Change setup</button>
+            <button type='button' onClick={() => setStep('setup')} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 12 }}>{lang === 'ar' ? 'تغيير الإعداد' : '← Change setup'}</button>
           </div>
 
           <div style={{ border: '1px solid #eee', borderRadius: 10, overflow: 'hidden' }}>
@@ -315,7 +317,7 @@ function NewInspectionForm() {
 
           <button type='submit' disabled={submitting}
             style={{ background: '#1a1a2e', color: 'white', padding: '12px', borderRadius: 8, border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: submitting ? 0.7 : 1 }}>
-            {submitting ? 'Submitting...' : 'Submit Inspection'}
+            {submitting ? t('common.saving') : lang === 'ar' ? 'تقديم التفتيش' : 'Submit Inspection'}
           </button>
         </form>
       )}

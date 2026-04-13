@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 const DEFAULT_TEMPLATES: Record<string, { name: string; vertical: string; items: any[] }> = {
   school: {
@@ -65,6 +66,7 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; vertical: string; items:
 
 export default function NewTemplatePage() {
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -115,11 +117,11 @@ export default function NewTemplatePage() {
 
   const fieldStyle = { width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' as const, background: 'white' }
   const typeOptions = [
-    { value: 'pass_fail', label: 'Pass / Fail' },
-    { value: 'yes_no', label: 'Yes / No' },
-    { value: 'score', label: 'Score (1-5)' },
-    { value: 'text', label: 'Free Text' },
-    { value: 'photo', label: 'Photo Required' },
+    { value: 'pass_fail', label: lang === 'ar' ? 'ناجح / فاشل' : 'Pass / Fail' },
+    { value: 'yes_no', label: lang === 'ar' ? 'نعم / لا' : 'Yes / No' },
+    { value: 'score', label: lang === 'ar' ? 'تقييم (1-5)' : 'Score (1-5)' },
+    { value: 'text', label: lang === 'ar' ? 'نص حر' : 'Free Text' },
+    { value: 'photo', label: lang === 'ar' ? 'صورة مطلوبة' : 'Photo Required' },
   ]
 
   return (
@@ -187,7 +189,7 @@ export default function NewTemplatePage() {
 
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <button type='submit' disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Saving...' : 'Save Template'}
+          {loading ? t('common.saving') : lang === 'ar' ? 'حفظ النموذج' : 'Save Template'}
         </button>
       </form>
     </div>

@@ -5,14 +5,18 @@ import { createClient } from '@/lib/supabase'
 import { format, differenceInDays } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import TranslateButton from '@/components/TranslateButton'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function AssetDetailPage() {
   const { id } = useParams()
   const supabase = createClient()
+  const { t, lang } = useLanguage()
   const [asset, setAsset] = useState<any>(null)
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [pmSchedules, setPmSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [translatedAsset, setTranslatedAsset] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory'>('details')
   const [pmHistory, setPmHistory] = useState<any[]>([])
 
@@ -47,9 +51,9 @@ export default function AssetDetailPage() {
     .reduce((sum: number, w: any) => sum + (w.actual_cost || 0), 0)
 
   const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    active:            { bg: '#e8f5e9', color: '#2e7d32', label: 'Active' },
-    under_maintenance: { bg: '#fff8e1', color: '#f57f17', label: 'Under Maintenance' },
-    retired:           { bg: '#f5f5f5', color: '#424242', label: 'Retired' },
+    active:            { bg: '#e8f5e9', color: '#2e7d32', label: t('assets.status.active') },
+    under_maintenance: { bg: '#fff8e1', color: '#f57f17', label: t('assets.status.under_maintenance') },
+    retired:           { bg: '#f5f5f5', color: '#424242', label: t('assets.status.retired') },
   }
 
   const woStatusConfig: Record<string, { bg: string; color: string }> = {
@@ -75,14 +79,22 @@ export default function AssetDetailPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 900, margin: '0 auto' }}>
-      <a href='/dashboard/assets' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Assets</a>
+      <a href='/dashboard/assets' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{t('common.back')}</a>
       <a href={'/dashboard/assets/' + id + '/edit'}>
-        <button style={{ padding: '6px 16px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13 }}>Edit Asset</button>
+        <button style={{ padding: '6px 16px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13 }}>{t('common.edit')}</button>
       </a>
 
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>{asset.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>{translatedAsset.name ?? asset.name}</h1>
+          {lang === 'ar' && (
+            <TranslateButton
+              texts={{ name: asset.name, description: asset.description ?? '' }}
+              onTranslated={setTranslatedAsset}
+            />
+          )}
+        </div>
           <span style={{ background: sCfg.bg, color: sCfg.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>{sCfg.label}</span>
           {asset.category && <span style={{ background: '#f0f0f0', color: '#555', padding: '2px 10px', borderRadius: 12, fontSize: 12 }}>{asset.category}</span>}
         </div>
@@ -267,7 +279,7 @@ export default function AssetDetailPage() {
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ fontSize: 13, color: '#666', marginBottom: '1.5rem' }}>Scan this QR code to open this asset on any device. Print and attach it physically to the asset.</p>
           <div style={{ display: 'inline-block', padding: '1.5rem', border: '1px solid #eee', borderRadius: 12, background: 'white', marginBottom: '1rem' }}>
-            <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt='QR Code' width={200} height={200} />
+            <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt=t('assets.qr') width={200} height={200} />
           </div>
           <p style={{ fontSize: 12, color: '#999', fontFamily: 'monospace' }}>{asset.qr_code}</p>
           <p style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{asset.name} · {asset.site?.name ?? 'No site'}</p>

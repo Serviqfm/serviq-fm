@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, formatDistanceToNow, differenceInHours } from 'date-fns'
 import Link from 'next/link'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
   const supabase = createClient()
+  const { t, lang } = useLanguage()
 
   useEffect(() => { loadDashboard() }, [])
 
@@ -107,29 +109,29 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const statCards = [
-    { label: 'Open Work Orders', value: stats.totalOpenWOs, color: '#1a1a2e', link: '/dashboard/work-orders' },
-    { label: 'Overdue', value: stats.overdueWOs, color: stats.overdueWOs > 0 ? '#c62828' : '#2e7d32', link: '/dashboard/work-orders' },
-    { label: 'PM Due Today', value: stats.pmDueToday, color: stats.pmDueToday > 0 ? '#f57f17' : '#2e7d32', link: '/dashboard/pm-schedules' },
-    { label: 'Completed This Month', value: stats.completedThisMonth, color: '#2e7d32', link: '/dashboard/work-orders' },
-    { label: 'Active Technicians', value: stats.activeTechnicians, color: '#283593', link: '/dashboard/work-orders' },
-    { label: 'PM Compliance', value: stats.pmCompliancePercent + '%', color: stats.pmCompliancePercent >= 80 ? '#2e7d32' : stats.pmCompliancePercent >= 50 ? '#f57f17' : '#c62828', link: '/dashboard/pm-schedules/compliance' },
-    { label: 'Avg Repair Time (hrs)', value: stats.mttr > 0 ? stats.mttr + 'h' : '—', color: '#1a1a2e', link: '/dashboard/work-orders' },
-    { label: 'Maintenance Cost (MTD)', value: stats.totalMaintenanceCost > 0 ? 'SAR ' + stats.totalMaintenanceCost.toLocaleString() : '—', color: '#1a1a2e', link: '/dashboard/work-orders' },
-    { label: 'Total Assets', value: stats.totalAssets, color: '#1a1a2e', link: '/dashboard/assets' },
+    { label: t('dashboard.open_wos'), value: stats.totalOpenWOs, color: '#1a1a2e', link: '/dashboard/work-orders' },
+    { label: t('dashboard.overdue'), value: stats.overdueWOs, color: stats.overdueWOs > 0 ? '#c62828' : '#2e7d32', link: '/dashboard/work-orders' },
+    { label: t('dashboard.pm_due_today'), value: stats.pmDueToday, color: stats.pmDueToday > 0 ? '#f57f17' : '#2e7d32', link: '/dashboard/pm-schedules' },
+    { label: t('dashboard.completed_month'), value: stats.completedThisMonth, color: '#2e7d32', link: '/dashboard/work-orders' },
+    { label: t('dashboard.active_techs'), value: stats.activeTechnicians, color: '#283593', link: '/dashboard/work-orders' },
+    { label: t('dashboard.pm_compliance'), value: stats.pmCompliancePercent + '%', color: stats.pmCompliancePercent >= 80 ? '#2e7d32' : stats.pmCompliancePercent >= 50 ? '#f57f17' : '#c62828', link: '/dashboard/pm-schedules/compliance' },
+    { label: t('dashboard.avg_repair'), value: stats.mttr > 0 ? stats.mttr + 'h' : '—', color: '#1a1a2e', link: '/dashboard/work-orders' },
+    { label: t('dashboard.cost_mtd'), value: stats.totalMaintenanceCost > 0 ? 'SAR ' + stats.totalMaintenanceCost.toLocaleString() : '—', color: '#1a1a2e', link: '/dashboard/work-orders' },
+    { label: t('dashboard.total_assets'), value: stats.totalAssets, color: '#1a1a2e', link: '/dashboard/assets' },
   ]
 
   const statusConfig: Record<string, { label: string; color: string }> = {
-    new:         { label: 'New',         color: '#0d47a1' },
-    assigned:    { label: 'Assigned',    color: '#283593' },
-    in_progress: { label: 'In Progress', color: '#f57f17' },
-    on_hold:     { label: 'On Hold',     color: '#880e4f' },
+    new:         { label: t('wo.status.new'),         color: '#0d47a1' },
+    assigned:    { label: t('wo.status.assigned'),    color: '#283593' },
+    in_progress: { label: t('wo.status.in_progress'), color: '#f57f17' },
+    on_hold:     { label: t('wo.status.on_hold'),     color: '#880e4f' },
   }
 
   const priorityConfig: Record<string, { label: string; color: string }> = {
-    critical: { label: 'Critical', color: '#b71c1c' },
-    high:     { label: 'High',     color: '#e65100' },
-    medium:   { label: 'Medium',   color: '#f57f17' },
-    low:      { label: 'Low',      color: '#2e7d32' },
+    critical: { label: t('wo.priority.critical'), color: '#b71c1c' },
+    high:     { label: t('wo.priority.high'),     color: '#e65100' },
+    medium:   { label: t('wo.priority.medium'),   color: '#f57f17' },
+    low:      { label: t('wo.priority.low'),      color: '#2e7d32' },
   }
 
   return (
@@ -156,7 +158,7 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '2rem' }}>
 
         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>Open WOs by Status</p>
+          <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الحالة' : 'Open WOs by Status'}</p>
           {Object.keys(openByStatus).length === 0 ? (
             <p style={{ fontSize: 13, color: '#999' }}>No open work orders</p>
           ) : (
@@ -179,7 +181,7 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>Open WOs by Priority</p>
+          <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الأولوية' : 'Open WOs by Priority'}</p>
           {Object.keys(openByPriority).length === 0 ? (
             <p style={{ fontSize: 13, color: '#999' }}>No open work orders</p>
           ) : (
@@ -208,8 +210,8 @@ export default function DashboardPage() {
 
         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Recent Activity</p>
-            <Link href='/dashboard/work-orders' style={{ fontSize: 12, color: '#999', textDecoration: 'none' }}>View all</Link>
+            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t('dashboard.recent_activity')}</p>
+            <Link href='/dashboard/work-orders' style={{ fontSize: 12, color: '#999', textDecoration: 'none' }}>{t('dashboard.view_all')}</Link>
           </div>
           {recentActivity.length === 0 ? (
             <p style={{ fontSize: 13, color: '#999' }}>No recent activity</p>
@@ -218,7 +220,7 @@ export default function DashboardPage() {
               <div key={log.id} style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#1a1a2e', marginTop: 5, flexShrink: 0 }} />
                 <div>
-                  <p style={{ fontSize: 13, margin: 0, color: '#333' }}>{log.action}</p>
+                  <p style={{ fontSize: 13, margin: 0, color: '#333' }}>{lang === 'ar' ? log.action.replace('assigned', 'مُعيَّن').replace('in_progress', 'قيد التنفيذ').replace('on_hold', 'معلق').replace('completed', 'مكتمل').replace('closed', 'مغلق').replace('Status changed to', 'تم تغيير الحالة إلى') : log.action}</p>
                   <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0' }}>{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</p>
                 </div>
               </div>
@@ -228,8 +230,8 @@ export default function DashboardPage() {
 
         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Upcoming PM Tasks</p>
-            <Link href='/dashboard/pm-schedules' style={{ fontSize: 12, color: '#999', textDecoration: 'none' }}>View all</Link>
+            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t('dashboard.upcoming_pm')}</p>
+            <Link href='/dashboard/pm-schedules' style={{ fontSize: 12, color: '#999', textDecoration: 'none' }}>{t('dashboard.view_all')}</Link>
           </div>
           {upcomingPMs.length === 0 ? (
             <p style={{ fontSize: 13, color: '#999' }}>No upcoming PM tasks</p>
@@ -240,10 +242,10 @@ export default function DashboardPage() {
                 <div key={pm.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #f5f5f5' }}>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{pm.title}</p>
-                    <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{pm.asset?.name ?? 'No asset'} · {pm.assignee?.full_name ?? 'Unassigned'}</p>
+                    <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{pm.asset?.name ?? 'No asset'} · {pm.assignee?.full_name ?? t('common.unassigned')}</p>
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 500, color: days <= 1 ? '#c62828' : days <= 7 ? '#f57f17' : '#2e7d32', whiteSpace: 'nowrap', marginLeft: 8 }}>
-                    {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : 'In ' + days + ' days'}
+                    {days === 0 ? t('dashboard.today') : days === 1 ? t('dashboard.tomorrow') : 'In ' + days + ' days'}
                   </span>
                 </div>
               )
@@ -255,16 +257,16 @@ export default function DashboardPage() {
 
       <div style={{ marginTop: '2rem', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <Link href='/dashboard/work-orders/new'>
-          <button style={{ background: '#1a1a2e', color: 'white', padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>+ New Work Order</button>
+          <button style={{ background: '#1a1a2e', color: 'white', padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.new_wo')}</button>
         </Link>
         <Link href='/dashboard/assets/new'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>+ Add Asset</button>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.add_asset')}</button>
         </Link>
         <Link href='/dashboard/pm-schedules/new'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>+ New PM Schedule</button>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.new_pm')}</button>
         </Link>
         <Link href='/dashboard/pm-schedules/compliance'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>PM Compliance</button>
+          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.pm_compliance_btn')}</button>
         </Link>
       </div>
 

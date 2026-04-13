@@ -1,4 +1,4 @@
-'use client'
+content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -162,4 +162,8 @@ export default function InventoryPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/inventory/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Inventory page completely rewritten')

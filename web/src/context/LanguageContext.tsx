@@ -1,0 +1,611 @@
+'use client'
+
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+
+type Language = 'en' | 'ar'
+
+interface LanguageContextType {
+  lang: Language
+  setLang: (lang: Language) => void
+  t: (key: string) => string
+  isRTL: boolean
+}
+
+const LanguageContext = createContext<LanguageContextType>({
+  lang: 'en',
+  setLang: () => {},
+  t: (key) => key,
+  isRTL: false,
+})
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Language>(() => {
+    if (typeof window === 'undefined') return 'en'
+    const cookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('serviq_lang='))?.split('=')[1]
+    const stored = cookie || localStorage.getItem('serviq_lang')
+    return (stored === 'ar' || stored === 'en') ? stored as Language : 'en'
+  })
+
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    try {
+      const cookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('serviq_lang='))?.split('=')[1] as Language
+      const stored = cookie || localStorage.getItem('serviq_lang') as Language
+      if (stored === 'ar' || stored === 'en') {
+        setLangState(stored)
+        document.documentElement.dir = stored === 'ar' ? 'rtl' : 'ltr'
+        document.documentElement.lang = stored
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (mounted) {
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
+      document.documentElement.lang = lang
+    }
+  }, [lang, mounted])
+
+  function setLang(newLang: Language) {
+    setLangState(newLang)
+    localStorage.setItem('serviq_lang', newLang)
+    // Also set cookie so it persists across page navigations
+    document.cookie = 'serviq_lang=' + newLang + '; path=/; max-age=31536000'
+    document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr'
+    document.documentElement.lang = newLang
+  }
+
+  function t(key: string): string {
+    const translations = lang === 'ar' ? ar : en
+    return translations[key] ?? en[key] ?? key
+  }
+
+  // Prevent hydration mismatch by using suppressHydrationWarning
+  // Return English on server, correct language on client after mount
+  const effectiveLang = mounted ? lang : 'en'
+
+  function tEffective(key: string): string {
+    const translations = effectiveLang === 'ar' ? ar : en
+    return translations[key] ?? en[key] ?? key
+  }
+
+  return (
+    <LanguageContext.Provider value={{ lang: effectiveLang, setLang, t: tEffective, isRTL: effectiveLang === 'ar' }}>
+      {children}
+    </LanguageContext.Provider>
+  )
+}
+
+export function useLanguage() {
+  return useContext(LanguageContext)
+}
+
+// ── English translations ──
+const en: Record<string, string> = {
+  // Navigation
+  'nav.dashboard':     'Dashboard',
+  'nav.workorders':    'Work Orders',
+  'nav.assets':        'Assets',
+  'nav.pm':            'PM Schedules',
+  'nav.inspections':   'Inspections',
+  'nav.inventory':     'Inventory',
+  'nav.vendors':       'Vendors',
+  'nav.sites':         'Sites',
+  'nav.users':         'Users',
+  'nav.settings':      'Settings',
+
+  // Dashboard
+  'dashboard.title':           'Dashboard',
+  'dashboard.open_wos':        'Open Work Orders',
+  'dashboard.overdue':         'Overdue',
+  'dashboard.pm_due_today':    'PM Due Today',
+  'dashboard.completed_month': 'Completed This Month',
+  'dashboard.active_techs':    'Active Technicians',
+  'dashboard.pm_compliance':   'PM Compliance',
+  'dashboard.avg_repair':      'Avg Repair Time (hrs)',
+  'dashboard.cost_mtd':        'Maintenance Cost (MTD)',
+  'dashboard.total_assets':    'Total Assets',
+  'dashboard.recent_activity': 'Recent Activity',
+  'dashboard.upcoming_pm':     'Upcoming PM Tasks',
+  'dashboard.view_all':        'View all',
+  'dashboard.new_wo':          '+ New Work Order',
+  'dashboard.add_asset':       '+ Add Asset',
+  'dashboard.new_pm':          '+ New PM Schedule',
+  'dashboard.today':           'Today',
+  'dashboard.tomorrow':        'Tomorrow',
+  'dashboard.in_days':         'In {n} days',
+
+  // Work Orders
+  'wo.title':           'Work Orders',
+  'wo.new':             '+ New Work Order',
+  'wo.search':          'Search work orders...',
+  'wo.status.new':          'New',
+  'wo.status.assigned':     'Assigned',
+  'wo.status.in_progress':  'In Progress',
+  'wo.status.on_hold':      'On Hold',
+  'wo.status.completed':    'Completed',
+  'wo.status.closed':       'Closed',
+  'wo.priority.critical':   'Critical',
+  'wo.priority.high':       'High',
+  'wo.priority.medium':     'Medium',
+  'wo.priority.low':        'Low',
+  'wo.col.title':       'Title',
+  'wo.col.asset':       'Asset',
+  'wo.col.assigned':    'Assigned To',
+  'wo.col.priority':    'Priority',
+  'wo.col.status':      'Status',
+  'wo.col.due':         'Due Date',
+  'wo.col.site':        'Site',
+  'wo.col.actions':     'Actions',
+  'wo.overdue':         'Overdue',
+  'wo.no_wos':          'No work orders found',
+  'wo.edit':            'Edit',
+  'wo.delete':          'Delete',
+  'wo.view':            'View',
+  'wo.close':           'Close',
+  'wo.approve':         'Approve & Close',
+  'wo.reopen':          'Reopen',
+
+  // Assets
+  'assets.title':       'Assets',
+  'assets.new':         '+ Add Asset',
+  'assets.search':      'Search assets...',
+  'assets.import':      'Import CSV',
+  'assets.export':      'Export',
+  'assets.col.name':    'Asset Name',
+  'assets.col.cat':     'Category',
+  'assets.col.site':    'Site',
+  'assets.col.serial':  'Serial Number',
+  'assets.col.status':  'Status',
+  'assets.col.warranty':'Warranty Expiry',
+  'assets.col.added':   'Added',
+  'assets.no_assets':   'No assets yet',
+  'assets.status.active':            'Active',
+  'assets.status.under_maintenance': 'Under Maintenance',
+  'assets.status.retired':           'Retired',
+
+  // PM Schedules
+  'pm.title':           'PM Schedules',
+  'pm.new':             '+ New Schedule',
+  'pm.calendar':        'Calendar',
+  'pm.compliance':      'Compliance',
+  'pm.col.schedule':    'Schedule',
+  'pm.col.asset':       'Asset',
+  'pm.col.freq':        'Frequency',
+  'pm.col.assigned':    'Assigned To',
+  'pm.col.due':         'Next Due',
+  'pm.col.status':      'Status',
+  'pm.col.actions':     'Actions',
+  'pm.pause':           'Pause',
+  'pm.resume':          'Resume',
+  'pm.generate':        'Generate WO',
+  'pm.edit':            'Edit',
+  'pm.delete':          'Delete',
+  'pm.no_schedules':    'No PM schedules yet',
+
+  // Inspections
+  'insp.title':         'Inspections',
+  'insp.new':           '+ Start Inspection',
+  'insp.new_template':  '+ New Template',
+  'insp.tab.insp':      'Inspections',
+  'insp.tab.templates': 'Templates',
+  'insp.col.template':  'Template',
+  'insp.col.vertical':  'Vertical',
+  'insp.col.site':      'Site',
+  'insp.col.asset':     'Asset',
+  'insp.col.by':        'Conducted By',
+  'insp.col.result':    'Result',
+  'insp.col.status':    'Status',
+  'insp.col.date':      'Date',
+  'insp.result.pass':   'Pass',
+  'insp.result.fail':   'Fail',
+  'insp.result.partial':'Partial',
+
+  // Inventory
+  'inv.title':          'Inventory',
+  'inv.new':            '+ Add Item',
+  'inv.search':         'Search inventory...',
+  'inv.low_stock':      'Low Stock Alert',
+  'inv.col.name':       'Item Name',
+  'inv.col.sku':        'SKU',
+  'inv.col.cat':        'Category',
+  'inv.col.location':   'Location',
+  'inv.col.stock':      'Stock',
+  'inv.col.min':        'Min Stock',
+  'inv.col.cost':       'Unit Cost',
+  'inv.col.status':     'Status',
+  'inv.status.in':      'In Stock',
+  'inv.status.low':     'Low Stock',
+  'inv.status.out':     'Out of Stock',
+
+  // Vendors
+  'vendors.title':      'Vendors',
+  'vendors.new':        '+ Add Vendor',
+  'vendors.search':     'Search vendors...',
+  'vendors.col.company':'Company',
+  'vendors.col.contact':'Contact',
+  'vendors.col.phone':  'Phone',
+  'vendors.col.spec':   'Specialisation',
+  'vendors.col.rating': 'Rating',
+  'vendors.col.status': 'Status',
+  'vendors.col.actions':'Actions',
+
+  // Users
+  'users.title':        'Users',
+  'users.new':          '+ Add User',
+  'users.col.name':     'Name',
+  'users.col.email':    'Email',
+  'users.col.role':     'Role',
+  'users.col.status':   'Status',
+  'users.col.active':   'Last Active',
+  'users.col.actions':  'Actions',
+  'users.role.admin':       'Admin',
+  'users.role.manager':     'Manager',
+  'users.role.technician':  'Technician',
+  'users.role.requester':   'Requester',
+
+  // Common
+  'common.save':        'Save',
+  'common.cancel':      'Cancel',
+  'common.edit':        'Edit',
+  'common.delete':      'Delete',
+  'common.view':        'View',
+  'common.back':        'Back',
+  'common.loading':     'Loading...',
+  'common.saving':      'Saving...',
+  'common.search':      'Search',
+  'common.filter':      'Filter',
+  'common.export':      'Export',
+  'common.import':      'Import',
+  'common.yes':         'Yes',
+  'common.no':          'No',
+  'common.active':      'Active',
+  'common.inactive':    'Inactive',
+  'common.actions':     'Actions',
+  'common.name':        'Name',
+  'common.description': 'Description',
+  'common.date':        'Date',
+  'common.status':      'Status',
+  'common.priority':    'Priority',
+  'common.site':        'Site',
+  'common.asset':       'Asset',
+  'common.assign':      'Assign To',
+  'common.due_date':    'Due Date',
+  'common.created':     'Created',
+  'common.updated':     'Updated',
+  'common.notes':       'Notes',
+  'common.required':    'Required',
+  'common.optional':    'Optional',
+  'common.select':      'Select',
+  'common.none':        'None',
+  'common.all':         'All',
+  'common.sar':         'SAR',
+  'common.deactivate':  'Deactivate',
+  'common.activate':    'Activate',
+  'common.confirm_delete': 'Are you sure you want to delete this?',
+  'cat.hvac': 'HVAC',
+  'cat.electrical': 'Electrical',
+  'cat.plumbing': 'Plumbing',
+  'cat.elevator': 'Elevator / Lift',
+  'cat.fire': 'Fire Safety',
+  'cat.furniture': 'Furniture',
+  'cat.kitchen': 'Kitchen Equipment',
+  'cat.pool': 'Pool / Gym',
+  'cat.it': 'IT Equipment',
+  'cat.signage': 'Signage',
+  'cat.vehicle': 'Vehicle',
+  'cat.other': 'Other',
+  'pm.freq.daily': 'Daily',
+  'pm.freq.weekly': 'Weekly',
+  'pm.freq.fortnightly': 'Fortnightly',
+  'pm.freq.monthly': 'Monthly',
+  'pm.freq.quarterly': 'Quarterly',
+  'pm.freq.biannual': 'Every 6 Months',
+  'pm.freq.annual': 'Annual',
+  'common.unassigned': 'Unassigned',
+  'common.selected': 'selected',
+  'common.sign_out': 'Sign Out',
+  'common.coming_soon': 'Coming Soon',
+  'common.created': 'Created',
+  'dashboard.pm_compliance_btn': 'PM Compliance',
+  'lang': 'en',
+  'filter.all_status': 'All Status',
+  'filter.all_priorities': 'All Priorities',
+  'filter.all_techs': 'All Technicians',
+  'filter.all_cats': 'All Categories',
+  'filter.all_sites': 'All Sites',
+  'btn.new_wo': '+ New Work Order',
+  'btn.add_asset': '+ Add Asset',
+  'btn.export': 'Export',
+  'btn.import': 'Import CSV',
+  'btn.add_schedule': '+ New Schedule',
+  'btn.add_vendor': '+ Add Vendor',
+  'btn.add_item': '+ Add Item',
+  'btn.add_user': '+ Add User',
+  'btn.start_inspection': '+ Start Inspection',
+  'btn.new_template': '+ New Template',
+  'btn.save': 'Save Changes',
+  'btn.cancel': 'Cancel',
+  'btn.delete_selected': 'Delete Selected',
+  'btn.bulk_assign': 'Bulk Assign',
+  'wo.sla': 'SLA',
+  'wo.comments': 'Comments',
+  'wo.photos': 'Photos',
+  'wo.history': 'History',
+  'wo.parts': 'Parts Used',
+  'wo.activity': 'Activity Log',
+  'wo.sign_off': 'Sign Off',
+  'wo.approve_close': 'Approve & Close',
+  'wo.reopen': 'Reopen',
+  'assets.qr': 'QR Code',
+  'assets.pm_history': 'PM History',
+  'assets.custom_fields': 'Custom Fields',
+  'assets.decommission': 'Decommission Asset',
+  'assets.lifecycle': 'Lifecycle Cost',
+}
+
+// ── Arabic translations ──
+const ar: Record<string, string> = {
+  // Navigation
+  'nav.dashboard':     'لوحة التحكم',
+  'nav.workorders':    'أوامر العمل',
+  'nav.assets':        'الأصول',
+  'nav.pm':            'جداول الصيانة',
+  'nav.inspections':   'التفتيش',
+  'nav.inventory':     'المخزون',
+  'nav.vendors':       'الموردون',
+  'nav.sites':         'المواقع',
+  'nav.users':         'المستخدمون',
+  'nav.settings':      'الإعدادات',
+
+  // Dashboard
+  'dashboard.title':           'لوحة التحكم',
+  'dashboard.open_wos':        'أوامر العمل المفتوحة',
+  'dashboard.overdue':         'متأخرة',
+  'dashboard.pm_due_today':    'صيانة مستحقة اليوم',
+  'dashboard.completed_month': 'مكتملة هذا الشهر',
+  'dashboard.active_techs':    'فنيون نشطون',
+  'dashboard.pm_compliance':   'الالتزام بالصيانة',
+  'dashboard.avg_repair':      'متوسط وقت الإصلاح (ساعة)',
+  'dashboard.cost_mtd':        'تكلفة الصيانة (الشهر الحالي)',
+  'dashboard.total_assets':    'إجمالي الأصول',
+  'dashboard.recent_activity': 'النشاط الأخير',
+  'dashboard.upcoming_pm':     'مهام الصيانة القادمة',
+  'dashboard.view_all':        'عرض الكل',
+  'dashboard.new_wo':          '+ أمر عمل جديد',
+  'dashboard.add_asset':       '+ إضافة أصل',
+  'dashboard.new_pm':          '+ جدول صيانة جديد',
+  'dashboard.today':           'اليوم',
+  'dashboard.tomorrow':        'غداً',
+  'dashboard.in_days':         'بعد {n} أيام',
+
+  // Work Orders
+  'wo.title':           'أوامر العمل',
+  'wo.new':             '+ أمر عمل جديد',
+  'wo.search':          'البحث في أوامر العمل...',
+  'wo.status.new':          'جديد',
+  'wo.status.assigned':     'مُعيَّن',
+  'wo.status.in_progress':  'قيد التنفيذ',
+  'wo.status.on_hold':      'معلق',
+  'wo.status.completed':    'مكتمل',
+  'wo.status.closed':       'مغلق',
+  'wo.priority.critical':   'حرج',
+  'wo.priority.high':       'عالي',
+  'wo.priority.medium':     'متوسط',
+  'wo.priority.low':        'منخفض',
+  'wo.col.title':       'العنوان',
+  'wo.col.asset':       'الأصل',
+  'wo.col.assigned':    'مُعيَّن إلى',
+  'wo.col.priority':    'الأولوية',
+  'wo.col.status':      'الحالة',
+  'wo.col.due':         'تاريخ الاستحقاق',
+  'wo.col.site':        'الموقع',
+  'wo.col.actions':     'الإجراءات',
+  'wo.overdue':         'متأخر',
+  'wo.no_wos':          'لا توجد أوامر عمل',
+  'wo.edit':            'تعديل',
+  'wo.delete':          'حذف',
+  'wo.view':            'عرض',
+  'wo.close':           'إغلاق',
+  'wo.approve':         'موافقة وإغلاق',
+  'wo.reopen':          'إعادة فتح',
+
+  // Assets
+  'assets.title':       'الأصول',
+  'assets.new':         '+ إضافة أصل',
+  'assets.search':      'البحث في الأصول...',
+  'assets.import':      'استيراد CSV',
+  'assets.export':      'تصدير',
+  'assets.col.name':    'اسم الأصل',
+  'assets.col.cat':     'الفئة',
+  'assets.col.site':    'الموقع',
+  'assets.col.serial':  'الرقم التسلسلي',
+  'assets.col.status':  'الحالة',
+  'assets.col.warranty':'انتهاء الضمان',
+  'assets.col.added':   'تاريخ الإضافة',
+  'assets.no_assets':   'لا توجد أصول بعد',
+  'assets.status.active':            'نشط',
+  'assets.status.under_maintenance': 'تحت الصيانة',
+  'assets.status.retired':           'متقاعد',
+
+  // PM Schedules
+  'pm.title':           'جداول الصيانة الوقائية',
+  'pm.new':             '+ جدول جديد',
+  'pm.calendar':        'التقويم',
+  'pm.compliance':      'الالتزام',
+  'pm.col.schedule':    'الجدول',
+  'pm.col.asset':       'الأصل',
+  'pm.col.freq':        'التكرار',
+  'pm.col.assigned':    'مُعيَّن إلى',
+  'pm.col.due':         'الاستحقاق التالي',
+  'pm.col.status':      'الحالة',
+  'pm.col.actions':     'الإجراءات',
+  'pm.pause':           'إيقاف مؤقت',
+  'pm.resume':          'استئناف',
+  'pm.generate':        'إنشاء أمر عمل',
+  'pm.edit':            'تعديل',
+  'pm.delete':          'حذف',
+  'pm.no_schedules':    'لا توجد جداول صيانة بعد',
+
+  // Inspections
+  'insp.title':         'التفتيش',
+  'insp.new':           '+ بدء تفتيش',
+  'insp.new_template':  '+ نموذج جديد',
+  'insp.tab.insp':      'عمليات التفتيش',
+  'insp.tab.templates': 'النماذج',
+  'insp.col.template':  'النموذج',
+  'insp.col.vertical':  'القطاع',
+  'insp.col.site':      'الموقع',
+  'insp.col.asset':     'الأصل',
+  'insp.col.by':        'أُجري بواسطة',
+  'insp.col.result':    'النتيجة',
+  'insp.col.status':    'الحالة',
+  'insp.col.date':      'التاريخ',
+  'insp.result.pass':   'ناجح',
+  'insp.result.fail':   'فاشل',
+  'insp.result.partial':'جزئي',
+
+  // Inventory
+  'inv.title':          'المخزون',
+  'inv.new':            '+ إضافة عنصر',
+  'inv.search':         'البحث في المخزون...',
+  'inv.low_stock':      'تنبيه انخفاض المخزون',
+  'inv.col.name':       'اسم العنصر',
+  'inv.col.sku':        'رمز المنتج',
+  'inv.col.cat':        'الفئة',
+  'inv.col.location':   'الموقع',
+  'inv.col.stock':      'المخزون',
+  'inv.col.min':        'الحد الأدنى',
+  'inv.col.cost':       'تكلفة الوحدة',
+  'inv.col.status':     'الحالة',
+  'inv.status.in':      'متوفر',
+  'inv.status.low':     'منخفض',
+  'inv.status.out':     'نفد المخزون',
+
+  // Vendors
+  'vendors.title':      'الموردون',
+  'vendors.new':        '+ إضافة مورد',
+  'vendors.search':     'البحث في الموردين...',
+  'vendors.col.company':'الشركة',
+  'vendors.col.contact':'جهة الاتصال',
+  'vendors.col.phone':  'الهاتف',
+  'vendors.col.spec':   'التخصص',
+  'vendors.col.rating': 'التقييم',
+  'vendors.col.status': 'الحالة',
+  'vendors.col.actions':'الإجراءات',
+
+  // Users
+  'users.title':        'المستخدمون',
+  'users.new':          '+ إضافة مستخدم',
+  'users.col.name':     'الاسم',
+  'users.col.email':    'البريد الإلكتروني',
+  'users.col.role':     'الدور',
+  'users.col.status':   'الحالة',
+  'users.col.active':   'آخر نشاط',
+  'users.col.actions':  'الإجراءات',
+  'users.role.admin':       'مدير النظام',
+  'users.role.manager':     'مدير',
+  'users.role.technician':  'فني',
+  'users.role.requester':   'مقدم طلب',
+
+  // Common
+  'common.save':        'حفظ',
+  'common.cancel':      'إلغاء',
+  'common.edit':        'تعديل',
+  'common.delete':      'حذف',
+  'common.view':        'عرض',
+  'common.back':        'رجوع',
+  'common.loading':     'جاري التحميل...',
+  'common.saving':      'جاري الحفظ...',
+  'common.search':      'بحث',
+  'common.filter':      'تصفية',
+  'common.export':      'تصدير',
+  'common.import':      'استيراد',
+  'common.yes':         'نعم',
+  'common.no':          'لا',
+  'common.active':      'نشط',
+  'common.inactive':    'غير نشط',
+  'common.actions':     'الإجراءات',
+  'common.name':        'الاسم',
+  'common.description': 'الوصف',
+  'common.date':        'التاريخ',
+  'common.status':      'الحالة',
+  'common.priority':    'الأولوية',
+  'common.site':        'الموقع',
+  'common.asset':       'الأصل',
+  'common.assign':      'تعيين إلى',
+  'common.due_date':    'تاريخ الاستحقاق',
+  'common.created':     'تاريخ الإنشاء',
+  'common.updated':     'تاريخ التحديث',
+  'common.notes':       'ملاحظات',
+  'common.required':    'مطلوب',
+  'common.optional':    'اختياري',
+  'common.select':      'اختر',
+  'common.none':        'لا شيء',
+  'common.all':         'الكل',
+  'common.sar':         'ر.س',
+  'common.deactivate':  'تعطيل',
+  'common.activate':    'تفعيل',
+  'common.confirm_delete': 'هل أنت متأكد من حذف هذا العنصر؟',
+  'cat.hvac': 'تكييف وتهوية',
+  'cat.electrical': 'كهرباء',
+  'cat.plumbing': 'سباكة',
+  'cat.elevator': 'مصعد / رافعة',
+  'cat.fire': 'سلامة من الحريق',
+  'cat.furniture': 'أثاث',
+  'cat.kitchen': 'معدات مطبخ',
+  'cat.pool': 'مسبح / صالة رياضية',
+  'cat.it': 'معدات تقنية',
+  'cat.signage': 'لافتات',
+  'cat.vehicle': 'مركبة',
+  'cat.other': 'أخرى',
+  'pm.freq.daily': 'يومي',
+  'pm.freq.weekly': 'أسبوعي',
+  'pm.freq.fortnightly': 'كل أسبوعين',
+  'pm.freq.monthly': 'شهري',
+  'pm.freq.quarterly': 'ربع سنوي',
+  'pm.freq.biannual': 'كل 6 أشهر',
+  'pm.freq.annual': 'سنوي',
+  'common.unassigned': 'غير معيَّن',
+  'common.selected': 'محدد',
+  'common.sign_out': 'تسجيل الخروج',
+  'common.coming_soon': 'قريباً',
+  'common.created': 'تاريخ الإنشاء',
+  'dashboard.pm_compliance_btn': 'الالتزام بالصيانة',
+  'lang': 'ar',
+  'filter.all_status': 'جميع الحالات',
+  'filter.all_priorities': 'جميع الأولويات',
+  'filter.all_techs': 'جميع الفنيين',
+  'filter.all_cats': 'جميع الفئات',
+  'filter.all_sites': 'جميع المواقع',
+  'btn.new_wo': '+ أمر عمل جديد',
+  'btn.add_asset': '+ إضافة أصل',
+  'btn.export': 'تصدير',
+  'btn.import': 'استيراد CSV',
+  'btn.add_schedule': '+ جدول جديد',
+  'btn.add_vendor': '+ إضافة مورد',
+  'btn.add_item': '+ إضافة عنصر',
+  'btn.add_user': '+ إضافة مستخدم',
+  'btn.start_inspection': '+ بدء تفتيش',
+  'btn.new_template': '+ نموذج جديد',
+  'btn.save': 'حفظ التغييرات',
+  'btn.cancel': 'إلغاء',
+  'btn.delete_selected': 'حذف المحدد',
+  'btn.bulk_assign': 'تعيين جماعي',
+  'wo.sla': 'اتفاقية مستوى الخدمة',
+  'wo.comments': 'التعليقات',
+  'wo.photos': 'الصور',
+  'wo.history': 'السجل',
+  'wo.parts': 'القطع المستخدمة',
+  'wo.activity': 'سجل النشاط',
+  'wo.sign_off': 'التوقيع',
+  'wo.approve_close': 'موافقة وإغلاق',
+  'wo.reopen': 'إعادة فتح',
+  'assets.qr': 'رمز QR',
+  'assets.pm_history': 'سجل الصيانة',
+  'assets.custom_fields': 'حقول مخصصة',
+  'assets.decommission': 'إيقاف تشغيل الأصل',
+  'assets.lifecycle': 'تكلفة دورة الحياة',
+}

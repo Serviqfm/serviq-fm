@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function NewInventoryItemPage() {
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -139,7 +141,7 @@ export default function NewInventoryItemPage() {
         </div>
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <button type='submit' disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Saving...' : 'Save Item'}
+          {loading ? t('common.saving') : t('common.save')}
         </button>
       </form>
     </div>

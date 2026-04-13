@@ -1,4 +1,4 @@
-import Sidebar from '@/components/Sidebar'
+content = """import Sidebar from '@/components/Sidebar'
 import { LanguageProvider } from '@/context/LanguageContext'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -12,4 +12,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </LanguageProvider>
   )
-}
+}"""
+
+with open('src/app/dashboard/layout.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Layout fixed')
