@@ -27,6 +27,7 @@ export default function Sidebar() {
     { label: t('nav.inspections'), href: '/dashboard/inspections',        icon: 'I', badge: '',     exact: false },
     { label: t('nav.inventory'),   href: '/dashboard/inventory',          icon: 'V', badge: '',     exact: false },
     { label: t('nav.users'),       href: '/dashboard/users',              icon: 'U', badge: '',     exact: false },
+    { label: t('nav.settings'),    href: '/dashboard/settings',           icon: '⚙', badge: '',     exact: false },
   ]
 
   useEffect(() => { loadUser() }, [])
