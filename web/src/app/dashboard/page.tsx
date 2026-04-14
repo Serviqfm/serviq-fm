@@ -32,9 +32,16 @@ export default function DashboardPage() {
 
   async function loadDashboard() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      return
+    }
     const { data: profile } = await supabase.from('users').select('organisation_id, full_name').eq('id', user.id).single()
-    if (!profile) return
+    if (!profile) {
+      setLoading(false)
+      return
+    }
     if (profile.full_name) setUserName(profile.full_name)
     const orgId = profile.organisation_id
 

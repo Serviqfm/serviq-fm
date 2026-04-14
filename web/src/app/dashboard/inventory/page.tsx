@@ -19,9 +19,16 @@ export default function InventoryPage() {
   async function fetchItems() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      return
+    }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) return
+    if (!profile) {
+      setLoading(false)
+      return
+    }
     const { data } = await supabase.from('inventory_items').select('*, site:site_id(name)').eq('organisation_id', profile.organisation_id).order('name', { ascending: true })
     if (data) setItems(data)
     setLoading(false)

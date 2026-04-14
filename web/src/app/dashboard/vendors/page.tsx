@@ -19,9 +19,16 @@ export default function VendorsPage() {
   async function fetchVendors() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      return
+    }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) return
+    if (!profile) {
+      setLoading(false)
+      return
+    }
     const { data } = await supabase.from('vendors').select('*').eq('organisation_id', profile.organisation_id).order('company_name', { ascending: true })
     if (data) setVendors(data)
     setLoading(false)

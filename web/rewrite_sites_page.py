@@ -1,4 +1,4 @@
-'use client'
+content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -103,4 +103,8 @@ export default function SitesPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/sites/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Sites page completely rewritten - no more syntax errors')

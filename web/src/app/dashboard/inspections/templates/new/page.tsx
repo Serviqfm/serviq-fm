@@ -127,12 +127,12 @@ export default function NewTemplatePage() {
   return (
     <div style={{ padding: '2rem', maxWidth: 760, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href='/dashboard/inspections' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Inspections</a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>New Inspection Template</h1>
+        <a href='/dashboard/inspections' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{lang === 'ar' ? 'رجوع' : 'Back to Inspections'}</a>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>{lang === 'ar' ? 'نموذج تفتيش جديد' : 'New Inspection Template'}</h1>
       </div>
 
       <div style={{ background: '#f0f7ff', border: '1px solid #b3d4f5', borderRadius: 10, padding: '1rem', marginBottom: '1.5rem' }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: '0 0 8px', color: '#1565c0' }}>Load a vertical-specific template</p>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: '0 0 8px', color: '#1565c0' }}>{lang === 'ar' ? 'تحميل نموذج خاص بالقطاع' : 'Load a vertical-specific template'}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {Object.entries(DEFAULT_TEMPLATES).map(([key, tmpl]) => (
             <button key={key} type='button' onClick={() => loadTemplate(key)} style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #b3d4f5', background: 'white', cursor: 'pointer', fontSize: 12, color: '#1565c0', fontWeight: 500 }}>
@@ -145,17 +145,17 @@ export default function NewTemplatePage() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
           <div>
-            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#444' }}>Template Name *</label>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#444' }}>{lang === 'ar' ? '* اسم النموذج' : 'Template Name *'}</label>
             <input value={name} onChange={e => setName(e.target.value)} required placeholder='e.g. Monthly Fire Safety Check' style={{ ...fieldStyle, fontSize: 14, padding: '8px 12px' }} />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#444' }}>Vertical</label>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#444' }}>{lang === 'ar' ? 'القطاع' : 'Vertical'}</label>
             <select value={vertical} onChange={e => setVertical(e.target.value)} style={{ ...fieldStyle, fontSize: 14, padding: '8px 12px' }}>
-              <option value='general'>General</option>
-              <option value='school'>School</option>
-              <option value='retail'>Retail</option>
-              <option value='compound'>Compound</option>
-              <option value='hotel'>Hotel</option>
+              <option value='general'>{lang === 'ar' ? 'عام' : 'General'}</option>
+              <option value='school'>{lang === 'ar' ? 'مدرسة' : 'School'}</option>
+              <option value='retail'>{lang === 'ar' ? 'تجزئة' : 'Retail'}</option>
+              <option value='compound'>{lang === 'ar' ? 'مجمع' : 'Compound'}</option>
+              <option value='hotel'>{lang === 'ar' ? 'فندق' : 'Hotel'}</option>
             </select>
           </div>
         </div>
@@ -163,7 +163,7 @@ export default function NewTemplatePage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <label style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>Checklist Items ({items.length})</label>
-            <button type='button' onClick={addItem} style={{ padding: '5px 14px', borderRadius: 7, border: '1px solid #1a1a2e', background: 'white', color: '#1a1a2e', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>+ Add Item</button>
+            <button type='button' onClick={addItem} style={{ padding: '5px 14px', borderRadius: 7, border: '1px solid #1a1a2e', background: 'white', color: '#1a1a2e', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>{lang === 'ar' ? '+ إضافة عنصر' : '+ Add Item'}</button>
           </div>
 
           {items.map((item, idx) => (
@@ -176,7 +176,7 @@ export default function NewTemplatePage() {
                 </select>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <input type='checkbox' checked={item.required} onChange={e => updateItem(item.id, 'required', e.target.checked)} id={'req-' + item.id} />
-                  <label htmlFor={'req-' + item.id} style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>Required</label>
+                  <label htmlFor={'req-' + item.id} style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'مطلوب' : 'Required'}</label>
                 </div>
                 <button type='button' onClick={() => removeItem(item.id)} style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>×</button>
               </div>

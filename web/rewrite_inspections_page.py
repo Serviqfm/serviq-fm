@@ -1,4 +1,4 @@
-'use client'
+content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -160,12 +160,12 @@ export default function InspectionsPage() {
                 {inspections.map((insp, i) => (
                   <tr key={insp.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(insp.id) ? '#f3f4fd' : i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={tdStyle}><input type='checkbox' checked={selected.includes(insp.id)} onChange={() => toggleSelect(insp.id)} /></td>
-                    <td style={{ ...tdStyle, fontWeight: 500, color: '#1a1a2e' }}>{insp.template?.name ?? '—'}</td>
+                    <td style={{ ...tdStyle, fontWeight: 500, color: '#1a1a2e' }}>{insp.template?.name ?? '\u2014'}</td>
                     <td style={tdStyle}>{verticalBadge(insp.template?.vertical ?? insp.vertical ?? '')}</td>
-                    <td style={tdStyle}>{insp.site?.name ?? '—'}</td>
-                    <td style={tdStyle}>{insp.asset?.name ?? '—'}</td>
-                    <td style={tdStyle}>{insp.inspector?.full_name ?? '—'}</td>
-                    <td style={tdStyle}>{insp.created_at ? format(new Date(insp.created_at), 'dd MMM yyyy') : '—'}</td>
+                    <td style={tdStyle}>{insp.site?.name ?? '\u2014'}</td>
+                    <td style={tdStyle}>{insp.asset?.name ?? '\u2014'}</td>
+                    <td style={tdStyle}>{insp.inspector?.full_name ?? '\u2014'}</td>
+                    <td style={tdStyle}>{insp.created_at ? format(new Date(insp.created_at), 'dd MMM yyyy') : '\u2014'}</td>
                     <td style={tdStyle}>{statusBadge(insp.status)}</td>
                     <td style={tdStyle}>{resultBadge(insp.overall_result)}</td>
                     <td style={tdStyle}>
@@ -220,4 +220,8 @@ export default function InspectionsPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/inspections/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('Inspections page completely rewritten')

@@ -1,4 +1,4 @@
-'use client'
+content = """'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -196,17 +196,17 @@ export default function PMSchedulesPage() {
                       <Link href={'/dashboard/pm-schedules/' + s.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>{s.title}</Link>
                       {s.description && <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0' }}>{s.description.substring(0, 60)}...</p>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.asset?.name ?? s.site?.name ?? '—'}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.asset?.name ?? s.site?.name ?? '\u2014'}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{ background: '#f3f4fd', color: '#283593', padding: '2px 10px', borderRadius: 12, fontSize: 12 }}>
                         {freqLabel[s.frequency] ?? s.frequency}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 12, color: '#666' }}>
-                      {s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) + '%' : '—'}
+                      {s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) + '%' : '\u2014'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: due ? '#c62828' : soon ? '#f57f17' : '#666' }}>
-                      {s.next_due_at ? format(new Date(s.next_due_at), 'dd MMM yyyy') : '—'}
+                      {s.next_due_at ? format(new Date(s.next_due_at), 'dd MMM yyyy') : '\u2014'}
                       {due && <span style={{ fontSize: 10, display: 'block', color: '#c62828' }}>{lang === 'ar' ? 'متأخر' : 'Overdue'}</span>}
                       {soon && !due && <span style={{ fontSize: 10, display: 'block', color: '#f57f17' }}>{lang === 'ar' ? 'قريباً' : 'Due soon'}</span>}
                     </td>
@@ -239,4 +239,8 @@ export default function PMSchedulesPage() {
       )}
     </div>
   )
-}
+}"""
+
+with open('src/app/dashboard/pm-schedules/page.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+print('PM schedules page completely rewritten')

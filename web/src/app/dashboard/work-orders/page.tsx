@@ -27,9 +27,16 @@ export default function WorkOrdersPage() {
 
   async function fetchTechnicians() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      return
+    }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) return
+    if (!profile) {
+      setLoading(false)
+      return
+    }
     const { data } = await supabase.from('users').select('id, full_name').eq('organisation_id', profile.organisation_id).in('role', ['technician', 'manager'])
     if (data) setTechnicians(data)
   }
@@ -126,7 +133,7 @@ export default function WorkOrdersPage() {
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('wo.title')}</h1>
           <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
-            {counts.all} total · {counts.in_progress} in progress · <span style={{ color: counts.overdue > 0 ? '#c62828' : '#999' }}>{counts.overdue} overdue</span>
+            {counts.all} total · {counts.in_progress} {t('wo.in_progress')} · <span style={{ color: counts.overdue > 0 ? '#c62828' : '#999' }}>{counts.overdue} overdue</span>
           </p>
         </div>
         <Link href='/dashboard/work-orders/new'>

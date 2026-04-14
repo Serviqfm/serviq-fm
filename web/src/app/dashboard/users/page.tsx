@@ -11,20 +11,29 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const supabase = createClient()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
 
   useEffect(() => { fetchUsers() }, [])
 
   async function fetchUsers() {
     setLoading(true)
+    const timeout = setTimeout(() => setLoading(false), 8000)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      return
+    }
     const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single()
-    if (!profile) return
+    if (!profile) {
+      setLoading(false)
+      return
+    }
     setCurrentUser(profile)
     if (!['admin', 'manager'].includes(profile.role)) return
     const { data } = await supabase.from('users').select('*').eq('organisation_id', profile.organisation_id).order('full_name', { ascending: true })
     if (data) setUsers(data)
+    clearTimeout(timeout)
     setLoading(false)
   }
 
@@ -49,7 +58,7 @@ export default function UsersPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('users.title')}</h1>
-          <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{users.length} users in your organisation</p>
+          <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{users.length} {t('users.in_org')}</p>
         </div>
         {currentUser?.role === 'admin' && (
           <Link href='/dashboard/users/new'>
@@ -63,7 +72,7 @@ export default function UsersPage() {
           const cfg = roleColors[role]
           return (
             <div key={role} style={{ background: 'white', border: '1px solid #eee', borderRadius: 10, padding: '1rem' }}>
-              <p style={{ fontSize: 12, color: '#999', margin: '0 0 6px', fontWeight: 500 }}>{role.charAt(0).toUpperCase() + role.slice(1)}s</p>
+              <p style={{ fontSize: 12, color: '#999', margin: '0 0 6px', fontWeight: 500 }}>{role === 'admin' ? (lang === 'ar' ? 'المشرف' : 'Admin') : role === 'manager' ? (lang === 'ar' ? 'المدير' : 'Manager') : role === 'technician' ? (lang === 'ar' ? 'الفني' : 'Technician') : (lang === 'ar' ? 'مقدم الطلب' : 'Requester')}s</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 26, fontWeight: 700, color: '#1a1a2e' }}>{roleCount(role)}</span>
                 <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500 }}>{role}</span>
@@ -77,7 +86,7 @@ export default function UsersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-              {[t('users.col.name'),t('users.col.email'),t('users.col.role'),'Status',t('users.col.active'),'Actions'].map(h => (
+              {[t('users.col.name'),t('users.col.email'),t('users.col.role'),t('common.status'),t('users.col.active'),t('common.actions')].map(h => (
                 <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
               ))}
             </tr>
@@ -102,7 +111,7 @@ export default function UsersPage() {
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{u.email}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ background: roleCfg.bg, color: roleCfg.color, padding: '3px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500 }}>
-                      {u.role?.charAt(0).toUpperCase() + u.role?.slice(1)}
+                      {u.role === 'admin' ? (lang === 'ar' ? 'مشرف' : 'Admin') : u.role === 'manager' ? (lang === 'ar' ? 'مدير' : 'Manager') : u.role === 'technician' ? (lang === 'ar' ? 'فني' : 'Technician') : (lang === 'ar' ? 'مقدم طلب' : 'Requester')}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>

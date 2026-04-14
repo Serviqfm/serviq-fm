@@ -65,8 +65,8 @@ export default function NewInventoryItemPage() {
   return (
     <div style={{ padding: '2rem', maxWidth: 620, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href='/dashboard/inventory' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Inventory</a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>Add Inventory Item</h1>
+        <a href='/dashboard/inventory' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{lang === 'ar' ? 'رجوع للمخزون' : 'Back to Inventory'}</a>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>{lang === 'ar' ? 'إضافة عنصر مخزون' : 'Add Inventory Item'}</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
@@ -74,18 +74,18 @@ export default function NewInventoryItemPage() {
           <input name='name' value={form.name} onChange={handleChange} required placeholder='e.g. AC Filter 24 inch' style={fieldStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Item Name (Arabic)</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'الاسم بالعربية' : 'Item Name (Arabic)'}</label>
           <input name='name_ar' value={form.name_ar} onChange={handleChange} placeholder='اسم العنصر بالعربية' style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>SKU / Part Number</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'رمز المنتج' : 'SKU / Part Number'}</label>
             <input name='sku' value={form.sku} onChange={handleChange} placeholder='e.g. AC-FLT-24' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Category</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الفئة' : 'Category'}</label>
             <select name='category' value={form.category} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Select category</option>
+              <option value=''>{lang === 'ar' ? 'اختر الفئة' : 'Select category'}</option>
               <option value='HVAC Parts'>HVAC Parts</option>
               <option value='Electrical'>Electrical</option>
               <option value='Plumbing'>Plumbing</option>
@@ -103,14 +103,14 @@ export default function NewInventoryItemPage() {
           <div>
             <label style={labelStyle}>Unit *</label>
             <select name='unit' value={form.unit} onChange={handleChange} style={fieldStyle}>
-              <option value='piece'>Piece</option>
-              <option value='box'>Box</option>
-              <option value='litre'>Litre</option>
-              <option value='kg'>KG</option>
-              <option value='metre'>Metre</option>
-              <option value='roll'>Roll</option>
-              <option value='set'>Set</option>
-              <option value='pair'>Pair</option>
+              <option value='piece'>{lang === 'ar' ? 'قطعة' : 'Piece'}</option>
+              <option value='box'>{lang === 'ar' ? 'صندوق' : 'Box'}</option>
+              <option value='litre'>{lang === 'ar' ? 'لتر' : 'Litre'}</option>
+              <option value='kg'>{lang === 'ar' ? 'كيلوجرام' : 'KG'}</option>
+              <option value='metre'>{lang === 'ar' ? 'متر' : 'Metre'}</option>
+              <option value='roll'>{lang === 'ar' ? 'لفة' : 'Roll'}</option>
+              <option value='set'>{lang === 'ar' ? 'مجموعة' : 'Set'}</option>
+              <option value='pair'>{lang === 'ar' ? 'زوج' : 'Pair'}</option>
             </select>
           </div>
           <div>
@@ -118,24 +118,24 @@ export default function NewInventoryItemPage() {
             <input name='stock_quantity' type='number' value={form.stock_quantity} onChange={handleChange} min='0' step='0.01' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Minimum Stock Level</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'الحد الأدنى للمخزون' : 'Minimum Stock Level'}</label>
             <input name='minimum_stock_level' type='number' value={form.minimum_stock_level} onChange={handleChange} min='0' step='0.01' style={fieldStyle} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Unit Cost (SAR)</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'تكلفة الوحدة (ريال)' : 'Unit Cost (SAR)'}</label>
             <input name='unit_cost' type='number' value={form.unit_cost} onChange={handleChange} placeholder='e.g. 45.00' min='0' step='0.01' style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Storage Location</label>
+            <label style={labelStyle}>{lang === 'ar' ? 'موقع التخزين' : 'Storage Location'}</label>
             <input name='location_in_store' value={form.location_in_store} onChange={handleChange} placeholder='e.g. Store Room A, Shelf 3' style={fieldStyle} />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Site</label>
+          <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
           <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
-            <option value=''>Select site</option>
+            <option value=''>{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
             {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
