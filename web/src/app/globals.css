@@ -1,3 +1,74 @@
+/* ServiqFM Brand Design System v2.0 */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Readex+Pro:wght@200;300;400;500;600;700&display=swap');
+
+:root {
+  --color-navy:          #1E2D4E;
+  --color-navy-light:    #E8ECF2;
+  --color-teal:          #6DCFB0;
+  --color-teal-mid:      #3AAECC;
+  --color-teal-light:    #B8DDD8;
+  --color-teal-bg:       #E8F7F3;
+  --color-blue:          #1A7FC1;
+  --color-blue-light:    #E6F1FB;
+  --color-muted:         #A0B0BF;
+  --color-offwhite:      #F8FAFC;
+  --gradient-brand:      linear-gradient(135deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%);
+  --gradient-brand-h:    linear-gradient(90deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%);
+  --color-success:       #22C997;
+  --color-success-light: #E8F7F3;
+  --color-success-text:  #0F6E56;
+  --color-warning:       #F5A623;
+  --color-warning-light: #FFF4E0;
+  --color-warning-text:  #854F0B;
+  --color-danger:        #E24B4A;
+  --color-danger-light:  #FCEBEB;
+  --color-danger-text:   #A32D2D;
+  --color-info:          #1A7FC1;
+  --color-info-light:    #E6F1FB;
+  --color-info-text:     #185FA5;
+  --color-text-primary:  #1E2D4E;
+  --color-text-secondary:#4A5568;
+  --color-text-muted:    #A0B0BF;
+  --color-border:        #E8ECF0;
+  --color-border-medium: #D0D8E0;
+  --color-bg:            #FFFFFF;
+  --color-bg-secondary:  #F8FAFC;
+  --color-bg-tertiary:   #F1F4F6;
+  --font-en:   'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-ar:   'Readex Pro', ui-sans-serif, system-ui, sans-serif;
+  --radius-input: 4px;
+  --radius-btn:   8px;
+  --radius-card:  12px;
+  --radius-modal: 16px;
+  --radius-pill:  24px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-family: var(--font-en);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  -webkit-font-smoothing: antialiased;
+}
+
+[dir="rtl"], [lang="ar"] {
+  font-family: var(--font-ar);
+}
+
+body { font-family: var(--font-en); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--color-teal-light); border-radius: 3px; }
+
+/* Focus rings */
+*:focus-visible { outline: 2px solid var(--color-teal-mid); outline-offset: 2px; }
+
+/* Transitions */
+button, a { transition: all 0.15s ease; }
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
