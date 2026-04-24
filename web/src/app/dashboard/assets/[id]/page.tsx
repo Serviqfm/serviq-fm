@@ -279,7 +279,7 @@ export default function AssetDetailPage() {
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ fontSize: 13, color: '#666', marginBottom: '1.5rem' }}>Scan this QR code to open this asset on any device. Print and attach it physically to the asset.</p>
           <div style={{ display: 'inline-block', padding: '1.5rem', border: '1px solid #eee', borderRadius: 12, background: 'white', marginBottom: '1rem' }}>
-            <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt=t('assets.qr') width={200} height={200} />
+            <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt={t('assets.qr')} width={200} height={200} />
           </div>
           <p style={{ fontSize: 12, color: '#999', fontFamily: 'monospace' }}>{asset.qr_code}</p>
           <p style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{asset.name} · {asset.site?.name ?? 'No site'}</p>

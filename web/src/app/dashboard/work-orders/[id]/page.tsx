@@ -7,6 +7,8 @@ import PriorityBadge from '@/components/PriorityBadge'
 import StatusBadge from '@/components/StatusBadge'
 import { format, formatDistanceToNow, isAfter, differenceInHours, differenceInDays } from 'date-fns'
 import { useParams } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
+import TranslateButton from '@/components/TranslateButton'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
