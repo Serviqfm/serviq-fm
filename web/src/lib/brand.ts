@@ -15,13 +15,15 @@ export const C = {
   danger:     '#C62828',
   warning:    '#F57F17',
   success:    '#2E7D32',
+  dangerBg:   '#FEE2E2',
+  dangerBorder: '#FECACA',
   gradient:   'linear-gradient(135deg, #6DCFB0, #3AAECC, #1A7FC1)',
-}
+} as const
 
 export const F = {
   en: 'DM Sans, sans-serif',
   ar: 'Readex Pro, sans-serif',
-}
+} as const
 
 // Reusable style helpers
 export const cardStyle = {
@@ -62,14 +64,15 @@ export const secondaryBtn = {
 } as const
 
 export const dangerBtn = {
-  background: '#FEE2E2',
+  background: C.dangerBg,
   color: C.danger,
-  border: `1px solid #FECACA`,
+  border: `1px solid ${C.dangerBorder}`,
   borderRadius: 8,
   padding: '9px 20px',
   cursor: 'pointer',
   fontWeight: 500,
   fontSize: 14,
+  fontFamily: F.en,
 } as const
 
 export const tableHeaderStyle = {
