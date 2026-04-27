@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, formatDistanceToNow, differenceInHours } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { C, F, cardStyle, pageStyle } from '@/lib/brand'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -110,53 +111,53 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading dashboard...</div>
+  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading dashboard...</div>
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const statCards = [
-    { label: t('dashboard.open_wos'), value: stats.totalOpenWOs, color: '#1a1a2e', link: '/dashboard/work-orders' },
-    { label: t('dashboard.overdue'), value: stats.overdueWOs, color: stats.overdueWOs > 0 ? '#c62828' : '#2e7d32', link: '/dashboard/work-orders' },
-    { label: t('dashboard.pm_due_today'), value: stats.pmDueToday, color: stats.pmDueToday > 0 ? '#f57f17' : '#2e7d32', link: '/dashboard/pm-schedules' },
-    { label: t('dashboard.completed_month'), value: stats.completedThisMonth, color: '#2e7d32', link: '/dashboard/work-orders' },
-    { label: t('dashboard.active_techs'), value: stats.activeTechnicians, color: '#283593', link: '/dashboard/work-orders' },
-    { label: t('dashboard.pm_compliance'), value: stats.pmCompliancePercent + '%', color: stats.pmCompliancePercent >= 80 ? '#2e7d32' : stats.pmCompliancePercent >= 50 ? '#f57f17' : '#c62828', link: '/dashboard/pm-schedules/compliance' },
-    { label: t('dashboard.avg_repair'), value: stats.mttr > 0 ? stats.mttr + 'h' : '—', color: '#1a1a2e', link: '/dashboard/work-orders' },
-    { label: t('dashboard.cost_mtd'), value: stats.totalMaintenanceCost > 0 ? 'SAR ' + stats.totalMaintenanceCost.toLocaleString() : '—', color: '#1a1a2e', link: '/dashboard/work-orders' },
-    { label: t('dashboard.total_assets'), value: stats.totalAssets, color: '#1a1a2e', link: '/dashboard/assets' },
+    { label: t('dashboard.open_wos'),         value: stats.totalOpenWOs,                                                                  color: C.navy,    link: '/dashboard/work-orders' },
+    { label: t('dashboard.overdue'),          value: stats.overdueWOs,                                                                    color: stats.overdueWOs > 0 ? C.danger : C.success,                                                          link: '/dashboard/work-orders' },
+    { label: t('dashboard.pm_due_today'),     value: stats.pmDueToday,                                                                    color: stats.pmDueToday > 0 ? C.warning : C.success,                                                         link: '/dashboard/pm-schedules' },
+    { label: t('dashboard.completed_month'),  value: stats.completedThisMonth,                                                            color: C.success, link: '/dashboard/work-orders' },
+    { label: t('dashboard.active_techs'),     value: stats.activeTechnicians,                                                             color: C.navy,    link: '/dashboard/work-orders' },
+    { label: t('dashboard.pm_compliance'),    value: stats.pmCompliancePercent + '%',                                                     color: stats.pmCompliancePercent >= 80 ? C.success : stats.pmCompliancePercent >= 50 ? C.warning : C.danger, link: '/dashboard/pm-schedules/compliance' },
+    { label: t('dashboard.avg_repair'),       value: stats.mttr > 0 ? stats.mttr + 'h' : '—',                                             color: C.navy,    link: '/dashboard/work-orders' },
+    { label: t('dashboard.cost_mtd'),         value: stats.totalMaintenanceCost > 0 ? 'SAR ' + stats.totalMaintenanceCost.toLocaleString() : '—', color: C.navy, link: '/dashboard/work-orders' },
+    { label: t('dashboard.total_assets'),     value: stats.totalAssets,                                                                   color: C.navy,    link: '/dashboard/assets' },
   ]
 
   const statusConfig: Record<string, { label: string; color: string }> = {
-    new:         { label: t('wo.status.new'),         color: '#0d47a1' },
-    assigned:    { label: t('wo.status.assigned'),    color: '#283593' },
-    in_progress: { label: t('wo.status.in_progress'), color: '#f57f17' },
-    on_hold:     { label: t('wo.status.on_hold'),     color: '#880e4f' },
+    new:         { label: t('wo.status.new'),         color: C.blue },
+    assigned:    { label: t('wo.status.assigned'),    color: C.navy },
+    in_progress: { label: t('wo.status.in_progress'), color: C.warning },
+    on_hold:     { label: t('wo.status.on_hold'),     color: C.danger },
   }
 
   const priorityConfig: Record<string, { label: string; color: string }> = {
-    critical: { label: t('wo.priority.critical'), color: '#b71c1c' },
-    high:     { label: t('wo.priority.high'),     color: '#e65100' },
-    medium:   { label: t('wo.priority.medium'),   color: '#f57f17' },
-    low:      { label: t('wo.priority.low'),      color: '#2e7d32' },
+    critical: { label: t('wo.priority.critical'), color: C.danger },
+    high:     { label: t('wo.priority.high'),     color: C.warning },
+    medium:   { label: t('wo.priority.medium'),   color: C.warning },
+    low:      { label: t('wo.priority.low'),      color: C.success },
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={pageStyle}>
 
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>
           {userName ? greeting + ', ' + userName.split(' ')[0] : 'Dashboard'}
         </h1>
-        <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
+        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: '2rem' }}>
         {statCards.map(card => (
           <Link key={card.label} href={card.link} style={{ textDecoration: 'none' }}>
-            <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem', cursor: 'pointer' }}>
-              <p style={{ fontSize: 12, color: '#999', margin: '0 0 8px', fontWeight: 500 }}>{card.label}</p>
-              <p style={{ fontSize: 26, fontWeight: 700, margin: 0, color: card.color }}>{card.value}</p>
+            <div style={{ ...cardStyle, cursor: 'pointer' }}>
+              <p style={{ fontSize: 12, color: C.textLight, margin: '0 0 8px', fontWeight: 500, fontFamily: F.en }}>{card.label}</p>
+              <p style={{ fontSize: 26, fontWeight: 700, margin: 0, color: card.color, fontFamily: F.en }}>{card.value}</p>
             </div>
           </Link>
         ))}
@@ -164,21 +165,21 @@ export default function DashboardPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '2rem' }}>
 
-        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الحالة' : 'Open WOs by Status'}</p>
+        <div style={cardStyle}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الحالة' : 'Open WOs by Status'}</p>
           {Object.keys(openByStatus).length === 0 ? (
-            <p style={{ fontSize: 13, color: '#999' }}>No open work orders</p>
+            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No open work orders</p>
           ) : (
             Object.entries(openByStatus).map(([status, count]) => {
-              const cfg = statusConfig[status] ?? { label: status, color: '#666' }
+              const cfg = statusConfig[status] ?? { label: status, color: C.textMid }
               const max = Math.max(...Object.values(openByStatus))
               return (
                 <div key={status} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, color: '#444' }}>{cfg.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color }}>{count}</span>
+                    <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>{cfg.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color, fontFamily: F.en }}>{count}</span>
                   </div>
-                  <div style={{ background: '#f0f0f0', borderRadius: 4, height: 6 }}>
+                  <div style={{ background: C.border, borderRadius: 4, height: 6 }}>
                     <div style={{ background: cfg.color, borderRadius: 4, height: 6, width: (count / max * 100) + '%' }} />
                   </div>
                 </div>
@@ -187,10 +188,10 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الأولوية' : 'Open WOs by Priority'}</p>
+        <div style={cardStyle}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الأولوية' : 'Open WOs by Priority'}</p>
           {Object.keys(openByPriority).length === 0 ? (
-            <p style={{ fontSize: 13, color: '#999' }}>No open work orders</p>
+            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No open work orders</p>
           ) : (
             ['critical','high','medium','low'].filter(p => openByPriority[p]).map(priority => {
               const cfg = priorityConfig[priority]
@@ -199,10 +200,10 @@ export default function DashboardPage() {
               return (
                 <div key={priority} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, color: '#444' }}>{cfg.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color }}>{count}</span>
+                    <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>{cfg.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color, fontFamily: F.en }}>{count}</span>
                   </div>
-                  <div style={{ background: '#f0f0f0', borderRadius: 4, height: 6 }}>
+                  <div style={{ background: C.border, borderRadius: 4, height: 6 }}>
                     <div style={{ background: cfg.color, borderRadius: 4, height: 6, width: (count / max * 100) + '%' }} />
                   </div>
                 </div>
@@ -215,43 +216,43 @@ export default function DashboardPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
-        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
+        <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t('dashboard.recent_activity')}</p>
-            <Link href='/dashboard/work-orders' style={{ fontSize: 12, color: '#999', textDecoration: 'none' }}>{t('dashboard.view_all')}</Link>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('dashboard.recent_activity')}</p>
+            <Link href='/dashboard/work-orders' style={{ fontSize: 12, color: C.textLight, textDecoration: 'none', fontFamily: F.en }}>{t('dashboard.view_all')}</Link>
           </div>
           {recentActivity.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#999' }}>No recent activity</p>
+            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No recent activity</p>
           ) : (
             recentActivity.map(log => (
               <div key={log.id} style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#1a1a2e', marginTop: 5, flexShrink: 0 }} />
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.navy, marginTop: 5, flexShrink: 0 }} />
                 <div>
-                  <p style={{ fontSize: 13, margin: 0, color: '#333' }}>{lang === 'ar' ? log.action.replace('assigned', 'مُعيَّن').replace('in_progress', 'قيد التنفيذ').replace('on_hold', 'معلق').replace('completed', 'مكتمل').replace('closed', 'مغلق').replace('Status changed to', 'تم تغيير الحالة إلى') : log.action}</p>
-                  <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0' }}>{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</p>
+                  <p style={{ fontSize: 13, margin: 0, color: C.textDark, fontFamily: F.en }}>{lang === 'ar' ? log.action.replace('assigned', 'مُعيَّن').replace('in_progress', 'قيد التنفيذ').replace('on_hold', 'معلق').replace('completed', 'مكتمل').replace('closed', 'مغلق').replace('Status changed to', 'تم تغيير الحالة إلى') : log.action}</p>
+                  <p style={{ fontSize: 11, color: C.textLight, margin: '2px 0 0', fontFamily: F.en }}>{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</p>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' }}>
+        <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t('dashboard.upcoming_pm')}</p>
-            <Link href='/dashboard/pm-schedules' style={{ fontSize: 12, color: '#999', textDecoration: 'none' }}>{t('dashboard.view_all')}</Link>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('dashboard.upcoming_pm')}</p>
+            <Link href='/dashboard/pm-schedules' style={{ fontSize: 12, color: C.textLight, textDecoration: 'none', fontFamily: F.en }}>{t('dashboard.view_all')}</Link>
           </div>
           {upcomingPMs.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#999' }}>No upcoming PM tasks</p>
+            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No upcoming PM tasks</p>
           ) : (
             upcomingPMs.map(pm => {
               const days = Math.ceil((new Date(pm.next_due_at).getTime() - Date.now()) / 86400000)
               return (
-                <div key={pm.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #f5f5f5' }}>
+                <div key={pm.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
                   <div>
-                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{pm.title}</p>
-                    <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{pm.asset?.name ?? 'No asset'} · {pm.assignee?.full_name ?? t('common.unassigned')}</p>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{pm.title}</p>
+                    <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{pm.asset?.name ?? 'No asset'} · {pm.assignee?.full_name ?? t('common.unassigned')}</p>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: days <= 1 ? '#c62828' : days <= 7 ? '#f57f17' : '#2e7d32', whiteSpace: 'nowrap', marginLeft: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: days <= 1 ? C.danger : days <= 7 ? C.warning : C.success, whiteSpace: 'nowrap', marginLeft: 8, fontFamily: F.en }}>
                     {days === 0 ? t('dashboard.today') : days === 1 ? t('dashboard.tomorrow') : 'In ' + days + ' days'}
                   </span>
                 </div>
@@ -264,16 +265,16 @@ export default function DashboardPage() {
 
       <div style={{ marginTop: '2rem', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <Link href='/dashboard/work-orders/new'>
-          <button style={{ background: '#1a1a2e', color: 'white', padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.new_wo')}</button>
+          <button style={{ background: C.navy, color: C.white, padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.new_wo')}</button>
         </Link>
         <Link href='/dashboard/assets/new'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.add_asset')}</button>
+          <button style={{ background: C.white, color: C.navy, padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.navy}`, cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.add_asset')}</button>
         </Link>
         <Link href='/dashboard/pm-schedules/new'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.new_pm')}</button>
+          <button style={{ background: C.white, color: C.navy, padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.navy}`, cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.new_pm')}</button>
         </Link>
         <Link href='/dashboard/pm-schedules/compliance'>
-          <button style={{ background: 'white', color: '#1a1a2e', padding: '9px 20px', borderRadius: 8, border: '1px solid #1a1a2e', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>{t('dashboard.pm_compliance_btn')}</button>
+          <button style={{ background: C.white, color: C.navy, padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.navy}`, cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.pm_compliance_btn')}</button>
         </Link>
       </div>
 
