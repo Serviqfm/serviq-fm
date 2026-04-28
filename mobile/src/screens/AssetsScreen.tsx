@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useState } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, RefreshControl } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -15,6 +15,18 @@ export default function AssetsScreen() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('QRScanner' as never)}
+          style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+          <Ionicons name="qr-code-outline" size={22} color="white" />
+        </TouchableOpacity>
+      ),
+    })
+  }, [navigation])
 
   useEffect(() => { fetchAssets() }, [])
 
