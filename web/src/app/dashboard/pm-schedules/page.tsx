@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function PMSchedulesPage() {
   const [schedules, setSchedules] = useState<any[]>([])
@@ -100,13 +101,13 @@ export default function PMSchedulesPage() {
   }
 
   const freqLabel: Record<string, string> = {
-    daily: lang === 'ar' ? 'يومي' : 'Daily',
-    weekly: lang === 'ar' ? 'أسبوعي' : 'Weekly',
-    fortnightly: lang === 'ar' ? 'كل أسبوعين' : 'Fortnightly',
-    monthly: lang === 'ar' ? 'شهري' : 'Monthly',
-    quarterly: lang === 'ar' ? 'ربع سنوي' : 'Quarterly',
-    biannual: lang === 'ar' ? 'كل 6 أشهر' : 'Every 6 Months',
-    annual: lang === 'ar' ? 'سنوي' : 'Annual',
+    daily:       lang === 'ar' ? 'يومي'         : 'Daily',
+    weekly:      lang === 'ar' ? 'أسبوعي'       : 'Weekly',
+    fortnightly: lang === 'ar' ? 'كل أسبوعين'   : 'Fortnightly',
+    monthly:     lang === 'ar' ? 'شهري'         : 'Monthly',
+    quarterly:   lang === 'ar' ? 'ربع سنوي'     : 'Quarterly',
+    biannual:    lang === 'ar' ? 'كل 6 أشهر'    : 'Every 6 Months',
+    annual:      lang === 'ar' ? 'سنوي'         : 'Annual',
   }
 
   const isDue = (s: any) => s.next_due_at && isPast(new Date(s.next_due_at))
@@ -117,117 +118,121 @@ export default function PMSchedulesPage() {
   }
 
   const stats = {
-    total: schedules.length,
+    total:  schedules.length,
     active: schedules.filter(s => s.is_active).length,
-    due: schedules.filter(s => s.is_active && isDue(s)).length,
-    soon: schedules.filter(s => s.is_active && isDueSoon(s) && !isDue(s)).length,
+    due:    schedules.filter(s => s.is_active && isDue(s)).length,
+    soon:   schedules.filter(s => s.is_active && isDueSoon(s) && !isDue(s)).length,
   }
 
-  const btnStyle = (active: boolean) => ({
-    padding: '6px 14px', borderRadius: 8, border: active ? 'none' : '1px solid #ddd',
-    background: active ? '#1a1a2e' : 'white', color: active ? 'white' : '#333',
-    cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400,
+  const filterBtnStyle = (active: boolean) => ({
+    padding: '6px 14px', borderRadius: 8,
+    border: active ? 'none' : `1px solid ${C.border}`,
+    background: active ? C.navy : C.white,
+    color: active ? C.white : C.textMid,
+    cursor: 'pointer', fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    fontFamily: F.en,
   })
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={pageStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('pm.title')}</h1>
-          <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('pm.title')}</h1>
+          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
             {stats.total} {t('pm.title').toLowerCase()} &middot; {stats.active} {t('common.active').toLowerCase()}
-            {stats.due > 0 && <span style={{ color: '#c62828' }}> &middot; {stats.due} {lang === 'ar' ? 'متأخر' : 'overdue'}</span>}
-            {stats.soon > 0 && <span style={{ color: '#f57f17' }}> &middot; {stats.soon} {lang === 'ar' ? 'قريباً' : 'due soon'}</span>}
+            {stats.due > 0 && <span style={{ color: C.danger }}> &middot; {stats.due} {lang === 'ar' ? 'متأخر' : 'overdue'}</span>}
+            {stats.soon > 0 && <span style={{ color: C.warning }}> &middot; {stats.soon} {lang === 'ar' ? 'قريباً' : 'due soon'}</span>}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Link href='/dashboard/pm-schedules/calendar'>
-            <button style={btnStyle(false)}>{t('pm.calendar')}</button>
+            <button style={filterBtnStyle(false)}>{t('pm.calendar')}</button>
           </Link>
           <Link href='/dashboard/pm-schedules/compliance'>
-            <button style={btnStyle(false)}>{t('pm.compliance')}</button>
+            <button style={filterBtnStyle(false)}>{t('pm.compliance')}</button>
           </Link>
           <Link href='/dashboard/pm-schedules/new'>
-            <button style={{ ...btnStyle(true), background: '#1a1a2e' }}>{t('pm.new')}</button>
+            <button style={primaryBtn}>{t('pm.new')}</button>
           </Link>
         </div>
       </div>
 
       {selected.length > 0 && (
-        <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} {t('common.selected')}</span>
-          <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12 }}>
+        <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: C.danger, fontFamily: F.en }}>{selected.length} {t('common.selected')}</span>
+          <button onClick={deleteSelected} disabled={deleting} style={{ ...dangerBtn, padding: '6px 16px', fontSize: 12 }}>
             {deleting ? t('common.loading') : t('btn.delete_selected')}
           </button>
-          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12 }}>{t('common.cancel')}</button>
+          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.dangerBorder}`, background: C.white, cursor: 'pointer', fontSize: 12, color: C.textMid, fontFamily: F.en }}>{t('common.cancel')}</button>
         </div>
       )}
 
       {loading ? (
-        <p style={{ color: '#999' }}>{t('common.loading')}</p>
+        <p style={{ color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</p>
       ) : schedules.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: '#999' }}>
+        <div style={{ textAlign: 'center', padding: '4rem', color: C.textLight, fontFamily: F.en }}>
           <p style={{ fontSize: 18, marginBottom: 8 }}>{lang === 'ar' ? 'لا توجد جداول صيانة بعد' : 'No PM schedules yet'}</p>
           <p style={{ fontSize: 13 }}>{lang === 'ar' ? 'أنشئ أول جدول صيانة وقائية للبدء' : 'Create your first preventive maintenance schedule to get started'}</p>
         </div>
       ) : (
-        <div style={{ border: '1px solid #eee', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                <th style={{ padding: '12px 16px', width: 40 }}>
+              <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
+                <th style={{ padding: '10px 16px', width: 40 }}>
                   <input type='checkbox' checked={selected.length === schedules.length && schedules.length > 0} onChange={toggleSelectAll} />
                 </th>
                 {[t('pm.col.title'), t('pm.col.asset'), t('pm.col.freq'), t('pm.col.compliance'), t('pm.col.due'), t('wo.col.assigned'), t('common.status'), t('common.actions')].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
+                  <th key={h} style={tableHeaderCell}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {schedules.map((s, i) => {
+              {schedules.map((s) => {
                 const due = isDue(s)
                 const soon = isDueSoon(s)
                 return (
-                  <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(s.id) ? '#f3f4fd' : due ? '#fff8f8' : i % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <tr key={s.id} style={{ background: selected.includes(s.id) ? '#EEF2FF' : due ? '#FFF8F8' : C.white }}>
                     <td style={{ padding: '12px 16px' }}>
                       <input type='checkbox' checked={selected.includes(s.id)} onChange={() => toggleSelect(s.id)} />
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <Link href={'/dashboard/pm-schedules/' + s.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>{s.title}</Link>
-                      {s.description && <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0' }}>{s.description.substring(0, 60)}...</p>}
+                    <td style={tableCell}>
+                      <Link href={'/dashboard/pm-schedules/' + s.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>{s.title}</Link>
+                      {s.description && <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{s.description.substring(0, 60)}...</p>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.asset?.name ?? s.site?.name ?? '—'}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ background: '#f3f4fd', color: '#283593', padding: '2px 10px', borderRadius: 12, fontSize: 12 }}>
+                    <td style={tableCell}>{s.asset?.name ?? s.site?.name ?? '—'}</td>
+                    <td style={tableCell}>
+                      <span style={{ background: C.pageBg, color: C.textMid, border: `1px solid ${C.border}`, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>
                         {freqLabel[s.frequency] ?? s.frequency}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, color: '#666' }}>
+                    <td style={tableCell}>
                       {s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) + '%' : '—'}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: due ? '#c62828' : soon ? '#f57f17' : '#666' }}>
+                    <td style={{ ...tableCell, color: due ? C.danger : soon ? C.warning : C.textMid }}>
                       {s.next_due_at ? format(new Date(s.next_due_at), 'dd MMM yyyy') : '—'}
-                      {due && <span style={{ fontSize: 10, display: 'block', color: '#c62828' }}>{lang === 'ar' ? 'متأخر' : 'Overdue'}</span>}
-                      {soon && !due && <span style={{ fontSize: 10, display: 'block', color: '#f57f17' }}>{lang === 'ar' ? 'قريباً' : 'Due soon'}</span>}
+                      {due && <span style={{ fontSize: 10, display: 'block', color: C.danger, fontFamily: F.en }}>{lang === 'ar' ? 'متأخر' : 'Overdue'}</span>}
+                      {soon && !due && <span style={{ fontSize: 10, display: 'block', color: C.warning, fontFamily: F.en }}>{lang === 'ar' ? 'قريباً' : 'Due soon'}</span>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{s.assignee?.full_name ?? t('common.unassigned')}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ background: s.is_active ? '#e8f5e9' : '#f5f5f5', color: s.is_active ? '#2e7d32' : '#666', padding: '2px 10px', borderRadius: 12, fontSize: 12 }}>
+                    <td style={tableCell}>{s.assignee?.full_name ?? t('common.unassigned')}</td>
+                    <td style={tableCell}>
+                      <span style={{ background: s.is_active ? '#DCFCE7' : C.pageBg, color: s.is_active ? C.success : C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>
                         {s.is_active ? t('common.active') : t('common.inactive')}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td style={tableCell}>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 11 }}>
+                        <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: C.navy, color: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>
                           {generating === s.id ? '...' : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate WO')}
                         </button>
                         <Link href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
-                          <button style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>{t('common.edit')}</button>
+                          <button style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.edit')}</button>
                         </Link>
-                        <button onClick={() => toggleActive(s.id, s.is_active)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>
+                        <button onClick={() => toggleActive(s.id, s.is_active)} style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>
                           {s.is_active ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تفعيل' : 'Resume')}
                         </button>
-                        <button onClick={() => deleteOne(s.id)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>{t('common.delete')}</button>
+                        <button onClick={() => deleteOne(s.id)} style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
                       </div>
                     </td>
                   </tr>
