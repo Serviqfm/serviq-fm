@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function InspectionsPage() {
   const [inspections, setInspections] = useState<any[]>([])
@@ -72,108 +73,107 @@ export default function InspectionsPage() {
 
   const resultBadge = (result: string) => {
     const cfg: Record<string, { bg: string; color: string; label: string }> = {
-      pass:    { bg: '#e8f5e9', color: '#2e7d32', label: lang === 'ar' ? 'ناجح' : 'Pass' },
-      fail:    { bg: '#fce4ec', color: '#c62828', label: lang === 'ar' ? 'فاشل' : 'Fail' },
-      partial: { bg: '#fff8e1', color: '#f57f17', label: lang === 'ar' ? 'جزئي' : 'Partial' },
+      pass:    { bg: '#DCFCE7',  color: C.success, label: lang === 'ar' ? 'ناجح' : 'Pass' },
+      fail:    { bg: C.dangerBg, color: C.danger,  label: lang === 'ar' ? 'فاشل' : 'Fail' },
+      partial: { bg: '#FEF3C7',  color: C.warning, label: lang === 'ar' ? 'جزئي' : 'Partial' },
     }
-    const c = cfg[result?.toLowerCase()] ?? { bg: '#f5f5f5', color: '#666', label: result }
-    return <span style={{ background: c.bg, color: c.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>{c.label}</span>
+    const c = cfg[result?.toLowerCase()] ?? { bg: C.pageBg, color: C.textMid, label: result }
+    return <span style={{ background: c.bg, color: c.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{c.label}</span>
   }
 
   const statusBadge = (status: string) => {
     const cfg: Record<string, { bg: string; color: string; label: string }> = {
-      completed:   { bg: '#e8f5e9', color: '#2e7d32', label: t('wo.status.completed') },
-      in_progress: { bg: '#fff8e1', color: '#f57f17', label: t('wo.status.in_progress') },
-      draft:       { bg: '#f5f5f5', color: '#666', label: lang === 'ar' ? 'مسودة' : 'Draft' },
+      completed:   { bg: '#DCFCE7',  color: C.success, label: t('wo.status.completed') },
+      in_progress: { bg: '#FEF3C7',  color: C.warning, label: t('wo.status.in_progress') },
+      draft:       { bg: C.pageBg,   color: C.textMid, label: lang === 'ar' ? 'مسودة' : 'Draft' },
     }
-    const c = cfg[status?.toLowerCase()] ?? { bg: '#f5f5f5', color: '#666', label: status }
-    return <span style={{ background: c.bg, color: c.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>{c.label}</span>
+    const c = cfg[status?.toLowerCase()] ?? { bg: C.pageBg, color: C.textMid, label: status }
+    return <span style={{ background: c.bg, color: c.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{c.label}</span>
   }
 
   const verticalBadge = (v: string) => {
-    const colors: Record<string, string> = { school: '#e3f2fd', retail: '#e8f5e9', compound: '#fff8e1', hotel: '#fce4ec', general: '#f3f4fd' }
-    return <span style={{ background: colors[v] ?? '#f3f4fd', padding: '2px 10px', borderRadius: 12, fontSize: 12 }}>{v}</span>
+    const colors: Record<string, string> = { school: '#e3f2fd', retail: '#DCFCE7', compound: '#FEF3C7', hotel: C.dangerBg, general: C.pageBg }
+    return <span style={{ background: colors[v] ?? C.pageBg, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>{v}</span>
   }
 
-  const thStyle = { padding: '12px 16px', textAlign: 'left' as const, fontSize: 12, fontWeight: 500, color: '#666' }
-  const tdStyle = { padding: '12px 16px', fontSize: 13, color: '#666' }
-
   return (
-    <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ ...pageStyle, maxWidth: 1100 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('nav.inspections')}</h1>
-          <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('nav.inspections')}</h1>
+          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
             {inspections.length} {t('insp.tab.inspections').toLowerCase()} &middot; {templates.length} {t('insp.tab.templates').toLowerCase()}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Link href='/dashboard/inspections/templates/new'>
-            <button style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13 }}>
-              + {t('insp.tab.templates').slice(0, -1)}
-            </button>
+            <button style={secondaryBtn}>+ {t('insp.tab.templates').slice(0, -1)}</button>
           </Link>
           <Link href='/dashboard/inspections/new'>
-            <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-              + {lang === 'ar' ? 'بدء تفتيش' : 'Start Inspection'}
-            </button>
+            <button style={primaryBtn}>+ {lang === 'ar' ? 'بدء تفتيش' : 'Start Inspection'}</button>
           </Link>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 0, marginBottom: '1.5rem', borderBottom: '2px solid #eee' }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: '1.5rem', borderBottom: `2px solid ${C.border}` }}>
         {(['inspections', 'templates'] as const).map(tab => (
           <button key={tab} onClick={() => { setActiveTab(tab); setSelected([]) }}
-            style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab ? 600 : 400, color: activeTab === tab ? '#1a1a2e' : '#666', borderBottom: activeTab === tab ? '2px solid #1a1a2e' : '2px solid transparent', marginBottom: -2 }}>
+            style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontFamily: F.en,
+              fontWeight: activeTab === tab ? 600 : 400,
+              color: activeTab === tab ? C.navy : C.textLight,
+              borderBottom: activeTab === tab ? `2px solid ${C.navy}` : '2px solid transparent',
+              marginBottom: -2 }}>
             {tab === 'inspections' ? t('insp.tab.inspections') : t('insp.tab.templates')}
-            {tab === 'inspections' && <span style={{ marginLeft: 6, background: '#f3f4fd', padding: '1px 8px', borderRadius: 12, fontSize: 12 }}>{inspections.length}</span>}
-            {tab === 'templates' && <span style={{ marginLeft: 6, background: '#f3f4fd', padding: '1px 8px', borderRadius: 12, fontSize: 12 }}>{templates.length}</span>}
+            {tab === 'inspections' && <span style={{ marginLeft: 6, background: C.pageBg, padding: '1px 8px', borderRadius: 12, fontSize: 12 }}>{inspections.length}</span>}
+            {tab === 'templates' && <span style={{ marginLeft: 6, background: C.pageBg, padding: '1px 8px', borderRadius: 12, fontSize: 12 }}>{templates.length}</span>}
           </button>
         ))}
       </div>
 
       {selected.length > 0 && (
-        <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#b71c1c' }}>{selected.length} {t('common.selected')}</span>
-          <button onClick={deleteSelected} disabled={deleting} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#c62828', color: 'white', cursor: 'pointer', fontSize: 12 }}>
+        <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: C.danger, fontFamily: F.en }}>{selected.length} {t('common.selected')}</span>
+          <button onClick={deleteSelected} disabled={deleting} style={{ ...dangerBtn, padding: '6px 16px', fontSize: 12 }}>
             {deleting ? t('common.loading') : t('btn.delete_selected')}
           </button>
-          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ef9a9a', background: 'white', cursor: 'pointer', fontSize: 12 }}>{t('common.cancel')}</button>
+          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.dangerBorder}`, background: C.white, cursor: 'pointer', fontSize: 12, color: C.textMid, fontFamily: F.en }}>{t('common.cancel')}</button>
         </div>
       )}
 
-      {loading ? <p style={{ color: '#999' }}>{t('common.loading')}</p> : activeTab === 'inspections' ? (
+      {loading ? (
+        <p style={{ color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</p>
+      ) : activeTab === 'inspections' ? (
         inspections.length === 0 ? (
-          <p style={{ color: '#999', textAlign: 'center', padding: '3rem' }}>{lang === 'ar' ? 'لا توجد عمليات تفتيش بعد' : 'No inspections yet'}</p>
+          <p style={{ color: C.textLight, fontFamily: F.en, textAlign: 'center', padding: '3rem' }}>{lang === 'ar' ? 'لا توجد عمليات تفتيش بعد' : 'No inspections yet'}</p>
         ) : (
-          <div style={{ border: '1px solid #eee', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                  <th style={{ padding: '12px 16px', width: 40 }}><input type='checkbox' onChange={e => setSelected(e.target.checked ? inspections.map(i => i.id) : [])} /></th>
+                <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
+                  <th style={{ padding: '10px 16px', width: 40 }}><input type='checkbox' onChange={e => setSelected(e.target.checked ? inspections.map(i => i.id) : [])} /></th>
                   {[t('insp.col.template'), t('insp.col.vertical'), t('insp.col.site'), t('insp.col.asset'), t('insp.col.by'), t('insp.col.date'), t('insp.col.status'), t('insp.col.result'), t('common.actions')].map(h => (
-                    <th key={h} style={thStyle}>{h}</th>
+                    <th key={h} style={tableHeaderCell}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {inspections.map((insp, i) => (
-                  <tr key={insp.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(insp.id) ? '#f3f4fd' : i % 2 === 0 ? 'white' : '#fafafa' }}>
-                    <td style={tdStyle}><input type='checkbox' checked={selected.includes(insp.id)} onChange={() => toggleSelect(insp.id)} /></td>
-                    <td style={{ ...tdStyle, fontWeight: 500, color: '#1a1a2e' }}>{insp.template?.name ?? '—'}</td>
-                    <td style={tdStyle}>{verticalBadge(insp.template?.vertical ?? insp.vertical ?? '')}</td>
-                    <td style={tdStyle}>{insp.site?.name ?? '—'}</td>
-                    <td style={tdStyle}>{insp.asset?.name ?? '—'}</td>
-                    <td style={tdStyle}>{insp.inspector?.full_name ?? '—'}</td>
-                    <td style={tdStyle}>{insp.created_at ? format(new Date(insp.created_at), 'dd MMM yyyy') : '—'}</td>
-                    <td style={tdStyle}>{statusBadge(insp.status)}</td>
-                    <td style={tdStyle}>{resultBadge(insp.overall_result)}</td>
-                    <td style={tdStyle}>
+                {inspections.map((insp) => (
+                  <tr key={insp.id} style={{ background: selected.includes(insp.id) ? '#EEF2FF' : C.white }}>
+                    <td style={{ padding: '12px 16px' }}><input type='checkbox' checked={selected.includes(insp.id)} onChange={() => toggleSelect(insp.id)} /></td>
+                    <td style={{ ...tableCell, fontWeight: 500, color: C.navy }}>{insp.template?.name ?? '—'}</td>
+                    <td style={tableCell}>{verticalBadge(insp.template?.vertical ?? insp.vertical ?? '')}</td>
+                    <td style={tableCell}>{insp.site?.name ?? '—'}</td>
+                    <td style={tableCell}>{insp.asset?.name ?? '—'}</td>
+                    <td style={tableCell}>{insp.inspector?.full_name ?? '—'}</td>
+                    <td style={tableCell}>{insp.created_at ? format(new Date(insp.created_at), 'dd MMM yyyy') : '—'}</td>
+                    <td style={tableCell}>{statusBadge(insp.status)}</td>
+                    <td style={tableCell}>{resultBadge(insp.overall_result)}</td>
+                    <td style={tableCell}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <Link href={'/dashboard/inspections/' + insp.id}>
-                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>{t('common.view')}</button>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.view')}</button>
                         </Link>
-                        <button onClick={() => deleteInspection(insp.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>{t('common.delete')}</button>
+                        <button onClick={() => deleteInspection(insp.id)} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
                       </div>
                     </td>
                   </tr>
@@ -184,31 +184,31 @@ export default function InspectionsPage() {
         )
       ) : (
         templates.length === 0 ? (
-          <p style={{ color: '#999', textAlign: 'center', padding: '3rem' }}>{lang === 'ar' ? 'لا توجد نماذج بعد' : 'No templates yet'}</p>
+          <p style={{ color: C.textLight, fontFamily: F.en, textAlign: 'center', padding: '3rem' }}>{lang === 'ar' ? 'لا توجد نماذج بعد' : 'No templates yet'}</p>
         ) : (
-          <div style={{ border: '1px solid #eee', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                  <th style={{ padding: '12px 16px', width: 40 }}><input type='checkbox' onChange={e => setSelected(e.target.checked ? templates.map(t => t.id) : [])} /></th>
+                <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
+                  <th style={{ padding: '10px 16px', width: 40 }}><input type='checkbox' onChange={e => setSelected(e.target.checked ? templates.map(tmpl => tmpl.id) : [])} /></th>
                   {[t('common.name'), t('insp.col.vertical'), lang === 'ar' ? 'عدد العناصر' : 'Items', t('common.actions')].map(h => (
-                    <th key={h} style={thStyle}>{h}</th>
+                    <th key={h} style={tableHeaderCell}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {templates.map((tmpl, i) => (
-                  <tr key={tmpl.id} style={{ borderBottom: '1px solid #f0f0f0', background: selected.includes(tmpl.id) ? '#f3f4fd' : i % 2 === 0 ? 'white' : '#fafafa' }}>
-                    <td style={tdStyle}><input type='checkbox' checked={selected.includes(tmpl.id)} onChange={() => toggleSelect(tmpl.id)} /></td>
-                    <td style={{ ...tdStyle, fontWeight: 500, color: '#1a1a2e' }}>{tmpl.name}</td>
-                    <td style={tdStyle}>{verticalBadge(tmpl.vertical ?? 'general')}</td>
-                    <td style={tdStyle}>{tmpl.items?.length ?? 0}</td>
-                    <td style={tdStyle}>
+                {templates.map((tmpl) => (
+                  <tr key={tmpl.id} style={{ background: selected.includes(tmpl.id) ? '#EEF2FF' : C.white }}>
+                    <td style={{ padding: '12px 16px' }}><input type='checkbox' checked={selected.includes(tmpl.id)} onChange={() => toggleSelect(tmpl.id)} /></td>
+                    <td style={{ ...tableCell, fontWeight: 500, color: C.navy }}>{tmpl.name}</td>
+                    <td style={tableCell}>{verticalBadge(tmpl.vertical ?? 'general')}</td>
+                    <td style={tableCell}>{tmpl.items?.length ?? 0}</td>
+                    <td style={tableCell}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <Link href={'/dashboard/inspections/templates/' + tmpl.id + '/edit'}>
-                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 11 }}>{t('common.edit')}</button>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.edit')}</button>
                         </Link>
-                        <button onClick={() => deleteTemplate(tmpl.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 11 }}>{t('common.delete')}</button>
+                        <button onClick={() => deleteTemplate(tmpl.id)} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
                       </div>
                     </td>
                   </tr>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { C, F, pageStyle, inputStyle, labelStyle, sectionCard, primaryBtn, dangerBtn } from '@/lib/brand'
 
 export default function SettingsPage() {
   const [org, setOrg] = useState<any>(null)
@@ -66,54 +67,54 @@ export default function SettingsPage() {
 
   const plan = org?.plan_tier ?? 'small'
   const planConfig: Record<string, { label: string; color: string; price: string }> = {
-    small:      { label: lang === 'ar' ? 'صغير' : 'Small',       color: '#1a1a2e', price: 'SAR 2,000-3,000/yr' },
-    medium:     { label: lang === 'ar' ? 'متوسط' : 'Medium',     color: '#283593', price: 'SAR 5,000-7,000/yr' },
-    enterprise: { label: lang === 'ar' ? 'مؤسسي' : 'Enterprise', color: '#b71c1c', price: 'SAR 12,000-15,000/yr' },
+    small:      { label: lang === 'ar' ? 'صغير' : 'Small',       color: C.navy,    price: 'SAR 2,000-3,000/yr' },
+    medium:     { label: lang === 'ar' ? 'متوسط' : 'Medium',     color: C.navy,    price: 'SAR 5,000-7,000/yr' },
+    enterprise: { label: lang === 'ar' ? 'مؤسسي' : 'Enterprise', color: C.danger,  price: 'SAR 12,000-15,000/yr' },
   }
   const planInfo = planConfig[plan] ?? planConfig.small
 
-  const inputStyle = { width: '100%', padding: '9px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const }
-  const labelStyle = { display: 'block' as const, fontSize: 13, fontWeight: 500 as const, color: '#444', marginBottom: 6 }
-  const sectionStyle = { background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }
+  const tabStyle = (active: boolean) => ({
+    padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
+    fontSize: 14, fontFamily: F.en,
+    fontWeight: active ? 600 : 400,
+    color: active ? C.navy : C.textLight,
+    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
+    marginBottom: -2,
+  })
 
-  if (loading) return <div style={{ padding: '2rem', color: '#999' }}>{t('common.loading')}</div>
+  if (loading) return <div style={{ padding: '2rem', color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</div>
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 0.5rem' }}>
+    <div style={{ ...pageStyle, maxWidth: 800 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 0.5rem' }}>
         {lang === 'ar' ? 'الإعدادات' : 'Settings'}
       </h1>
-      <p style={{ fontSize: 13, color: '#999', margin: '0 0 2rem' }}>
+      <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '0 0 2rem' }}>
         {lang === 'ar' ? 'إدارة إعدادات مؤسستك وحسابك' : 'Manage your organisation and account settings'}
       </p>
 
-      <div style={{ display: 'flex', gap: 0, marginBottom: '2rem', borderBottom: '2px solid #eee' }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: '2rem', borderBottom: `2px solid ${C.border}` }}>
         {([
           { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
           { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
           { key: 'account',      label: lang === 'ar' ? 'الحساب' : 'Account' },
         ] as const).map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
-              fontSize: 14, fontWeight: activeTab === tab.key ? 600 : 400,
-              color: activeTab === tab.key ? '#1a1a2e' : '#666',
-              borderBottom: activeTab === tab.key ? '2px solid #1a1a2e' : '2px solid transparent',
-              marginBottom: -2 }}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={tabStyle(activeTab === tab.key)}>
             {tab.label}
           </button>
         ))}
       </div>
 
       {saved && (
-        <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 10, padding: '12px 16px', marginBottom: '1.5rem', color: '#2e7d32', fontSize: 14 }}>
+        <div style={{ background: '#DCFCE7', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px', marginBottom: '1.5rem', color: C.success, fontSize: 14, fontFamily: F.en }}>
           {lang === 'ar' ? 'تم الحفظ بنجاح' : 'Saved successfully'}
         </div>
       )}
 
       {activeTab === 'organisation' && (
         <div>
-          <div style={sectionStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 1.25rem' }}>
+          <div style={sectionCard}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1.25rem' }}>
               {lang === 'ar' ? 'معلومات المؤسسة' : 'Organisation Information'}
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -167,25 +168,24 @@ export default function SettingsPage() {
               </div>
             </div>
             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={saveOrg} disabled={saving}
-                style={{ background: '#1a1a2e', color: 'white', padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>
+              <button onClick={saveOrg} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.7 : 1 }}>
                 {saving ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>
 
-          <div style={sectionStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 1rem' }}>
+          <div style={sectionCard}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
               {lang === 'ar' ? 'خطة الاشتراك' : 'Subscription Plan'}
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f9f9f9', borderRadius: 10, padding: '1rem 1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.pageBg, borderRadius: 10, padding: '1rem 1.25rem' }}>
               <div>
-                <span style={{ background: planInfo.color, color: 'white', padding: '4px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>{planInfo.label}</span>
-                <p style={{ fontSize: 13, color: '#666', margin: '8px 0 0' }}>{planInfo.price}</p>
+                <span style={{ background: planInfo.color, color: C.white, padding: '4px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: F.en }}>{planInfo.label}</span>
+                <p style={{ fontSize: 13, color: C.textMid, margin: '8px 0 0', fontFamily: F.en }}>{planInfo.price}</p>
               </div>
               <div style={{ textAlign: 'right' as const }}>
-                <p style={{ fontSize: 12, color: '#999', margin: '0 0 4px' }}>{lang === 'ar' ? 'للترقية تواصل معنا' : 'To upgrade, contact us'}</p>
-                <a href='mailto:support@serviqfm.com' style={{ fontSize: 13, color: '#1a1a2e', fontWeight: 500 }}>support@serviqfm.com</a>
+                <p style={{ fontSize: 12, color: C.textLight, margin: '0 0 4px', fontFamily: F.en }}>{lang === 'ar' ? 'للترقية تواصل معنا' : 'To upgrade, contact us'}</p>
+                <a href='mailto:support@serviqfm.com' style={{ fontSize: 13, color: C.navy, fontWeight: 500, fontFamily: F.en }}>support@serviqfm.com</a>
               </div>
             </div>
           </div>
@@ -194,15 +194,15 @@ export default function SettingsPage() {
 
       {activeTab === 'storage' && (
         <div>
-          <div style={sectionStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 1rem' }}>
+          <div style={sectionCard}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
               {lang === 'ar' ? 'سياسة التخزين' : 'Storage Policy'}
             </h3>
             <div style={{ background: '#e3f2fd', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#0d47a1', margin: '0 0 6px' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#0d47a1', margin: '0 0 6px', fontFamily: F.en }}>
                 {lang === 'ar' ? 'الاحتفاظ القياسي: 6 أشهر' : 'Standard Retention: 6 Months'}
               </p>
-              <p style={{ fontSize: 13, color: '#1565c0', margin: 0 }}>
+              <p style={{ fontSize: 13, color: '#1565c0', margin: 0, fontFamily: F.en }}>
                 {lang === 'ar'
                   ? 'يتم حذف الصور ومقاطع الفيديو تلقائياً بعد 6 أشهر. البيانات الهيكلية محفوظة بشكل دائم.'
                   : 'Images and videos are automatically purged after 6 months. Structured data is retained permanently.'}
@@ -215,29 +215,29 @@ export default function SettingsPage() {
                 { icon: '🔔', title: lang === 'ar' ? 'إشعار مسبق' : 'Advance Notice', desc: lang === 'ar' ? 'إشعار بريد إلكتروني قبل 30 يوماً من الحذف' : 'Email notification 30 days before any purge' },
                 { icon: '📦', title: lang === 'ar' ? 'تصدير البيانات' : 'Data Export', desc: lang === 'ar' ? 'تحميل جميع الملفات في أي وقت' : 'Download all media files at any time' },
               ].map(item => (
-                <div key={item.title} style={{ background: '#f9f9f9', borderRadius: 10, padding: '1rem' }}>
+                <div key={item.title} style={{ background: C.pageBg, borderRadius: 10, padding: '1rem' }}>
                   <p style={{ fontSize: 20, margin: '0 0 6px' }}>{item.icon}</p>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>{item.title}</p>
-                  <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{item.desc}</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: C.textDark, fontFamily: F.en }}>{item.title}</p>
+                  <p style={{ fontSize: 12, color: C.textMid, margin: 0, fontFamily: F.en }}>{item.desc}</p>
                 </div>
               ))}
             </div>
-            <h4 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 1rem' }}>
+            <h4 style={{ fontSize: 14, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
               {lang === 'ar' ? 'إضافات التخزين الممتد' : 'Extended Storage Add-Ons'}
             </h4>
             {[
-              { period: lang === 'ar' ? '12 شهراً' : '12 months', price: 'SAR 600/yr', best: lang === 'ar' ? 'للمدارس' : 'Best for Schools' },
-              { period: lang === 'ar' ? '24 شهراً' : '24 months', price: 'SAR 1,200/yr', best: lang === 'ar' ? 'للتجزئة' : 'Best for Retail' },
-              { period: lang === 'ar' ? 'غير محدود' : 'Unlimited',  price: 'SAR 2,400/yr', best: lang === 'ar' ? 'للفنادق والمجمعات' : 'Best for Hotels & Compounds' },
+              { period: lang === 'ar' ? '12 شهراً' : '12 months', price: 'SAR 600/yr',     best: lang === 'ar' ? 'للمدارس' : 'Best for Schools' },
+              { period: lang === 'ar' ? '24 شهراً' : '24 months', price: 'SAR 1,200/yr',   best: lang === 'ar' ? 'للتجزئة' : 'Best for Retail' },
+              { period: lang === 'ar' ? 'غير محدود' : 'Unlimited', price: 'SAR 2,400/yr',  best: lang === 'ar' ? 'للفنادق والمجمعات' : 'Best for Hotels & Compounds' },
             ].map(addon => (
-              <div key={addon.price} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', border: '1px solid #eee', borderRadius: 10, marginBottom: 8 }}>
+              <div key={addon.price} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8 }}>
                 <div>
-                  <p style={{ fontSize: 14, fontWeight: 500, margin: '0 0 2px' }}>{addon.period}</p>
-                  <p style={{ fontSize: 12, color: '#999', margin: 0 }}>{addon.best}</p>
+                  <p style={{ fontSize: 14, fontWeight: 500, margin: '0 0 2px', color: C.textDark, fontFamily: F.en }}>{addon.period}</p>
+                  <p style={{ fontSize: 12, color: C.textLight, margin: 0, fontFamily: F.en }}>{addon.best}</p>
                 </div>
                 <div style={{ textAlign: 'right' as const }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', margin: '0 0 4px' }}>{addon.price}</p>
-                  <a href='mailto:support@serviqfm.com' style={{ fontSize: 12, color: '#1a1a2e' }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, margin: '0 0 4px', fontFamily: F.en }}>{addon.price}</p>
+                  <a href='mailto:support@serviqfm.com' style={{ fontSize: 12, color: C.navy, fontFamily: F.en }}>
                     {lang === 'ar' ? 'تواصل للاشتراك' : 'Contact to subscribe'}
                   </a>
                 </div>
@@ -249,52 +249,51 @@ export default function SettingsPage() {
 
       {activeTab === 'account' && (
         <div>
-          <div style={sectionStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 1.25rem' }}>
+          <div style={sectionCard}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1.25rem' }}>
               {lang === 'ar' ? 'تفضيلات اللغة' : 'Language Preference'}
             </h3>
             <div style={{ display: 'flex', gap: 12 }}>
               {(['ar', 'en'] as const).map(l => (
                 <button key={l} onClick={() => setLang(l)}
                   style={{ padding: '10px 24px', borderRadius: 8,
-                    border: lang === l ? 'none' : '1px solid #ddd',
-                    background: lang === l ? '#1a1a2e' : 'white',
-                    color: lang === l ? 'white' : '#333',
-                    cursor: 'pointer', fontSize: 14, fontWeight: lang === l ? 600 : 400 }}>
+                    border: lang === l ? 'none' : `1px solid ${C.border}`,
+                    background: lang === l ? C.navy : C.white,
+                    color: lang === l ? C.white : C.textMid,
+                    cursor: 'pointer', fontSize: 14, fontWeight: lang === l ? 600 : 400, fontFamily: F.en }}>
                   {l === 'ar' ? 'العربية' : 'English'}
                 </button>
               ))}
             </div>
           </div>
 
-          <div style={sectionStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 1rem' }}>
+          <div style={sectionCard}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
               {lang === 'ar' ? 'معلومات الحساب' : 'Account Information'}
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
-                { label: lang === 'ar' ? 'الاسم' : 'Name', value: user?.full_name ?? '-' },
-                { label: lang === 'ar' ? 'البريد الإلكتروني' : 'Email', value: user?.email ?? '-' },
-                { label: lang === 'ar' ? 'الدور' : 'Role', value: user?.role ?? '-' },
-                { label: lang === 'ar' ? 'المؤسسة' : 'Organisation', value: org?.name ?? '-' },
+                { label: lang === 'ar' ? 'الاسم' : 'Name',               value: user?.full_name ?? '-' },
+                { label: lang === 'ar' ? 'البريد الإلكتروني' : 'Email',   value: user?.email ?? '-' },
+                { label: lang === 'ar' ? 'الدور' : 'Role',               value: user?.role ?? '-' },
+                { label: lang === 'ar' ? 'المؤسسة' : 'Organisation',     value: org?.name ?? '-' },
               ].map(item => (
-                <div key={item.label} style={{ background: '#f9f9f9', borderRadius: 8, padding: '12px 14px' }}>
-                  <p style={{ fontSize: 11, color: '#999', margin: '0 0 4px', fontWeight: 500 }}>{item.label}</p>
-                  <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{item.value}</p>
+                <div key={item.label} style={{ background: C.pageBg, borderRadius: 8, padding: '12px 14px' }}>
+                  <p style={{ fontSize: 11, color: C.textLight, margin: '0 0 4px', fontWeight: 500, fontFamily: F.en }}>{item.label}</p>
+                  <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: C.textDark, fontFamily: F.en }}>{item.value}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={sectionStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 0.5rem' }}>
+          <div style={sectionCard}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 0.5rem' }}>
               {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
             </h3>
-            <p style={{ fontSize: 13, color: '#999', margin: '0 0 1rem' }}>
+            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '0 0 1rem' }}>
               {lang === 'ar' ? 'سيتم تسجيل خروجك من جميع الأجهزة' : 'You will be signed out of all devices'}
             </p>
-            <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }}
-              style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #ef9a9a', background: '#fce4ec', color: '#c62828', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>
+            <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }} style={dangerBtn}>
               {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
             </button>
           </div>
