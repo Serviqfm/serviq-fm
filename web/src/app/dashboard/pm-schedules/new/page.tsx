@@ -117,7 +117,6 @@ export default function NewPMSchedulePage() {
               <option value='daily'>{lang === 'ar' ? 'يومي' : 'Daily'}</option>
               <option value='weekly'>{lang === 'ar' ? 'أسبوعي' : 'Weekly'}</option>
               <option value='fortnightly'>Fortnightly (Every 2 weeks)</option>
-              <option value='fortnightly'>Fortnightly (Every 2 weeks)</option>
               <option value='monthly'>{lang === 'ar' ? 'شهري' : 'Monthly'}</option>
               <option value='quarterly'>{lang === 'ar' ? 'ربع سنوي' : 'Quarterly'}</option>
               <option value='biannual'>Every 6 Months</option>
