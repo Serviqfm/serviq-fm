@@ -14,6 +14,56 @@ import { colors, radius, shadow } from '../lib/theme'
 import { format } from 'date-fns'
 import { Modal, Dimensions } from 'react-native'
 
+function useCountdown(dueAt: string | null) {
+  const [timeLeft, setTimeLeft] = useState<string | null>(null)
+  const [isUrgent, setIsUrgent] = useState(false)
+
+  useEffect(() => {
+    if (!dueAt) return
+    function tick() {
+      const diff = new Date(dueAt!).getTime() - Date.now()
+      if (diff <= 0) {
+        setTimeLeft('Overdue')
+        setIsUrgent(true)
+        return
+      }
+      const hrs = Math.floor(diff / 3600000)
+      const mins = Math.floor((diff % 3600000) / 60000)
+      if (hrs < 24) {
+        setIsUrgent(true)
+        setTimeLeft(hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`)
+      } else {
+        setIsUrgent(false)
+        setTimeLeft(null)
+      }
+    }
+    tick()
+    const id = setInterval(tick, 60000)
+    return () => clearInterval(id)
+  }, [dueAt])
+
+  return { timeLeft, isUrgent }
+}
+
+function CountdownBanner({ dueAt }: { dueAt: string | null }) {
+  const { timeLeft } = useCountdown(dueAt)
+  if (!timeLeft) return null
+  if (timeLeft === 'Overdue') {
+    return (
+      <View style={{ backgroundColor: '#FEE2E2', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
+        <Text style={{ color: '#C62828', fontWeight: '600', fontSize: 14 }}>Overdue</Text>
+      </View>
+    )
+  }
+  return (
+    <View style={{ backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <Ionicons name="warning-outline" size={18} color="#92400E" />
+      <Text style={{ color: '#92400E', fontWeight: '600', fontSize: 14 }}>Due in {timeLeft}</Text>
+    </View>
+  )
+}
+
 export default function WorkOrderDetailScreen() {
   const route = useRoute<any>()
   const navigation = useNavigation<any>()
@@ -221,30 +271,7 @@ export default function WorkOrderDetailScreen() {
         <Text style={styles.woTitle}>{wo.title}</Text>
       </View>
 
-      {wo.due_at && (() => {
-        const diff = new Date(wo.due_at).getTime() - Date.now()
-        const hrs = Math.floor(diff / 3600000)
-        if (diff > 0 && hrs < 24) {
-          const mins = Math.floor((diff % 3600000) / 60000)
-          return (
-            <View style={{ backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="warning-outline" size={18} color="#92400E" />
-              <Text style={{ color: '#92400E', fontWeight: '600', fontSize: 14 }}>
-                Due in {hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}
-              </Text>
-            </View>
-          )
-        }
-        if (diff <= 0) {
-          return (
-            <View style={{ backgroundColor: '#FEE2E2', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
-              <Text style={{ color: '#C62828', fontWeight: '600', fontSize: 14 }}>Overdue</Text>
-            </View>
-          )
-        }
-        return null
-      })()}
+      <CountdownBanner dueAt={wo.due_at ?? null} />
 
       {actions.length > 0 && (
         <View style={styles.actionsRow}>
