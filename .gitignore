@@ -1,0 +1,7 @@
+# Tool directories
+.claude/
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
