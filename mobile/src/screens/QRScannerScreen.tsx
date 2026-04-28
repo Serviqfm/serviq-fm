@@ -28,13 +28,24 @@ export default function QRScannerScreen() {
     } else if (/^[0-9a-f-]{36}$/i.test(data)) {
       assetId = data
     } else {
-      const { data: asset } = await supabase
-        .from('assets')
-        .select('id')
-        .eq('qr_code', data)
-        .eq('organisation_id', profile?.organisation_id)
-        .single()
-      assetId = asset?.id ?? null
+      if (!profile?.organisation_id) {
+        Alert.alert('Error', 'Organisation not loaded. Please try again.')
+        setScanned(false)
+        return
+      }
+      try {
+        const { data: asset } = await supabase
+          .from('assets')
+          .select('id')
+          .eq('qr_code', data)
+          .eq('organisation_id', profile.organisation_id)
+          .single()
+        assetId = asset?.id ?? null
+      } catch {
+        Alert.alert('Error', 'Could not look up QR code. Please try again.')
+        setScanned(false)
+        return
+      }
     }
 
     if (!assetId) {
@@ -103,7 +114,7 @@ const styles = StyleSheet.create({
   },
   scanBox: {
     width: 240, height: 240,
-    borderWidth: 2, borderColor: '#6DCFB0',
+    borderWidth: 2, borderColor: colors.teal,
     borderRadius: 16, backgroundColor: 'transparent',
     marginBottom: 32,
   },
