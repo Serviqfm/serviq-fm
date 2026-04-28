@@ -76,25 +76,17 @@ export default function AssetsScreen() {
         <View style={styles.cardBody}>
           <Text style={styles.assetName} numberOfLines={1}>{item.name}</Text>
           {item.status === 'under_maintenance' && (
-            <View style={{
-              flexDirection: 'row', alignItems: 'center', gap: 4,
-              backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3,
-              borderRadius: 20, alignSelf: 'flex-start', marginTop: 4,
-            }}>
+            <View style={[styles.breakdownBadge, styles.maintenanceBadge]}>
               <Ionicons name="construct-outline" size={11} color="#92400E" />
-              <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600' }}>
+              <Text style={styles.maintenanceText}>
                 {t('under_maintenance') ?? 'Under Maintenance'}
               </Text>
             </View>
           )}
           {item.status === 'retired' && (
-            <View style={{
-              flexDirection: 'row', alignItems: 'center', gap: 4,
-              backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3,
-              borderRadius: 20, alignSelf: 'flex-start', marginTop: 4,
-            }}>
+            <View style={[styles.breakdownBadge, styles.retiredBadge]}>
               <Ionicons name="archive-outline" size={11} color="#64748B" />
-              <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600' }}>
+              <Text style={styles.retiredText}>
                 {t('retired') ?? 'Retired'}
               </Text>
             </View>
@@ -154,4 +146,13 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '600' },
   empty: { alignItems: 'center', padding: 48 },
   emptyText: { fontSize: 15, color: colors.textSecondary, marginTop: 12 },
+  breakdownBadge: {
+    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 20, alignSelf: 'flex-start' as const, marginTop: 4,
+  },
+  maintenanceBadge: { backgroundColor: '#FEF3C7' },
+  maintenanceText: { fontSize: 11, color: '#92400E', fontWeight: '600' as const },
+  retiredBadge: { backgroundColor: '#F1F5F9' },
+  retiredText: { fontSize: 11, color: '#64748B', fontWeight: '600' as const },
 })
