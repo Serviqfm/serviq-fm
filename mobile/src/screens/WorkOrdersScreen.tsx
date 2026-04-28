@@ -8,6 +8,54 @@ import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
 import { format } from 'date-fns'
 
+function useCountdown(dueAt: string | null) {
+  const [timeLeft, setTimeLeft] = useState<string | null>(null)
+  const [isUrgent, setIsUrgent] = useState(false)
+
+  useEffect(() => {
+    if (!dueAt) return
+    function tick() {
+      const diff = new Date(dueAt!).getTime() - Date.now()
+      if (diff <= 0) {
+        setTimeLeft('Overdue')
+        setIsUrgent(true)
+        return
+      }
+      const hrs = Math.floor(diff / 3600000)
+      const mins = Math.floor((diff % 3600000) / 60000)
+      if (hrs < 24) {
+        setIsUrgent(true)
+        setTimeLeft(hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`)
+      } else {
+        setIsUrgent(false)
+        setTimeLeft(null) // don't show timer if > 24hrs
+      }
+    }
+    tick()
+    const id = setInterval(tick, 60000)
+    return () => clearInterval(id)
+  }, [dueAt])
+
+  return { timeLeft, isUrgent }
+}
+
+function CountdownPill({ dueAt }: { dueAt: string | null }) {
+  const { timeLeft } = useCountdown(dueAt)
+  if (!timeLeft) return null
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      backgroundColor: timeLeft === 'Overdue' ? '#FEE2E2' : '#FEF3C7',
+      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
+    }}>
+      <Ionicons name="time-outline" size={11} color={timeLeft === 'Overdue' ? '#C62828' : '#92400E'} />
+      <Text style={{ fontSize: 11, fontWeight: '700', color: timeLeft === 'Overdue' ? '#C62828' : '#92400E' }}>
+        {timeLeft}
+      </Text>
+    </View>
+  )
+}
+
 export default function WorkOrdersScreen() {
   const { profile } = useAuth()
   const { t, lang, isRTL } = useLang()
@@ -94,6 +142,7 @@ export default function WorkOrdersScreen() {
               <Text style={styles.woFooterText}>{format(new Date(item.due_at), 'dd MMM')}</Text>
             </View>
           )}
+          <CountdownPill dueAt={item.due_at ?? null} />
         </View>
       </TouchableOpacity>
     )
