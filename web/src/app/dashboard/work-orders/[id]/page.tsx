@@ -9,6 +9,7 @@ import { format, formatDistanceToNow, isAfter, differenceInHours, differenceInDa
 import { useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
+import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
@@ -217,8 +218,8 @@ export default function WorkOrderDetailPage() {
     return { expires, daysLeft, warning: daysLeft <= 30 }
   }
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>
-  if (!wo) return <div style={{ padding: '2rem' }}>Work order not found.</div>
+  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading...</div>
+  if (!wo) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Work order not found.</div>
 
   const sla = getSLAInfo()
   const mediaExpiry = getMediaExpiryInfo()
@@ -233,61 +234,68 @@ export default function WorkOrderDetailPage() {
     closed:      [],
   }
 
-  const cardStyle = { background: '#f9f9f9', borderRadius: 8, padding: '12px 16px' }
+  const infoCard = { background: C.pageBg, borderRadius: 8, padding: '12px 16px' }
+
   const tabStyle = (active: boolean) => ({
     padding: '8px 16px',
     border: 'none',
-    borderBottom: active ? '2px solid #1a1a2e' : '2px solid transparent',
+    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
     background: 'transparent',
     cursor: 'pointer',
     fontSize: 13,
     fontWeight: (active ? 600 : 400) as any,
-    color: active ? '#1a1a2e' : '#999',
+    color: active ? C.navy : C.textLight,
+    fontFamily: F.en,
   })
 
+  const statusActionColor = (s: WorkOrderStatus): React.CSSProperties => {
+    if (s === 'completed') return { background: C.teal, color: C.white, border: 'none' }
+    if (s === 'closed')    return { background: C.navy, color: C.white, border: 'none' }
+    if (s === 'in_progress') return { background: C.blue, color: C.white, border: 'none' }
+    return { background: C.white, color: C.textMid, border: `1px solid ${C.border}` }
+  }
+
   return (
-    <div style={{ padding: '2rem', maxWidth: 860, margin: '0 auto' }}>
+    <div style={{ ...pageStyle, maxWidth: 860 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <a href="/dashboard/work-orders" style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Work Orders</a>
+        <a href="/dashboard/work-orders" style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>Back to Work Orders</a>
         <div style={{ display: 'flex', gap: 8 }}>
           <a href={'/dashboard/work-orders/' + id + '/edit'}>
-            <button style={{ padding: '6px 16px', borderRadius: 7, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13 }}>Edit</button>
+            <button style={{ ...secondaryBtn, padding: '6px 16px' }}>Edit</button>
           </a>
-          <button onClick={() => window.print()} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13 }}>Export PDF</button>
+          <button onClick={() => window.print()} style={{ ...primaryBtn, padding: '6px 16px' }}>Export PDF</button>
         </div>
       </div>
 
-      {/* Title */}
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
-          {lang === 'ar' && (
-            <TranslateButton
-              texts={{ title: wo.title, description: wo.description ?? '' }}
-              onTranslated={setTranslatedWO}
-            />
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
+            {lang === 'ar' && (
+              <TranslateButton
+                texts={{ title: wo.title, description: wo.description ?? '' }}
+                onTranslated={setTranslatedWO}
+              />
+            )}
+          </div>
+          {translatedWO.description && lang === 'ar' && (
+            <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, margin: '6px 0 0', direction: 'rtl', background: C.pageBg, padding: '8px 12px', borderRadius: 6 }}>
+              {translatedWO.description}
+            </p>
           )}
-        </div>
-        {translatedWO.description && lang === 'ar' && (
-          <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', direction: 'rtl', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
-            {translatedWO.description}
-          </p>
-        )}
           <PriorityBadge priority={wo.priority} />
           <StatusBadge status={wo.status} />
           {(wo as any).category && (
-            <span style={{ fontSize: 12, background: '#f0f0f0', color: '#555', padding: '2px 10px', borderRadius: 12 }}>
+            <span style={{ fontSize: 12, background: C.pageBg, color: C.textMid, padding: '2px 10px', borderRadius: 12, fontFamily: F.en }}>
               {(wo as any).category}
             </span>
           )}
         </div>
-        <p style={{ color: '#999', fontSize: 13, marginTop: 6 }}>
+        <p style={{ color: C.textLight, fontSize: 13, marginTop: 6, fontFamily: F.en }}>
           Created {format(new Date(wo.created_at), 'dd MMM yyyy, HH:mm')} · Updated {formatDistanceToNow(new Date(wo.updated_at), { addSuffix: true })}
         </p>
       </div>
 
-      {/* SLA banner */}
       {sla && !['completed', 'closed'].includes(wo.status) && (
         <div style={{
           padding: '12px 16px', borderRadius: 8, marginBottom: '1rem',
@@ -296,24 +304,22 @@ export default function WorkOrderDetailPage() {
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <span>{sla.overdue ? '🔴' : sla.hoursLeft < 24 ? '🟡' : '🟢'}</span>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: sla.overdue ? '#b71c1c' : sla.hoursLeft < 24 ? '#f57f17' : '#2e7d32' }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: F.en, color: sla.overdue ? C.danger : sla.hoursLeft < 24 ? C.warning : C.success }}>
             {sla.overdue ? `Overdue by ${sla.hoursPast} hours` : sla.hoursLeft < 24 ? `Due in ${sla.hoursLeft} hours` : `Due ${format(sla.due, 'dd MMM yyyy, HH:mm')}`}
           </p>
         </div>
       )}
 
-      {/* Media expiry notice */}
       {mediaExpiry && mediaExpiry.warning && allPhotos.length > 0 && (
         <div style={{
           padding: '10px 14px', borderRadius: 8, marginBottom: '1rem',
           background: '#fff3e0', border: '1px solid #ffcc80',
-          fontSize: 13, color: '#e65100',
+          fontSize: 13, color: '#e65100', fontFamily: F.en,
         }}>
           ⏳ Photos attached to this work order will be purged in {mediaExpiry.daysLeft} days ({format(mediaExpiry.expires, 'dd MMM yyyy')}). Download them before this date if needed.
         </div>
       )}
 
-      {/* Info grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: '1.5rem' }}>
         {[
           { label: 'Asset', value: (wo.asset as any)?.name ?? '—' },
@@ -325,40 +331,37 @@ export default function WorkOrderDetailPage() {
           { label: 'SLA', value: wo.sla_hours ? `${wo.sla_hours} hours` : '—' },
           { label: 'Source', value: wo.source?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—' },
         ].map(({ label, value }) => (
-          <div key={label} style={cardStyle}>
-            <p style={{ fontSize: 12, color: '#999', margin: '0 0 4px' }}>{label}</p>
-            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{value}</p>
+          <div key={label} style={infoCard}>
+            <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px' }}>{label}</p>
+            <p style={{ fontSize: 14, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* Description */}
       {wo.description && (
-        <div style={{ ...cardStyle, marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 12, color: '#999', margin: '0 0 6px' }}>Description</p>
-          <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6 }}>{wo.description}</p>
+        <div style={{ ...infoCard, marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 6px' }}>Description</p>
+          <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6, color: C.textDark, fontFamily: F.en }}>{wo.description}</p>
         </div>
       )}
 
-      {/* Completion notes / sign-off */}
       {wo.completion_notes && (
-        <div style={{ ...cardStyle, marginBottom: '1.5rem', border: '1px solid #a5d6a7' }}>
-          <p style={{ fontSize: 12, color: '#2e7d32', margin: '0 0 6px' }}>Digital Sign-off</p>
-          <p style={{ fontSize: 14, margin: 0 }}>{wo.completion_notes}</p>
+        <div style={{ ...infoCard, marginBottom: '1.5rem', border: `1px solid ${C.lightTeal}` }}>
+          <p style={{ fontSize: 12, color: C.success, fontFamily: F.en, margin: '0 0 6px' }}>Digital Sign-off</p>
+          <p style={{ fontSize: 14, margin: 0, color: C.textDark, fontFamily: F.en }}>{wo.completion_notes}</p>
         </div>
       )}
 
-      {/* Status actions */}
       {nextStatuses[wo.status].length > 0 && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Update Status</p>
+          <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: C.textMid, fontFamily: F.en }}>Update Status</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {nextStatuses[wo.status].map(s => (
               <button
                 key={s}
                 onClick={() => updateStatus(s)}
                 disabled={updating}
-                style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                style={{ padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: F.en, ...statusActionColor(s) }}
               >
                 {updating ? '...' : `→ ${s.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`}
               </button>
@@ -367,28 +370,27 @@ export default function WorkOrderDetailPage() {
         </div>
       )}
 
-      {/* Digital sign-off modal */}
       {showSignoff && (
-        <div style={{ background: '#f9f9f9', border: '1px solid #ddd', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 12px' }}>Digital Sign-off Required</p>
-          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>Enter your full name to confirm you have reviewed and approved this work order for closing.</p>
+        <div style={{ background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: 15, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 12px' }}>Digital Sign-off Required</p>
+          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, margin: '0 0 12px' }}>Enter your full name to confirm you have reviewed and approved this work order for closing.</p>
           <input
             value={signoffName}
             onChange={e => setSignoffName(e.target.value)}
             placeholder="Your full name"
-            style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
+            style={{ ...inputStyle, marginBottom: 12 }}
           />
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={() => { if (signoffName.trim()) doStatusUpdate('closed', signoffName.trim()) }}
               disabled={!signoffName.trim() || updating}
-              style={{ padding: '8px 20px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+              style={{ ...primaryBtn, opacity: !signoffName.trim() || updating ? 0.5 : 1 }}
             >
               {updating ? 'Closing...' : 'Confirm & Close Work Order'}
             </button>
             <button
               onClick={() => setShowSignoff(false)}
-              style={{ padding: '8px 16px', background: 'white', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+              style={secondaryBtn}
             >
               Cancel
             </button>
@@ -396,8 +398,7 @@ export default function WorkOrderDetailPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ borderBottom: '1px solid #eee', marginBottom: '1rem', display: 'flex', gap: 0 }}>
+      <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: '1rem', display: 'flex', gap: 0 }}>
         <button style={tabStyle(activeTab === 'comments')} onClick={() => setActiveTab('comments')}>Comments ({comments.length})</button>
         <button style={tabStyle(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({allPhotos.length + closeoutPreviewUrls.length})</button>
         <button style={tabStyle(activeTab === 'history')} onClick={() => setActiveTab('history')}>History ({history.length})</button>
@@ -405,50 +406,47 @@ export default function WorkOrderDetailPage() {
         <button style={tabStyle(activeTab === 'activity')} onClick={() => setActiveTab('activity')}>Activity Log ({activities.length})</button>
       </div>
 
-      {/* Comments tab */}
       {activeTab === 'comments' && (
         <div>
-          {comments.length === 0 && <p style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>No comments yet.</p>}
+          {comments.length === 0 && <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, marginBottom: 12 }}>No comments yet.</p>}
           {comments.map(c => (
-            <div key={c.id} style={{ ...cardStyle, marginBottom: 8 }}>
-              <p style={{ fontSize: 12, color: '#999', margin: '0 0 4px' }}>{c.user?.full_name ?? 'Unknown'} · {format(new Date(c.created_at), 'dd MMM yyyy, HH:mm')}</p>
-              <p style={{ fontSize: 14, margin: 0 }}>{c.body}</p>
+            <div key={c.id} style={{ ...infoCard, marginBottom: 8 }}>
+              <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px' }}>{c.user?.full_name ?? 'Unknown'} · {format(new Date(c.created_at), 'dd MMM yyyy, HH:mm')}</p>
+              <p style={{ fontSize: 14, margin: 0, color: C.textDark, fontFamily: F.en }}>{c.body}</p>
             </div>
           ))}
           <form onSubmit={addComment} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Add a comment..." style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14 }} />
-            <button type="submit" style={{ padding: '8px 16px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Post</button>
+            <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Add a comment..." style={{ ...inputStyle, flex: 1 }} />
+            <button type="submit" style={primaryBtn}>Post</button>
           </form>
         </div>
       )}
 
-      {/* Photos tab */}
       {activeTab === 'photos' && (
         <div>
           {mediaExpiry && allPhotos.length > 0 && (
-            <p style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>
+            <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, marginBottom: 12 }}>
               Photos retained until {format(mediaExpiry.expires, 'dd MMM yyyy')} · {mediaExpiry.daysLeft} days remaining
             </p>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: '1.5rem' }}>
             {allPhotos.map((url, i) => (
-              <img key={i} src={url} alt={`Photo ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
+              <img key={i} src={url} alt={`Photo ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
             ))}
             {allPhotos.length === 0 && closeoutPreviewUrls.length === 0 && (
-              <p style={{ fontSize: 13, color: '#999' }}>No photos attached yet.</p>
+              <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No photos attached yet.</p>
             )}
           </div>
-
           {!['completed', 'closed'].includes(wo.status) && (
             <div>
-              <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
+              <p style={{ fontSize: 13, fontWeight: 500, color: C.textMid, fontFamily: F.en, marginBottom: 8 }}>
                 Add close-out photos {wo.status === 'in_progress' ? '(required before marking Completed)' : ''}
               </p>
-              <input type="file" accept="image/*" multiple onChange={handleCloseoutPhoto} style={{ fontSize: 13 }} />
+              <input type="file" accept="image/*" multiple onChange={handleCloseoutPhoto} style={{ fontSize: 13, fontFamily: F.en }} />
               {closeoutPreviewUrls.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                   {closeoutPreviewUrls.map((url, i) => (
-                    <img key={i} src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
+                    <img key={i} src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
                   ))}
                 </div>
               )}
@@ -457,41 +455,39 @@ export default function WorkOrderDetailPage() {
         </div>
       )}
 
-      {/* History tab */}
       {activeTab === 'history' && (
         <div>
-          {history.length === 0 && <p style={{ fontSize: 13, color: '#999' }}>No history yet. Status changes will appear here.</p>}
+          {history.length === 0 && <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No history yet. Status changes will appear here.</p>}
           {history.map(h => (
             <div key={h.id} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1a1a2e', marginTop: 5, flexShrink: 0 }} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.navy, marginTop: 5, flexShrink: 0 }} />
               <div>
-                <p style={{ fontSize: 13, margin: 0, fontWeight: 500 }}>{h.action}</p>
-                <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</p>
+                <p style={{ fontSize: 13, margin: 0, fontWeight: 500, color: C.textDark, fontFamily: F.en }}>{h.action}</p>
+                <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</p>
               </div>
             </div>
           ))}
         </div>
       )}
+
       {activeTab === 'parts' && (
         <div>
-          <p style={{ fontSize: 13, color: '#666', marginBottom: '1rem' }}>Log parts and materials consumed on this work order. Stock levels are automatically deducted.</p>
-
+          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1rem' }}>Log parts and materials consumed on this work order. Stock levels are automatically deducted.</p>
           {partsUsed.length > 0 && (
             <div style={{ marginBottom: '1.5rem' }}>
-              <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Parts logged this session:</p>
+              <p style={{ fontSize: 13, fontWeight: 500, color: C.textDark, fontFamily: F.en, marginBottom: 8 }}>Parts logged this session:</p>
               {partsUsed.map((p, i) => (
-                <div key={i} style={{ background: '#f9f9f9', borderRadius: 8, padding: '10px 14px', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13 }}>{p.qty} {p.unit} × {p.name}</span>
-                  <span style={{ fontSize: 13, color: '#666' }}>{p.cost ? 'SAR ' + p.cost.toFixed(2) : '—'}</span>
+                <div key={i} style={{ ...infoCard, marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, color: C.textDark, fontFamily: F.en }}>{p.qty} {p.unit} × {p.name}</span>
+                  <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>{p.cost ? 'SAR ' + p.cost.toFixed(2) : '—'}</span>
                 </div>
               ))}
             </div>
           )}
-
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 2, minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Select Part / Material</label>
-              <select value={selectedPartId} onChange={e => setSelectedPartId(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, background: 'white' }}>
+              <label style={{ display: 'block', fontSize: 12, color: C.textMid, fontFamily: F.en, marginBottom: 4 }}>Select Part / Material</label>
+              <select value={selectedPartId} onChange={e => setSelectedPartId(e.target.value)} style={inputStyle}>
                 <option value=''>Select inventory item...</option>
                 {inventoryItems.map(item => (
                   <option key={item.id} value={item.id}>{item.name} (Stock: {item.stock_quantity} {item.unit})</option>
@@ -499,42 +495,39 @@ export default function WorkOrderDetailPage() {
               </select>
             </div>
             <div style={{ flex: 1, minWidth: 100 }}>
-              <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Quantity Used</label>
-              <input type='number' value={partQty} onChange={e => setPartQty(e.target.value)} min='0.01' step='0.01' placeholder='0' style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' as const }} />
+              <label style={{ display: 'block', fontSize: 12, color: C.textMid, fontFamily: F.en, marginBottom: 4 }}>Quantity Used</label>
+              <input type='number' value={partQty} onChange={e => setPartQty(e.target.value)} min='0.01' step='0.01' placeholder='0' style={inputStyle} />
             </div>
-            <button onClick={addPart} disabled={addingPart || !selectedPartId || !partQty} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500, opacity: !selectedPartId || !partQty ? 0.5 : 1 }}>
+            <button onClick={addPart} disabled={addingPart || !selectedPartId || !partQty} style={{ ...primaryBtn, opacity: !selectedPartId || !partQty ? 0.5 : 1 }}>
               {addingPart ? '...' : 'Log Parts'}
             </button>
           </div>
-
           {inventoryItems.length === 0 && (
-            <p style={{ fontSize: 13, color: '#f57f17', marginTop: 12 }}>No inventory items found. <a href='/dashboard/inventory/new' style={{ color: '#1565c0' }}>Add items to inventory first.</a></p>
+            <p style={{ fontSize: 13, color: C.warning, fontFamily: F.en, marginTop: 12 }}>No inventory items found. <a href='/dashboard/inventory/new' style={{ color: C.blue }}>Add items to inventory first.</a></p>
           )}
         </div>
       )}
 
       {activeTab === 'activity' && (
         <div>
-          <p style={{ fontSize: 13, color: '#666', marginBottom: '1rem' }}>Log structured work updates — what was done, findings, or next steps.</p>
-
+          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1rem' }}>Log structured work updates — what was done, findings, or next steps.</p>
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               {['update','finding','action','waiting','completed'].map(t => (
-                <button key={t} type='button' onClick={() => setActivityType(t)} style={{ padding: '5px 14px', borderRadius: 20, border: '2px solid ' + (activityType === t ? '#1a1a2e' : '#ddd'), background: activityType === t ? '#1a1a2e' : 'white', color: activityType === t ? 'white' : '#666', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+                <button key={t} type='button' onClick={() => setActivityType(t)} style={{ padding: '5px 14px', borderRadius: 20, border: `2px solid ${activityType === t ? C.navy : C.border}`, background: activityType === t ? C.navy : C.white, color: activityType === t ? C.white : C.textMid, cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input value={activityText} onChange={e => setActivityText(e.target.value)} placeholder='Describe what was done or found...' style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14 }} />
-              <button onClick={addActivity} disabled={addingActivity || !activityText.trim()} style={{ padding: '8px 20px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, opacity: !activityText.trim() ? 0.5 : 1 }}>
+              <input value={activityText} onChange={e => setActivityText(e.target.value)} placeholder='Describe what was done or found...' style={{ ...inputStyle, flex: 1 }} />
+              <button onClick={addActivity} disabled={addingActivity || !activityText.trim()} style={{ ...primaryBtn, opacity: !activityText.trim() ? 0.5 : 1 }}>
                 {addingActivity ? '...' : 'Log Activity'}
               </button>
             </div>
           </div>
-
           {activities.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#999' }}>No activity logged yet. Use the form above to record work updates.</p>
+            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No activity logged yet. Use the form above to record work updates.</p>
           ) : (
             activities.map((a: any) => {
               const body = a.body.replace('[ACTIVITY] ', '')
@@ -542,22 +535,22 @@ export default function WorkOrderDetailPage() {
               const type = typeMatch ? typeMatch[1].toLowerCase() : 'update'
               const text = body.replace(/^\[\w+\] /, '')
               const typeColors: Record<string, { bg: string; color: string }> = {
-                update: { bg: '#e8eaf6', color: '#283593' },
-                finding: { bg: '#fff8e1', color: '#f57f17' },
-                action: { bg: '#e8f5e9', color: '#2e7d32' },
-                waiting: { bg: '#fce4ec', color: '#880e4f' },
-                completed: { bg: '#e8f5e9', color: '#1b5e20' },
-                parts: { bg: '#f3e5f5', color: '#6a1b9a' },
+                update:    { bg: '#e8eaf6', color: C.navy },
+                finding:   { bg: '#fff8e1', color: C.warning },
+                action:    { bg: '#e8f5e9', color: C.success },
+                waiting:   { bg: '#fce4ec', color: C.danger },
+                completed: { bg: '#e8f5e9', color: C.success },
+                parts:     { bg: '#f3e5f5', color: '#6a1b9a' },
               }
               const cfg = typeColors[type] ?? typeColors.update
               return (
-                <div key={a.id} style={{ background: '#f9f9f9', borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', marginTop: 2 }}>
+                <div key={a.id} style={{ ...infoCard, marginBottom: 8, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', marginTop: 2, fontFamily: F.en }}>
                     {type.toUpperCase()}
                   </span>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, margin: 0 }}>{text}</p>
-                    <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>
+                    <p style={{ fontSize: 13, margin: 0, color: C.textDark, fontFamily: F.en }}>{text}</p>
+                    <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
                       {a.user?.full_name ?? 'Unknown'} · {new Date(a.created_at).toLocaleString()}
                     </p>
                   </div>

@@ -1,9 +1,10 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
+import { C, F, inputStyle, labelStyle, sectionCard, primaryBtn, pageStyle } from '@/lib/brand'
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
@@ -125,30 +126,28 @@ export default function NewWorkOrderPage() {
     else router.push('/dashboard/work-orders')
   }
 
-  const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
-  const labelStyle = { display: 'block' as const, marginBottom: 6, fontSize: 13, fontWeight: 500 as const, color: '#444' }
   const mediaExpiryDate = new Date()
   mediaExpiryDate.setMonth(mediaExpiryDate.getMonth() + 6)
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ ...pageStyle, maxWidth: 680 }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href="/dashboard/work-orders" style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>{t('common.back')}</a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>{t('wo.new')}</h1>
+        <a href="/dashboard/work-orders" style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>{t('common.back')}</a>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0.5rem 0 0' }}>{t('wo.new')}</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
           <label style={labelStyle}>Title *</label>
-          <input name="title" value={form.title} onChange={handleChange} required placeholder="e.g. AC unit not cooling - Room 204" style={fieldStyle} />
+          <input name="title" value={form.title} onChange={handleChange} required placeholder="e.g. AC unit not cooling - Room 204" style={inputStyle} />
         </div>
         <div>
           <label style={labelStyle}>{lang === 'ar' ? 'الوصف' : 'Description'}</label>
-          <textarea name="description" value={form.description} onChange={handleChange} rows={3} placeholder="Describe the issue in detail..." style={{ ...fieldStyle, resize: 'vertical' }} />
+          <textarea name="description" value={form.description} onChange={handleChange} rows={3} placeholder="Describe the issue in detail..." style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>Priority *</label>
-            <select name="priority" value={form.priority} onChange={handleChange} style={fieldStyle}>
+            <select name="priority" value={form.priority} onChange={handleChange} style={inputStyle}>
               <option value="low">{t('wo.priority.low')}</option>
               <option value="medium">{t('wo.priority.medium')}</option>
               <option value="high">{t('wo.priority.high')}</option>
@@ -157,7 +156,7 @@ export default function NewWorkOrderPage() {
           </div>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'الفئة' : 'Category'}</label>
-            <select name="category" value={form.category} onChange={handleChange} style={fieldStyle}>
+            <select name="category" value={form.category} onChange={handleChange} style={inputStyle}>
               <option value="">{lang === 'ar' ? 'اختر الفئة' : 'Select category'}</option>
               <option value="HVAC">{t('cat.hvac')}</option>
               <option value="Electrical">{t('cat.electrical')}</option>
@@ -177,44 +176,44 @@ export default function NewWorkOrderPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site / Location'}</label>
-            <select name="site_id" value={form.site_id} onChange={handleChange} style={fieldStyle}>
+            <select name="site_id" value={form.site_id} onChange={handleChange} style={inputStyle}>
               <option value="">{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            {sites.length === 0 && <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>No sites added yet</p>}
+            {sites.length === 0 && <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>No sites added yet</p>}
           </div>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'الأصل' : 'Asset'}</label>
-            <select name="asset_id" value={form.asset_id} onChange={handleChange} style={fieldStyle}>
+            <select name="asset_id" value={form.asset_id} onChange={handleChange} style={inputStyle}>
               <option value="">{lang === 'ar' ? 'اختر الأصل' : 'Select asset'}</option>
               {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            {assets.length === 0 && <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>No assets added yet</p>}
+            {assets.length === 0 && <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>No assets added yet</p>}
           </div>
         </div>
         {duplicateWarning && (
-          <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#f57f17' }}>
+          <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.warning, fontFamily: F.en }}>
             {duplicateWarning}
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'تعيين إلى' : 'Assign To'}</label>
-            <select name="assigned_to" value={form.assigned_to} onChange={handleChange} style={fieldStyle}>
+            <select name="assigned_to" value={form.assigned_to} onChange={handleChange} style={inputStyle}>
               <option value="">{t('common.unassigned')}</option>
               {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
             </select>
           </div>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'ساعات الخدمة' : 'SLA (hours to resolve)'}</label>
-            <input name="sla_hours" type="number" value={form.sla_hours} onChange={handleChange} placeholder="e.g. 24" min="1" style={fieldStyle} />
+            <input name="sla_hours" type="number" value={form.sla_hours} onChange={handleChange} placeholder="e.g. 24" min="1" style={inputStyle} />
           </div>
         </div>
         <div>
           <label style={labelStyle}>{lang === 'ar' ? 'تاريخ الاستحقاق' : 'Due Date'}</label>
-          <input name="due_at" type="datetime-local" value={form.due_at} onChange={handleChange} style={fieldStyle} />
+          <input name="due_at" type="datetime-local" value={form.due_at} onChange={handleChange} style={inputStyle} />
         </div>
-        <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem' }}>
+        <div style={{ ...sectionCard, padding: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <input
               type='checkbox'
@@ -223,14 +222,14 @@ export default function NewWorkOrderPage() {
               onChange={e => setForm(prev => ({ ...prev, is_recurring: e.target.checked ? 'true' : 'false' }))}
               style={{ width: 16, height: 16, cursor: 'pointer' }}
             />
-            <label htmlFor='is_recurring' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>
+            <label htmlFor='is_recurring' style={{ fontSize: 13, fontWeight: 500, color: C.textMid, fontFamily: F.en, cursor: 'pointer' }}>
               Recurring work order
             </label>
           </div>
           {form.is_recurring === 'true' && (
             <div>
-              <p style={{ fontSize: 12, color: '#999', margin: '0 0 8px' }}>This work order will be linked to a PM schedule. Select the recurrence frequency:</p>
-              <select name='recurrence_frequency' value={form.recurrence_frequency} onChange={handleChange} style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, background: 'white' }}>
+              <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 8px' }}>This work order will be linked to a PM schedule. Select the recurrence frequency:</p>
+              <select name='recurrence_frequency' value={form.recurrence_frequency} onChange={handleChange} style={inputStyle}>
                 <option value='daily'>Daily</option>
                 <option value='weekly'>Weekly</option>
                 <option value='monthly'>Monthly</option>
@@ -245,9 +244,9 @@ export default function NewWorkOrderPage() {
         <div>
           <label style={labelStyle}>
             Photos (up to 8)
-            <span style={{ fontWeight: 400, color: '#999', marginLeft: 8, fontSize: 12 }}>Stored for 6 months until {mediaExpiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            <span style={{ fontWeight: 400, color: C.textLight, marginLeft: 8, fontSize: 12, fontFamily: F.en }}>Stored for 6 months until {mediaExpiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
           </label>
-          <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed #ddd', borderRadius: 8, padding: '1.5rem', textAlign: 'center', cursor: 'pointer', color: '#999', fontSize: 13 }}>
+          <div onClick={() => fileInputRef.current?.click()} style={{ border: `2px dashed ${C.border}`, borderRadius: 8, padding: '1.5rem', textAlign: 'center', cursor: 'pointer', color: C.textLight, fontSize: 13, fontFamily: F.en }}>
             {photos.length < 8 ? `Click to add photos (${photos.length}/8)` : 'Maximum 8 photos reached'}
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} style={{ display: 'none' }} />
@@ -255,15 +254,15 @@ export default function NewWorkOrderPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               {photoPreviewUrls.map((url, i) => (
                 <div key={i} style={{ position: 'relative' }}>
-                  <img src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
-                  <button type="button" onClick={() => removePhoto(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#c62828', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12 }}>x</button>
+                  <img src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
+                  <button type="button" onClick={() => removePhoto(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: C.danger, color: C.white, border: 'none', cursor: 'pointer', fontSize: 12 }}>x</button>
                 </div>
               ))}
             </div>
           )}
         </div>
-        {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>
+        {error && <p style={{ color: C.danger, fontSize: 13, margin: 0, fontFamily: F.en }}>{error}</p>}
+        <button type="submit" disabled={loading} style={{ ...primaryBtn, padding: '11px', fontSize: 15, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
           {loading ? t('common.saving') : t('wo.new')}
         </button>
       </form>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isAfter } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { C, F, pageStyle, cardStyle, primaryBtn, inputStyle, tableHeaderCell, tableCell } from '@/lib/brand'
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState<any[]>([])
@@ -91,31 +92,32 @@ export default function WorkOrdersPage() {
     wo.due_at && !['completed','closed'].includes(wo.status) && isAfter(new Date(), new Date(wo.due_at))
 
   const priorityConfig: Record<string, { bg: string; color: string }> = {
-    low:      { bg: '#e8f5e9', color: '#2e7d32' },
-    medium:   { bg: '#fff8e1', color: '#f57f17' },
+    low:      { bg: '#e8f5e9', color: C.success },
+    medium:   { bg: '#fff8e1', color: C.warning },
     high:     { bg: '#fff3e0', color: '#e65100' },
-    critical: { bg: '#fce4ec', color: '#b71c1c' },
+    critical: { bg: '#fce4ec', color: C.danger },
   }
 
   const statusConfig: Record<string, { bg: string; color: string }> = {
-    new:         { bg: '#e3f2fd', color: '#0d47a1' },
-    assigned:    { bg: '#e8eaf6', color: '#283593' },
-    in_progress: { bg: '#fff8e1', color: '#f57f17' },
-    on_hold:     { bg: '#fce4ec', color: '#880e4f' },
-    completed:   { bg: '#e8f5e9', color: '#1b5e20' },
-    closed:      { bg: '#f5f5f5', color: '#424242' },
+    new:         { bg: '#e3f2fd', color: C.blue },
+    assigned:    { bg: '#e8eaf6', color: C.navy },
+    in_progress: { bg: '#fff8e1', color: C.warning },
+    on_hold:     { bg: '#fce4ec', color: C.danger },
+    completed:   { bg: '#e8f5e9', color: C.success },
+    closed:      { bg: '#f5f5f5', color: C.textMid },
   }
 
   const badge = (text: string, cfg: { bg: string; color: string }) => (
-    <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500 }}>{text}</span>
+    <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{text}</span>
   )
 
   const btnStyle = (active: boolean) => ({
     padding: '6px 14px', borderRadius: 20,
-    border: '1px solid #ddd',
-    background: active ? '#1a1a2e' : 'white',
-    color: active ? 'white' : '#333',
+    border: `1px solid ${active ? C.navy : C.border}`,
+    background: active ? C.navy : C.white,
+    color: active ? C.white : C.textMid,
     cursor: 'pointer', fontSize: 13, fontWeight: 500 as const,
+    fontFamily: F.en,
   })
 
   const counts = {
@@ -125,21 +127,18 @@ export default function WorkOrdersPage() {
   }
 
   const categories = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
-  const selectStyle = { padding: '7px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, background: 'white', cursor: 'pointer' }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={pageStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{t('wo.title')}</h1>
-          <p style={{ fontSize: 13, color: '#999', margin: '4px 0 0' }}>
-            {counts.all} total · {counts.in_progress} {t('wo.in_progress')} · <span style={{ color: counts.overdue > 0 ? '#c62828' : '#999' }}>{counts.overdue} overdue</span>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('wo.title')}</h1>
+          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
+            {counts.all} total · {counts.in_progress} {t('wo.in_progress')} · <span style={{ color: counts.overdue > 0 ? C.danger : C.textLight }}>{counts.overdue} overdue</span>
           </p>
         </div>
         <Link href='/dashboard/work-orders/new'>
-          <button style={{ background: '#1a1a2e', color: 'white', padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-            {t('btn.new_wo')}
-          </button>
+          <button style={primaryBtn}>{t('btn.new_wo')}</button>
         </Link>
       </div>
 
@@ -147,7 +146,7 @@ export default function WorkOrdersPage() {
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder={t('wo.search')}
-        style={{ width: '100%', padding: '9px 14px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: '1rem', boxSizing: 'border-box' }}
+        style={{ ...inputStyle, marginBottom: '1rem' }}
       />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
@@ -167,96 +166,100 @@ export default function WorkOrdersPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={selectStyle}>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
           <option value='all'>{t('filter.all_cats')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={technicianFilter} onChange={e => setTechnicianFilter(e.target.value)} style={selectStyle}>
+        <select value={technicianFilter} onChange={e => setTechnicianFilter(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
           <option value='all'>{t('filter.all_techs')}</option>
           {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
         </select>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, color: '#666' }}>From</span>
-          <input type='date' value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...selectStyle, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>From</span>
+          <input type='date' value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, color: '#666' }}>To</span>
-          <input type='date' value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...selectStyle, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>To</span>
+          <input type='date' value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }} />
         </div>
         {(categoryFilter !== 'all' || technicianFilter !== 'all' || dateFrom || dateTo) && (
-          <button onClick={() => { setCategoryFilter('all'); setTechnicianFilter('all'); setDateFrom(''); setDateTo('') }} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 13, color: '#c62828' }}>
+          <button onClick={() => { setCategoryFilter('all'); setTechnicianFilter('all'); setDateFrom(''); setDateTo('') }} style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 13, color: C.danger, fontFamily: F.en }}>
             Clear Filters
           </button>
         )}
       </div>
 
       {selected.length > 0 && (
-        <div style={{ background: '#e8eaf6', border: '1px solid #c5cae9', borderRadius: 10, padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#283593' }}>{selected.length} work order{selected.length > 1 ? 's' : ''} selected</span>
-          <select value={bulkTech} onChange={e => setBulkTech(e.target.value)} style={{ ...selectStyle, borderColor: '#9fa8da' }}>
+        <div style={{ background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: C.navy, fontFamily: F.en }}>{selected.length} work order{selected.length > 1 ? 's' : ''} selected</span>
+          <select value={bulkTech} onChange={e => setBulkTech(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
             <option value=''>Select technician to assign...</option>
             {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
           </select>
           <button
             onClick={handleBulkAssign}
             disabled={!bulkTech || bulkAssigning}
-            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#283593', color: 'white', cursor: bulkTech ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 500, opacity: bulkTech ? 1 : 0.5 }}
+            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: C.navy, color: C.white, cursor: bulkTech ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 500, opacity: bulkTech ? 1 : 0.5, fontFamily: F.en }}
           >
             {bulkAssigning ? 'Assigning...' : 'Assign All'}
           </button>
-          <button onClick={() => setSelected([])} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #9fa8da', background: 'white', cursor: 'pointer', fontSize: 13, color: '#666' }}>
+          <button onClick={() => setSelected([])} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 13, color: C.textMid, fontFamily: F.en }}>
             Cancel
           </button>
         </div>
       )}
 
       {loading ? (
-        <p style={{ color: '#999' }}>Loading...</p>
+        <p style={{ color: C.textLight, fontFamily: F.en }}>Loading...</p>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: '#999' }}>
+        <div style={{ textAlign: 'center', padding: '4rem', color: C.textLight, fontFamily: F.en }}>
           <p style={{ fontSize: 18, marginBottom: 8 }}>No work orders found</p>
           <p style={{ fontSize: 14 }}>Try adjusting your filters or create a new work order</p>
         </div>
       ) : (
-        <div style={{ border: '1px solid #eee', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                <th style={{ padding: '12px 16px', width: 40 }}>
+              <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
+                <th style={{ padding: '10px 16px', width: 40 }}>
                   <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                 </th>
                 {[t('wo.col.title'),t('wo.col.asset'),t('wo.col.site'),t('assets.col.cat'),t('wo.col.priority'),t('wo.col.status'),t('wo.col.assigned'),t('wo.col.due'),t('common.created')].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
+                  <th key={h} style={tableHeaderCell}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((wo, i) => {
+              {filtered.map((wo) => {
                 const overdue = isOverdue(wo)
                 const pCfg = priorityConfig[wo.priority] ?? priorityConfig.medium
                 const sCfg = statusConfig[wo.status] ?? statusConfig.new
                 const isSelected = selected.includes(wo.id)
                 return (
-                  <tr key={wo.id} style={{ borderBottom: '1px solid #f0f0f0', background: isSelected ? '#f3f4fd' : overdue ? '#fff8f8' : i % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <tr key={wo.id} style={{ background: isSelected ? '#EEF2FF' : overdue ? '#FFF8F8' : C.white }}>
                     <td style={{ padding: '12px 16px' }}>
                       <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} />
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: '#1a1a2e', fontWeight: 500, textDecoration: 'none', fontSize: 14 }}>
+                    <td style={tableCell}>
+                      <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
                         {wo.title}
                       </Link>
-                      {overdue && <span style={{ marginLeft: 8, fontSize: 11, color: '#c62828', background: '#fce4ec', padding: '1px 6px', borderRadius: 10 }}>Overdue</span>}
+                      {overdue && <span style={{ marginLeft: 8, fontSize: 11, color: C.danger, background: '#fce4ec', padding: '1px 6px', borderRadius: 10, fontFamily: F.en }}>Overdue</span>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.asset?.name ?? '—'}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.site?.name ?? '—'}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.category ?? '—'}</td>
-                    <td style={{ padding: '12px 16px' }}>{badge(wo.priority === 'critical' ? t('wo.priority.critical') : wo.priority === 'high' ? t('wo.priority.high') : wo.priority === 'medium' ? t('wo.priority.medium') : t('wo.priority.low'), pCfg)}</td>
-                    <td style={{ padding: '12px 16px' }}>{badge(wo.status === 'new' ? t('wo.status.new') : wo.status === 'assigned' ? t('wo.status.assigned') : wo.status === 'in_progress' ? t('wo.status.in_progress') : wo.status === 'on_hold' ? t('wo.status.on_hold') : wo.status === 'completed' ? t('wo.status.completed') : t('wo.status.closed'), sCfg)}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: overdue ? '#c62828' : '#666' }}>
+                    <td style={tableCell}>{wo.asset?.name ?? '—'}</td>
+                    <td style={tableCell}>{wo.site?.name ?? '—'}</td>
+                    <td style={tableCell}>{wo.category ?? '—'}</td>
+                    <td style={tableCell}>
+                      {badge(wo.priority === 'critical' ? t('wo.priority.critical') : wo.priority === 'high' ? t('wo.priority.high') : wo.priority === 'medium' ? t('wo.priority.medium') : t('wo.priority.low'), pCfg)}
+                    </td>
+                    <td style={tableCell}>
+                      {badge(wo.status === 'new' ? t('wo.status.new') : wo.status === 'assigned' ? t('wo.status.assigned') : wo.status === 'in_progress' ? t('wo.status.in_progress') : wo.status === 'on_hold' ? t('wo.status.on_hold') : wo.status === 'completed' ? t('wo.status.completed') : t('wo.status.closed'), sCfg)}
+                    </td>
+                    <td style={tableCell}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
+                    <td style={{ ...tableCell, color: overdue ? C.danger : C.textMid }}>
                       {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#666' }}>
+                    <td style={tableCell}>
                       {format(new Date(wo.created_at), 'dd MMM yyyy')}
                     </td>
                   </tr>
