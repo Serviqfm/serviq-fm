@@ -75,6 +75,30 @@ export default function AssetsScreen() {
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.assetName} numberOfLines={1}>{item.name}</Text>
+          {item.status === 'under_maintenance' && (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3,
+              borderRadius: 20, alignSelf: 'flex-start', marginTop: 4,
+            }}>
+              <Ionicons name="construct-outline" size={11} color="#92400E" />
+              <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600' }}>
+                {t('under_maintenance') ?? 'Under Maintenance'}
+              </Text>
+            </View>
+          )}
+          {item.status === 'retired' && (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3,
+              borderRadius: 20, alignSelf: 'flex-start', marginTop: 4,
+            }}>
+              <Ionicons name="archive-outline" size={11} color="#64748B" />
+              <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600' }}>
+                {t('retired') ?? 'Retired'}
+              </Text>
+            </View>
+          )}
           <Text style={styles.assetMeta}>{item.category ?? '-'} {item.site?.name ? '· ' + item.site.name : ''}</Text>
           {item.serial_number && <Text style={styles.assetSerial}>{item.serial_number}</Text>}
         </View>
