@@ -15,7 +15,9 @@ function useCountdown(dueAt: string | null) {
   useEffect(() => {
     if (!dueAt) return
     function tick() {
-      const diff = new Date(dueAt!).getTime() - Date.now()
+      const parsed = new Date(dueAt!)
+      if (isNaN(parsed.getTime())) return
+      const diff = parsed.getTime() - Date.now()
       if (diff <= 0) {
         setTimeLeft('Overdue')
         setIsUrgent(true)

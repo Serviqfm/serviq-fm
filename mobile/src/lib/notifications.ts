@@ -26,9 +26,13 @@ export async function registerPushToken(userId: string): Promise<void> {
     return
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-  })
+  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID
+  if (!projectId) {
+    console.warn('EXPO_PUBLIC_PROJECT_ID is not set — push token registration skipped')
+    return
+  }
+
+  const tokenData = await Notifications.getExpoPushTokenAsync({ projectId })
 
   const token = tokenData.data
 

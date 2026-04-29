@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Alert, ActivityIndicator, Image,
+  TextInput, Alert, ActivityIndicator,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -21,7 +22,9 @@ function useCountdown(dueAt: string | null) {
   useEffect(() => {
     if (!dueAt) return
     function tick() {
-      const diff = new Date(dueAt!).getTime() - Date.now()
+      const parsed = new Date(dueAt!)
+      if (isNaN(parsed.getTime())) return
+      const diff = parsed.getTime() - Date.now()
       if (diff <= 0) {
         setTimeLeft('Overdue')
         setIsUrgent(true)
