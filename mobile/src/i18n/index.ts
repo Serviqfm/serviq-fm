@@ -65,6 +65,8 @@ const translations = {
     language: 'Language',
     role: 'Role',
     organisation: 'Organisation',
+    // PM Tasks
+    upcoming_pm: 'Upcoming PM Tasks',
     // Offline
     offline: 'You are offline',
     syncing: 'Syncing...',
@@ -133,6 +135,8 @@ const translations = {
     language: 'اللغة',
     role: 'الدور',
     organisation: 'المؤسسة',
+    // PM Tasks
+    upcoming_pm: 'مهام الصيانة القادمة',
     // Offline
     offline: 'أنت غير متصل بالإنترنت',
     syncing: 'جاري المزامنة...',

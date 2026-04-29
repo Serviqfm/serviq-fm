@@ -14,6 +14,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<any>()
   const [stats, setStats] = useState({ open: 0, overdue: 0, dueToday: 0, inProgress: 0 })
   const [recentWOs, setRecentWOs] = useState<any[]>([])
+  const [upcomingPMs, setUpcomingPMs] = useState<any[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => { fetchData() }, [])
@@ -49,6 +50,18 @@ export default function HomeScreen() {
       })
       setRecentWOs(wos.slice(0, 5))
     }
+
+    const { data: pms } = await supabase
+      .from('pm_schedules')
+      .select('id, title, next_due_at, asset:asset_id(name)')
+      .eq('organisation_id', profile.organisation_id)
+      .eq('assigned_to', profile.id)
+      .eq('is_active', true)
+      .gte('next_due_at', new Date().toISOString())
+      .order('next_due_at', { ascending: true })
+      .limit(5)
+
+    setUpcomingPMs(pms ?? [])
   }
 
   async function onRefresh() {
@@ -161,6 +174,40 @@ export default function HomeScreen() {
           })
         )}
       </View>
+
+      {upcomingPMs.length > 0 && (
+        <View style={[styles.section, { marginTop: 0, paddingTop: 0 }]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>
+            {t('upcoming_pm')}
+          </Text>
+          {upcomingPMs.map(pm => {
+            const days = Math.ceil((new Date(pm.next_due_at).getTime() - Date.now()) / 86400000)
+            return (
+              <View key={pm.id} style={[styles.woCard, { justifyContent: 'space-between' }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>
+                    {pm.title}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                    {pm.asset?.name ?? 'No asset'}
+                  </Text>
+                </View>
+                <View style={{
+                  backgroundColor: days <= 1 ? '#FEE2E2' : days <= 7 ? '#FEF3C7' : '#DCFCE7',
+                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginLeft: 8,
+                }}>
+                  <Text style={{
+                    fontSize: 11, fontWeight: '700',
+                    color: days <= 1 ? '#C62828' : days <= 7 ? '#92400E' : '#166534',
+                  }}>
+                    {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `In ${days}d`}
+                  </Text>
+                </View>
+              </View>
+            )
+          })}
+        </View>
+      )}
     </ScrollView>
   )
 }
