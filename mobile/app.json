@@ -27,7 +27,21 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1E2D4E",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "Serviq FM"
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#1E2D4E"
+    }
   }
 }
