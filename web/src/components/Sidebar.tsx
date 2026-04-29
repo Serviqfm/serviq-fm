@@ -140,44 +140,41 @@ export default function Sidebar() {
         borderBottom: '1px solid #E8ECF0',
         gap: 8,
       }}>
-        {/* Icon mark — navy bg with gradient S */}
-        <div style={{
-          width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-          background: '#1E2D4E',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{
-            fontSize: 15, fontWeight: 800, fontFamily: fontEN, lineHeight: 1,
-            background: 'linear-gradient(135deg,#6DCFB0,#3AAECC,#1A7FC1)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>S</span>
-        </div>
-
-        {/* Wordmark */}
-        {!collapsed && (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: fontEN, lineHeight: 1.1 }}>
-              <span style={{ color: '#1E2D4E' }}>Serviq</span>
-              <span style={{ color: '#6DCFB0' }}>FM</span>
-            </div>
-            <div style={{ fontSize: 9, color: '#A0B0BF', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2, fontFamily: isAr ? fontAR : fontEN }}>
-              {isAr ? 'إدارة المنشآت' : 'Facility Management'}
-            </div>
-          </div>
-        )}
+        {/* Icon */}
+        <img
+          src="/ServiqFM_Icon_v2.png"
+          alt="ServiqFM"
+          style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, objectFit: 'contain' }}
+        />
 
         {/* Collapse button */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-            background: '#F8FAFC', border: '1px solid #E8ECF0',
-            color: '#A0B0BF', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 0,
-          }}>
-          {collapsed ? ICONS.chevronR : ICONS.chevronL}
-        </button>
+        {!collapsed && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+              background: '#F8FAFC', border: '1px solid #E8ECF0',
+              color: '#A0B0BF', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0,
+            }}>
+            {ICONS.chevronL}
+          </button>
+        )}
+        {collapsed && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              position: 'absolute', top: 20, right: -11,
+              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+              background: '#fff', border: '1px solid #E8ECF0',
+              color: '#A0B0BF', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0, zIndex: 10,
+            }}>
+            {ICONS.chevronR}
+          </button>
+        )}
       </div>
 
       {/* ── Nav ────────────────────────────────────────────────────── */}

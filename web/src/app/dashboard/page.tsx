@@ -146,6 +146,11 @@ export default function DashboardPage() {
     <div style={pageStyle}>
 
       <div style={{ marginBottom: '2rem' }}>
+        <img
+          src="/ServiqFM_Logo_v2.jpg"
+          alt="ServiqFM"
+          style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: '1rem' }}
+        />
         <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>
           {userName ? greeting + ', ' + userName.split(' ')[0] : 'Dashboard'}
         </h1>
