@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
 import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
+import { sendPushNotification } from '@/lib/push'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
@@ -126,6 +127,22 @@ export default function WorkOrderDetailPage() {
       new_values: { status: newStatus },
       old_values: { status: wo?.status },
     })
+
+    const messages: Record<string, { title: string; body: string }> = {
+      assigned:    { title: 'Work Order Assigned',   body: `WO "${wo?.title}" has been assigned to you` },
+      in_progress: { title: 'Work Order Started',    body: `WO "${wo?.title}" is now in progress` },
+      completed:   { title: 'Work Order Completed',  body: `WO "${wo?.title}" has been completed — awaiting your approval` },
+      closed:      { title: 'Work Order Closed',     body: `WO "${wo?.title}" has been approved and closed` },
+    }
+    const msg = messages[newStatus]
+    if (msg && wo) {
+      if (['assigned', 'in_progress'].includes(newStatus) && wo.assigned_to) {
+        sendPushNotification({ user_id: wo.assigned_to, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
+      }
+      if (['completed', 'closed'].includes(newStatus) && (wo as any).created_by) {
+        sendPushNotification({ user_id: (wo as any).created_by, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
+      }
+    }
 
     setShowSignoff(false)
     setSignoffName('')
