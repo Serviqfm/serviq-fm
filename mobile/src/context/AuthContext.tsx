@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { registerPushToken } from '../lib/notifications'
 
 type AuthContextType = {
   user: any | null
@@ -49,6 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setProfile(data)
     setLoading(false)
+    if (data?.id) {
+      registerPushToken(data.id).catch(console.error)
+    }
   }
 
   async function signOut() {

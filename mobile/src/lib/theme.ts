@@ -17,6 +17,7 @@ export const colors = {
   errorLight: '#fce4ec',
   info: '#0d47a1',
   infoLight: '#e3f2fd',
+  teal: '#6DCFB0',
 
   priority: {
     critical: { bg: '#fce4ec', text: '#c62828' },

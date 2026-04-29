@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { C, F, inputStyle, labelStyle, sectionCard, primaryBtn, pageStyle } from '@/lib/brand'
+import { sendPushNotification } from '@/lib/push'
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
@@ -106,7 +107,7 @@ export default function NewWorkOrderPage() {
     if (!profile) { setError('User profile not found'); setLoading(false); return }
     let photoUrls: string[] = []
     if (photos.length > 0) photoUrls = await uploadPhotos(profile.organisation_id)
-    const { error: insertError } = await supabase.from('work_orders').insert({
+    const { data: newWO, error: insertError } = await supabase.from('work_orders').insert({
       title: form.title,
       description: form.description || null,
       priority: form.priority,
@@ -121,9 +122,19 @@ export default function NewWorkOrderPage() {
       status: form.assigned_to ? 'assigned' : 'new',
       source: form.is_recurring === 'true' ? 'recurring' : 'manual',
       photo_urls: photoUrls,
-    })
+    }).select().single()
     if (insertError) { setError(insertError.message); setLoading(false) }
-    else router.push('/dashboard/work-orders')
+    else {
+      if (form.assigned_to && newWO) {
+        await sendPushNotification({
+          user_id: form.assigned_to,
+          title: 'New Work Order Assigned',
+          body: `You have been assigned: ${form.title}`,
+          data: { type: 'work_order', id: newWO.id },
+        })
+      }
+      router.push('/dashboard/work-orders')
+    }
   }
 
   const mediaExpiryDate = new Date()

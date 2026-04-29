@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useState } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, RefreshControl } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -15,6 +15,18 @@ export default function AssetsScreen() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('QRScanner' as never)}
+          style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+          <Ionicons name="qr-code-outline" size={22} color="white" />
+        </TouchableOpacity>
+      ),
+    })
+  }, [navigation])
 
   useEffect(() => { fetchAssets() }, [])
 
@@ -63,6 +75,22 @@ export default function AssetsScreen() {
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.assetName} numberOfLines={1}>{item.name}</Text>
+          {item.status === 'under_maintenance' && (
+            <View style={[styles.breakdownBadge, styles.maintenanceBadge]}>
+              <Ionicons name="construct-outline" size={11} color="#92400E" />
+              <Text style={styles.maintenanceText}>
+                {t('under_maintenance') ?? 'Under Maintenance'}
+              </Text>
+            </View>
+          )}
+          {item.status === 'retired' && (
+            <View style={[styles.breakdownBadge, styles.retiredBadge]}>
+              <Ionicons name="archive-outline" size={11} color="#64748B" />
+              <Text style={styles.retiredText}>
+                {t('retired') ?? 'Retired'}
+              </Text>
+            </View>
+          )}
           <Text style={styles.assetMeta}>{item.category ?? '-'} {item.site?.name ? '· ' + item.site.name : ''}</Text>
           {item.serial_number && <Text style={styles.assetSerial}>{item.serial_number}</Text>}
         </View>
@@ -118,4 +146,13 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '600' },
   empty: { alignItems: 'center', padding: 48 },
   emptyText: { fontSize: 15, color: colors.textSecondary, marginTop: 12 },
+  breakdownBadge: {
+    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 20, alignSelf: 'flex-start' as const, marginTop: 4,
+  },
+  maintenanceBadge: { backgroundColor: '#FEF3C7' },
+  maintenanceText: { fontSize: 11, color: '#92400E', fontWeight: '600' as const },
+  retiredBadge: { backgroundColor: '#F1F5F9' },
+  retiredText: { fontSize: 11, color: '#64748B', fontWeight: '600' as const },
 })

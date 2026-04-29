@@ -15,6 +15,7 @@ import WorkOrderDetailScreen from '../screens/WorkOrderDetailScreen'
 import AssetsScreen from '../screens/AssetsScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 import AssetDetailScreen from '../screens/AssetDetailScreen'
+import QRScannerScreen from '../screens/QRScannerScreen'
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -67,6 +68,17 @@ function RootNavigator() {
             options={{ headerShown: true, title: 'Work Order', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='AssetDetail' component={AssetDetailScreen}
             options={{ headerShown: true, title: 'Asset', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
+          <Stack.Screen
+            name='QRScanner'
+            component={QRScannerScreen}
+            options={{
+              headerShown: true,
+              title: 'Scan QR Code',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTintColor: 'white',
+              presentation: 'modal',
+            }}
+          />
         </>
       ) : (
         <Stack.Screen name='Login' component={LoginScreen} />
