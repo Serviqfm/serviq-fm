@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import Link from 'next/link'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
+import { C, F, pageStyle, cardStyle, primaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<any[]>([])

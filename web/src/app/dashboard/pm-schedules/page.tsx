@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
+import { C, F, pageStyle, cardStyle, primaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function PMSchedulesPage() {
   const [schedules, setSchedules] = useState<any[]>([])

@@ -28,7 +28,6 @@ export default function InspectionDetailPage() {
   if (!inspection) return <div style={{ padding: '2rem' }}>Inspection not found.</div>
 
   const responses: any[] = inspection.responses ?? []
-  const items: any[] = inspection.template?.items ?? []
   const failedItems = responses.filter(r => r.value === 'fail')
 
   const resultConfig: Record<string, { bg: string; color: string; label: string }> = {

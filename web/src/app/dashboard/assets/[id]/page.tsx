@@ -19,6 +19,7 @@ export default function AssetDetailPage() {
   const [loading, setLoading] = useState(true)
   const [translatedAsset, setTranslatedAsset] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory'>('details')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [pmHistory, setPmHistory] = useState<any[]>([])
 
   useEffect(() => { fetchAll() }, [id])

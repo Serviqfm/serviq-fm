@@ -57,11 +57,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = newLang
   }
 
-  function t(key: string): string {
-    const translations = lang === 'ar' ? ar : en
-    return translations[key] ?? en[key] ?? key
-  }
-
   // Prevent hydration mismatch by using suppressHydrationWarning
   // Return English on server, correct language on client after mount
   const effectiveLang = mounted ? lang : 'en'

@@ -16,6 +16,7 @@ export default function NewWorkOrderPage() {
   const [assets, setAssets] = useState<any[]>([])
   const [sites, setSites] = useState<any[]>([])
   const [technicians, setTechnicians] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [vendors, setVendors] = useState<any[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])

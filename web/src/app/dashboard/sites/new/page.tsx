@@ -7,7 +7,7 @@ import { useLanguage } from '@/context/LanguageContext'
 
 export default function NewSitePage() {
   const router = useRouter()
-  const { t, lang } = useLanguage()
+  const { lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

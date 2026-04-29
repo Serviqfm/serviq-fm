@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 
 export default function NewUserPage() {
-  const router = useRouter()
   const { t, lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)

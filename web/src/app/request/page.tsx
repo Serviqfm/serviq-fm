@@ -21,7 +21,6 @@ export default function RequesterPortalPage() {
     requester_phone: '',
   })
   const [photos, setPhotos] = useState<File[]>([])
-  const [photoUrls, setPhotoUrls] = useState<string[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
 
   useEffect(() => { loadUser() }, [])

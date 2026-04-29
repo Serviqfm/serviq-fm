@@ -37,8 +37,6 @@ export default function WorkOrderDetailPage() {
   const [closeoutPreviewUrls, setCloseoutPreviewUrls] = useState<string[]>([])
   const [signoffName, setSignoffName] = useState('')
   const [showSignoff, setShowSignoff] = useState(false)
-  const fileInputRef = useState<React.RefObject<HTMLInputElement>>(() => ({ current: null }))[0]
-
   useEffect(() => {
     fetchWorkOrder()
     fetchComments()
@@ -93,7 +91,7 @@ export default function WorkOrderDetailPage() {
     setUpdating(true)
     const { data: { user } } = await supabase.auth.getUser()
 
-    let closeoutPhotoUrls: string[] = []
+    const closeoutPhotoUrls: string[] = []
     if (closeoutPhotos.length > 0 && wo) {
       for (const file of closeoutPhotos) {
         const fileName = `${wo.organisation_id}/${Date.now()}-closeout-${file.name}`
