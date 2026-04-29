@@ -65,6 +65,9 @@ const translations = {
     language: 'Language',
     role: 'Role',
     organisation: 'Organisation',
+    // Asset statuses
+    under_maintenance: 'Under Maintenance',
+    retired: 'Retired',
     // PM Tasks
     upcoming_pm: 'Upcoming PM Tasks',
     // Offline
@@ -135,6 +138,9 @@ const translations = {
     language: 'اللغة',
     role: 'الدور',
     organisation: 'المؤسسة',
+    // Asset statuses
+    under_maintenance: 'تحت الصيانة',
+    retired: 'متقاعد',
     // PM Tasks
     upcoming_pm: 'مهام الصيانة القادمة',
     // Offline
