@@ -21,6 +21,7 @@ export interface WorkOrder {
   photo_urls: string[]
   media_expires_at: string
   completion_notes: string | null
+  actual_cost: number | null
   source: string
   created_at: string
   updated_at: string

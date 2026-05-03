@@ -19,18 +19,23 @@ export default function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [comment, setComment] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [comments, setComments] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [history, setHistory] = useState<any[]>([])
   const { lang } = useLanguage()
   const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
   const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'photos' | 'parts' | 'activity'>('comments')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventoryItems, setInventoryItems] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [partsUsed, setPartsUsed] = useState<any[]>([])
   const [selectedPartId, setSelectedPartId] = useState('')
   const [partQty, setPartQty] = useState('')
   const [addingPart, setAddingPart] = useState(false)
   const [activityText, setActivityText] = useState('')
   const [activityType, setActivityType] = useState('update')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [activities, setActivities] = useState<any[]>([])
   const [addingActivity, setAddingActivity] = useState(false)
   const [closeoutPhotos, setCloseoutPhotos] = useState<File[]>([])
@@ -43,6 +48,7 @@ export default function WorkOrderDetailPage() {
     fetchHistory()
     fetchInventory()
     fetchActivities()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   async function fetchWorkOrder() {
@@ -137,7 +143,9 @@ export default function WorkOrderDetailPage() {
       if (['assigned', 'in_progress'].includes(newStatus) && wo.assigned_to) {
         sendPushNotification({ user_id: wo.assigned_to, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (['completed', 'closed'].includes(newStatus) && (wo as any).created_by) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sendPushNotification({ user_id: (wo as any).created_by, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
       }
     }
@@ -177,6 +185,7 @@ export default function WorkOrderDetailPage() {
 
   async function fetchActivities() {
     const { data } = await supabase.from('work_order_comments').select('*, user:user_id(full_name)').eq('work_order_id', id).order('created_at', { ascending: false })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (data) setActivities(data.filter((c: any) => c.body.startsWith('[ACTIVITY]')))
   }
 
@@ -258,6 +267,7 @@ export default function WorkOrderDetailPage() {
     background: 'transparent',
     cursor: 'pointer',
     fontSize: 13,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fontWeight: (active ? 600 : 400) as any,
     color: active ? C.navy : C.textLight,
     fontFamily: F.en,
@@ -279,6 +289,27 @@ export default function WorkOrderDetailPage() {
             <button style={{ ...secondaryBtn, padding: '6px 16px' }}>Edit</button>
           </a>
           <button onClick={() => window.print()} style={{ ...primaryBtn, padding: '6px 16px' }}>Export PDF</button>
+          {wo.status === 'closed' && Number(wo.actual_cost) > 0 && (
+            <button
+              onClick={async () => {
+                const res = await fetch('/api/invoices/generate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ workOrderId: wo.id }),
+                })
+                const blob = await res.blob()
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `invoice-${wo.id.slice(0, 8)}.pdf`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+              style={{ ...secondaryBtn, padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              {lang === 'ar' ? 'تحميل الفاتورة' : 'Download Invoice'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -300,8 +331,10 @@ export default function WorkOrderDetailPage() {
           )}
           <PriorityBadge priority={wo.priority} />
           <StatusBadge status={wo.status} />
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(wo as any).category && (
             <span style={{ fontSize: 12, background: C.pageBg, color: C.textMid, padding: '2px 10px', borderRadius: 12, fontFamily: F.en }}>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {(wo as any).category}
             </span>
           )}
@@ -337,9 +370,13 @@ export default function WorkOrderDetailPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: '1.5rem' }}>
         {[
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           { label: 'Asset', value: (wo.asset as any)?.name ?? '—' },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           { label: 'Site', value: (wo.site as any)?.name ?? '—' },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? 'Unassigned' },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           { label: 'Category', value: (wo as any).category ?? '—' },
           { label: 'Started', value: wo.started_at ? format(new Date(wo.started_at), 'dd MMM yyyy, HH:mm') : '—' },
           { label: 'Completed', value: wo.completed_at ? format(new Date(wo.completed_at), 'dd MMM yyyy, HH:mm') : '—' },
@@ -446,6 +483,7 @@ export default function WorkOrderDetailPage() {
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: '1.5rem' }}>
             {allPhotos.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
               <img key={i} src={url} alt={`Photo ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
             ))}
             {allPhotos.length === 0 && closeoutPreviewUrls.length === 0 && (
@@ -461,6 +499,7 @@ export default function WorkOrderDetailPage() {
               {closeoutPreviewUrls.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                   {closeoutPreviewUrls.map((url, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img key={i} src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
                   ))}
                 </div>
@@ -544,6 +583,7 @@ export default function WorkOrderDetailPage() {
           {activities.length === 0 ? (
             <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No activity logged yet. Use the form above to record work updates.</p>
           ) : (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             activities.map((a: any) => {
               const body = a.body.replace('[ACTIVITY] ', '')
               const typeMatch = body.match(/^\[(\w+)\]/)
