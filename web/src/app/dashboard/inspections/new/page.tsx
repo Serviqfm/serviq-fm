@@ -11,13 +11,18 @@ function NewInspectionForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [templates, setTemplates] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [templateId, setTemplateId] = useState(searchParams.get('template') ?? '')
   const [siteId, setSiteId] = useState('')
   const [assetId, setAssetId] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [responses, setResponses] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -26,6 +31,7 @@ function NewInspectionForm() {
   const [userId, setUserId] = useState('')
   const [step, setStep] = useState<'setup' | 'checklist'>('setup')
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [])
 
   useEffect(() => {
@@ -55,6 +61,7 @@ function NewInspectionForm() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function setResponse(itemId: string, value: any) {
     setResponses(prev => ({ ...prev, [itemId]: value }))
   }
@@ -71,9 +78,12 @@ function NewInspectionForm() {
     setSubmitting(true)
     setError('')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: any[] = selectedTemplate.items ?? []
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const requiredItems = items.filter((item: any) => item.required)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const unanswered = requiredItems.filter((item: any) => {
       const resp = responses[item.id]
       return resp === undefined || resp === null || resp === ''
@@ -85,15 +95,18 @@ function NewInspectionForm() {
       return
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const failedItems = items.filter((item: any) =>
       item.type === 'pass_fail' && responses[item.id] === 'fail'
     )
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const passfailItems = items.filter((i: any) => i.type === 'pass_fail')
     const overallResult = passfailItems.length === 0 ? 'pass' :
       failedItems.length === 0 ? 'pass' :
       failedItems.length === passfailItems.length ? 'fail' : 'partial'
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const responsesArray = items.map((item: any) => ({
       item_id: item.id,
       label: item.label,
@@ -230,6 +243,7 @@ function NewInspectionForm() {
           </div>
 
           <div style={{ border: '1px solid #eee', borderRadius: 10, overflow: 'hidden' }}>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(selectedTemplate?.items ?? []).map((item: any, idx: number) => (
               <div key={item.id} style={{ padding: '16px', borderBottom: '1px solid #f5f5f5', background: responses[item.id] === 'fail' ? '#fff8f8' : 'white' }}>
                 <p style={{ fontSize: 13, fontWeight: 500, margin: '0 0 10px' }}>

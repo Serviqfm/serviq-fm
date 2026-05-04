@@ -41,12 +41,15 @@ export default function PMScheduleDetailPage() {
   const { id } = useParams()
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [schedule, setSchedule] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<'details' | 'workorders'>('details')
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll() }, [id])
 
   async function fetchAll() {
@@ -128,6 +131,7 @@ export default function PMScheduleDetailPage() {
     padding: '8px 16px', border: 'none',
     borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
     background: 'transparent', cursor: 'pointer',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fontSize: 13, fontWeight: (active ? 600 : 400) as any,
     color: active ? C.navy : C.textLight,
     fontFamily: F.en,

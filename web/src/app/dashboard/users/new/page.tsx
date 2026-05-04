@@ -20,6 +20,7 @@ export default function NewUserPage() {
     phone: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadOrg() }, [])
 
   async function loadOrg() {

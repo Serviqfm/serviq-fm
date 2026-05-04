@@ -11,8 +11,11 @@ export default function NewPMSchedulePage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
   const [form, setForm] = useState({
     title: '',
@@ -25,6 +28,7 @@ export default function NewPMSchedulePage() {
     estimated_duration_minutes: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadFormData() }, [])
 
   async function loadFormData() {

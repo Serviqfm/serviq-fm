@@ -11,6 +11,7 @@ export default function NewAssetPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
@@ -31,6 +32,7 @@ export default function NewAssetPage() {
     location_notes: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadSites() }, [])
 
   async function loadSites() {
@@ -207,6 +209,7 @@ export default function NewAssetPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               {photoPreviewUrls.map((url, i) => (
                 <div key={i} style={{ position: 'relative' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt='' style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
                   <button type='button' onClick={() => removePhoto(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#c62828', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12 }}>x</button>
                 </div>

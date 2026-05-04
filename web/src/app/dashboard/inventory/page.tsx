@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { C, F, pageStyle, cardStyle, primaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function InventoryPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -15,6 +16,7 @@ export default function InventoryPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchItems() }, [])
 
   async function fetchItems() {

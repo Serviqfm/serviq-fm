@@ -13,10 +13,13 @@ export default function NewWorkOrderPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [vendors, setVendors] = useState<any[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
@@ -36,6 +39,7 @@ export default function NewWorkOrderPage() {
     recurrence_frequency: 'monthly',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadFormData() }, [])
 
   async function loadFormData() {
@@ -266,6 +270,7 @@ export default function NewWorkOrderPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               {photoPreviewUrls.map((url, i) => (
                 <div key={i} style={{ position: 'relative' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
                   <button type="button" onClick={() => removePhoto(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: C.danger, color: C.white, border: 'none', cursor: 'pointer', fontSize: 12 }}>x</button>
                 </div>

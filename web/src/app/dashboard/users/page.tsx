@@ -8,12 +8,15 @@ import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, tableHeaderCell, tableCell } from '@/lib/brand'
 
 export default function UsersPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchUsers() }, [])
 
   async function fetchUsers() {

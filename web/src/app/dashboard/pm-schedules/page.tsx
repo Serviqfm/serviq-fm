@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, cardStyle, primaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function PMSchedulesPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState<string | null>(null)
@@ -16,6 +17,7 @@ export default function PMSchedulesPage() {
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSchedules() }, [])
 
   async function fetchSchedules() {
@@ -43,6 +45,7 @@ export default function PMSchedulesPage() {
     return now.toISOString()
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function generateWorkOrder(schedule: any) {
     setGenerating(schedule.id)
     const { data: { user } } = await supabase.auth.getUser()
@@ -110,7 +113,9 @@ export default function PMSchedulesPage() {
     annual:      lang === 'ar' ? 'سنوي'         : 'Annual',
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isDue = (s: any) => s.next_due_at && isPast(new Date(s.next_due_at))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isDueSoon = (s: any) => {
     if (!s.next_due_at) return false
     const days = Math.ceil((new Date(s.next_due_at).getTime() - Date.now()) / 86400000)

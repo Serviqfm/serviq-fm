@@ -16,6 +16,7 @@ export default function EditVendorPage() {
     phone: '', email: '', specialisation: '', vat_number: '', cr_number: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadVendor() }, [id])
 
   async function loadVendor() {

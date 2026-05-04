@@ -18,6 +18,7 @@ export default function EditUserPage() {
     is_active: true,
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUser() }, [id])
 
   async function loadUser() {

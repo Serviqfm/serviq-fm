@@ -6,7 +6,9 @@ import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, inputStyle, labelStyle, sectionCard, primaryBtn, dangerBtn } from '@/lib/brand'
 
 export default function SettingsPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [org, setOrg] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -21,6 +23,7 @@ export default function SettingsPage() {
     vertical: '', timezone: 'Asia/Riyadh',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {

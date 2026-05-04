@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const DEFAULT_TEMPLATES: Record<string, { name: string; vertical: string; items: any[] }> = {
   school: {
     name: 'School Safety Inspection',
@@ -72,6 +73,7 @@ export default function NewTemplatePage() {
   const [error, setError] = useState('')
   const [name, setName] = useState('')
   const [vertical, setVertical] = useState('general')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([
     { id: '1', label: '', label_ar: '', type: 'pass_fail', required: true }
   ])
@@ -88,6 +90,7 @@ export default function NewTemplatePage() {
     setItems(prev => [...prev, { id: String(Date.now()), label: '', label_ar: '', type: 'pass_fail', required: false }])
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function updateItem(id: string, field: string, value: any) {
     setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item))
   }

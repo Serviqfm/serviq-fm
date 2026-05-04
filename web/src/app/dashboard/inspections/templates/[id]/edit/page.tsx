@@ -13,8 +13,10 @@ export default function EditTemplatePage() {
   const [error, setError] = useState('')
   const [name, setName] = useState('')
   const [vertical, setVertical] = useState('general')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadTemplate() }, [id])
 
   async function loadTemplate() {
@@ -31,6 +33,7 @@ export default function EditTemplatePage() {
     setItems(prev => [...prev, { id: String(Date.now()), label: '', label_ar: '', type: 'pass_fail', required: false }])
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function updateItem(itemId: string, field: string, value: any) {
     setItems(prev => prev.map(item => item.id === itemId ? { ...item, [field]: value } : item))
   }

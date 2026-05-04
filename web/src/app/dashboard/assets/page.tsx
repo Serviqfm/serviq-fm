@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function AssetsPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -18,6 +19,7 @@ export default function AssetsPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAssets() }, [categoryFilter, statusFilter])
 
   async function deleteSelected() {

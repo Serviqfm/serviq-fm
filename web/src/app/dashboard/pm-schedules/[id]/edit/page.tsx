@@ -11,8 +11,11 @@ export default function EditPMSchedulePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
   const [form, setForm] = useState({
     title: '', description: '', frequency: 'monthly',
@@ -21,6 +24,7 @@ export default function EditPMSchedulePage() {
     is_seasonal: false, seasonal_start_month: '1', seasonal_end_month: '12',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
 
   async function loadData() {

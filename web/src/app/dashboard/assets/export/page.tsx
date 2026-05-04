@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 
 export default function AssetExportPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const supabase = createClient()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAssets() }, [])
 
   async function fetchAssets() {

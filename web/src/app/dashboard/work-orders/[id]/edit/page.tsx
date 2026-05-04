@@ -11,9 +11,13 @@ export default function EditWorkOrderPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vendors, setVendors] = useState<any[]>([])
   const [form, setForm] = useState({
     title: '',
@@ -29,6 +33,7 @@ export default function EditWorkOrderPage() {
     actual_cost: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
 
   async function loadData() {

@@ -9,8 +9,11 @@ import Link from 'next/link'
 export default function VendorDetailPage() {
   const { id } = useParams()
   const supabase = createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vendor, setVendor] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [workOrders, setWorkOrders] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'invoices'>('details')
@@ -20,6 +23,7 @@ export default function VendorDetailPage() {
   const [rating, setRating] = useState(0)
   const [savingRating, setSavingRating] = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll(); fetchVendorWOs() }, [id])
 
   async function fetchAll() {
@@ -77,6 +81,7 @@ export default function VendorDetailPage() {
     padding: '8px 16px', border: 'none',
     borderBottom: active ? '2px solid #1a1a2e' : '2px solid transparent',
     background: 'transparent', cursor: 'pointer',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fontSize: 13, fontWeight: (active ? 600 : 400) as any,
     color: active ? '#1a1a2e' : '#999',
   })

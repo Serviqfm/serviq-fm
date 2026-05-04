@@ -1,5 +1,18 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { DM_Sans, Readex_Pro } from 'next/font/google'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+})
+
+const readexPro = Readex_Pro({
+  subsets: ['latin', 'arabic'],
+  weight: ['400', '600', '700'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: "Serviq FM",
@@ -10,15 +23,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Readex+Pro:wght@400;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" suppressHydrationWarning className={`${dmSans.className} ${readexPro.className}`}>
       <body>{children}</body>
     </html>
   );

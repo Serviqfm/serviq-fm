@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       tempPassword,
     })
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

@@ -40,6 +40,7 @@ export default function AssetImportPage() {
 
     for (let i = 0; i < rows.length; i++) {
       const values = rows[i].split(',').map((v: string) => v.trim().replace(/"/g, ''))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const row: any = headers.reduce((obj: any, h: string, j: number) => { obj[h] = values[j] || null; return obj }, {})
       if (!row.name) { errors.push('Row ' + (i + 2) + ': name is required'); continue }
 

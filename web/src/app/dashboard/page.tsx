@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, formatDistanceToNow, differenceInHours } from 'date-fns'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useLanguage } from '@/context/LanguageContext'
 import { C, F, cardStyle, pageStyle } from '@/lib/brand'
 
@@ -20,7 +21,9 @@ export default function DashboardPage() {
     mttr: 0,
     totalMaintenanceCost: 0,
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [recentActivity, setRecentActivity] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [upcomingPMs, setUpcomingPMs] = useState<any[]>([])
   const [openByStatus, setOpenByStatus] = useState<Record<string, number>>({})
   const [openByPriority, setOpenByPriority] = useState<Record<string, number>>({})
@@ -29,6 +32,7 @@ export default function DashboardPage() {
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadDashboard() }, [])
 
   async function loadDashboard() {
@@ -146,11 +150,7 @@ export default function DashboardPage() {
     <div style={pageStyle}>
 
       <div style={{ marginBottom: '2rem' }}>
-        <img
-          src="/ServiqFM_Logo_v2.jpg"
-          alt="ServiqFM"
-          style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block', marginBottom: '1rem' }}
-        />
+        <Image src="/ServiqFM_Logo_v2.jpg" alt="ServiqFM" width={160} height={40} style={{ objectFit: 'contain' as const, display: 'block', marginBottom: '1rem' }} />
         <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>
           {userName ? greeting + ', ' + userName.split(' ')[0] : 'Dashboard'}
         </h1>

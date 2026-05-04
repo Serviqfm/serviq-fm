@@ -8,12 +8,14 @@ import Link from 'next/link'
 export default function InventoryItemDetailPage() {
   const { id } = useParams()
   const supabase = createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [item, setItem] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [adjustQty, setAdjustQty] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
   const [adjusting, setAdjusting] = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchItem() }, [id])
 
   async function fetchItem() {

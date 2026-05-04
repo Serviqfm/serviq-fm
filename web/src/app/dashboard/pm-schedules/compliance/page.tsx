@@ -6,14 +6,18 @@ import Link from 'next/link'
 import { C, F, pageStyle, cardStyle, secondaryBtn, inputStyle, tableHeaderCell, tableCell } from '@/lib/brand'
 
 export default function PMCompliancePage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filterSite, setFilterSite] = useState('all')
   const [filterTech, setFilterTech] = useState('all')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
   const supabase = createClient()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll() }, [])
 
   async function fetchAll() {

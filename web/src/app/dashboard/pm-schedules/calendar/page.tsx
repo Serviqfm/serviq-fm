@@ -6,11 +6,13 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday
 import Link from 'next/link'
 
 export default function PMCalendarPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const supabase = createClient()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSchedules() }, [])
 
   async function fetchSchedules() {

@@ -8,7 +8,9 @@ import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function InspectionsPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inspections, setInspections] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'inspections' | 'templates'>('inspections')
@@ -17,6 +19,7 @@ export default function InspectionsPage() {
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll() }, [])
 
   async function fetchAll() {

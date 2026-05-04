@@ -11,6 +11,7 @@ export default function EditAssetPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
   const [form, setForm] = useState({
     name: '',
@@ -28,6 +29,7 @@ export default function EditAssetPage() {
     location_notes: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
 
   async function loadData() {

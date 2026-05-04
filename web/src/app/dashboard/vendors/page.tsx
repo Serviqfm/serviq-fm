@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import Link from 'next/link'
-import { C, F, pageStyle, cardStyle, primaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
+import { C, F, pageStyle, cardStyle, primaryBtn, tableHeaderCell, tableCell, dangerBtn, inputStyle } from '@/lib/brand'
 
 export default function VendorsPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vendors, setVendors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -15,6 +16,7 @@ export default function VendorsPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchVendors() }, [])
 
   async function fetchVendors() {

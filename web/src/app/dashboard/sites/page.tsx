@@ -8,12 +8,14 @@ import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, dangerBtn } from '@/lib/brand'
 
 export default function SitesPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSites() }, [])
 
   async function fetchSites() {

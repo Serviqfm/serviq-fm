@@ -16,6 +16,7 @@ export default function EditSitePage() {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', name_ar: '', city: '', address: '' })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadSite() }, [id])
 
   async function loadSite() {

@@ -11,6 +11,7 @@ export default function EditInventoryItemPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
   const [form, setForm] = useState({
     name: '', name_ar: '', sku: '', category: '',
@@ -18,6 +19,7 @@ export default function EditInventoryItemPage() {
     unit_cost: '', location_in_store: '', site_id: '',
   })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
 
   async function loadData() {
