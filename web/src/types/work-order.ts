@@ -13,6 +13,7 @@ export interface WorkOrder {
   description: string | null
   priority: Priority
   status: WorkOrderStatus
+  wo_number: number | null
   sla_hours: number | null
   due_at: string | null
   started_at: string | null

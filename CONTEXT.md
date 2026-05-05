@@ -53,14 +53,13 @@
 ### Sprint A — Quick Fixes *(~0.5 day)*
 **Goal:** Two small bugs with outsized UX impact.
 
-- [ ] **A1 — Logout redirect**
-  - `web/src/app/auth/logout/route.ts` — change redirect from `/login` → `/login/client`
-  - _Users currently land on a 404 after signing out_
+- [x] **A1 — Logout redirect**
+  - `web/src/app/auth/logout/route.ts` — redirect changed to `/login/client`
 
-- [ ] **A2 — Work order sequential numbering**
-  - Add `wo_number` (per-org auto-increment) to `work_orders` table via Supabase trigger/sequence
-  - Display as `WO-0001`, `WO-0002` in list and detail pages
-  - Support search by WO number
+- [x] **A2 — Work order sequential numbering**
+  - `wo_number` column + Supabase trigger added (run SQL in Supabase editor — see plan)
+  - Displays as `WO-0001`, `WO-0002` in list and detail pages
+  - Search by WO number supported
 
 ---
 

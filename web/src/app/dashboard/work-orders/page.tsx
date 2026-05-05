@@ -83,9 +83,11 @@ export default function WorkOrdersPage() {
   }
 
   const filtered = workOrders.filter(wo => {
+    const woNum = wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : ''
     const matchSearch = wo.title.toLowerCase().includes(search.toLowerCase()) ||
       wo.asset?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      wo.site?.name?.toLowerCase().includes(search.toLowerCase())
+      wo.site?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      woNum.toLowerCase().includes(search.toLowerCase())
     const matchDateFrom = !dateFrom || new Date(wo.created_at) >= new Date(dateFrom)
     const matchDateTo = !dateTo || new Date(wo.created_at) <= new Date(dateTo + 'T23:59:59')
     return matchSearch && matchDateFrom && matchDateTo
@@ -228,6 +230,7 @@ export default function WorkOrdersPage() {
                 <th style={{ padding: '10px 16px', width: 40 }}>
                   <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                 </th>
+                <th style={tableHeaderCell}>WO #</th>
                 {[t('wo.col.title'),t('wo.col.asset'),t('wo.col.site'),t('assets.col.cat'),t('wo.col.priority'),t('wo.col.status'),t('wo.col.assigned'),t('wo.col.due'),t('common.created')].map(h => (
                   <th key={h} style={tableHeaderCell}>{h}</th>
                 ))}
@@ -243,6 +246,9 @@ export default function WorkOrdersPage() {
                   <tr key={wo.id} style={{ background: isSelected ? '#EEF2FF' : overdue ? '#FFF8F8' : C.white }}>
                     <td style={{ padding: '12px 16px' }}>
                       <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} />
+                    </td>
+                    <td style={{ ...tableCell, color: C.textMid, fontWeight: 500, whiteSpace: 'nowrap' as const }}>
+                      {wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : '—'}
                     </td>
                     <td style={tableCell}>
                       <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>

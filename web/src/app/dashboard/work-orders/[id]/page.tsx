@@ -317,6 +317,11 @@ export default function WorkOrderDetailPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
+            {wo.wo_number && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid, background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 10px', fontFamily: F.en, letterSpacing: '0.03em' }}>
+                {`WO-${String(wo.wo_number).padStart(4, '0')}`}
+              </span>
+            )}
             {lang === 'ar' && (
               <TranslateButton
                 texts={{ title: wo.title, description: wo.description ?? '' }}
