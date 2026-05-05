@@ -63,41 +63,48 @@
 
 ---
 
-### Sprint B — Spaces & Public Request Portal *(~3–4 days)*
+### Sprint B — Spaces & Public Request Portal *(COMPLETE)*
 **Goal:** Rooms/spaces within sites with QR codes; public request form pre-filled with space context; admin approves/rejects requests which become work orders.
 
-**Design doc:** `docs/superpowers/specs/` *(to be written)*
+**Design doc:** `docs/superpowers/specs/2026-05-05-sprint-b-spaces-request-portal-design.md`
+**Plan:** `docs/superpowers/plans/2026-05-05-sprint-b-spaces-request-portal.md`
 
 #### B1 — Spaces within Sites
-- [ ] `spaces` table: `(id, site_id, organisation_id, name, name_ar, floor, description, qr_token uuid)`
-- [ ] Spaces tab in site detail page (list, add, edit, delete)
-- [ ] QR code generated per space — encodes `/request?space=<qr_token>`
-- [ ] QR download / print button per space
-- [ ] `space_id` added to `assets` table — assets can be assigned to a space
-- [ ] When viewing a space, show its assigned assets
+- [x] `spaces` table + RLS policies (run SQL in Supabase editor)
+- [x] `/dashboard/sites/[id]/spaces` — list page, floor-grouped, QR modal
+- [x] `/dashboard/sites/[id]/spaces/new` + `/[sid]/edit` — add/edit forms
+- [x] QR code per space via `qrcode` npm package; download PNG + print
+- [x] **Bulk export**: `/api/spaces/export-qr` → PDF via `@react-pdf/renderer`, 2/4/6 per A4 page
+- [x] Spaces button added to each site card on `/dashboard/sites`
+- [x] `space_id` column added to `assets` + `work_orders` tables (run SQL)
 
 #### B2 — Public Request Portal
-- [ ] Public page `/request?space=<token>` (no login required)
-  - Pre-fills site name + space name from token
-  - Fields: requester name, **email** (required for notifications), phone (optional), issue description, photo upload (optional)
-  - Submit → creates row in `requests` table with `status: 'pending'`
-- [ ] Confirmation screen after submit
-- [ ] Acknowledgement email sent to requester on submission
+- [x] `(public)` route group with minimal layout (ServIQ-FM logo only)
+- [x] `/r/[token]` — 4-panel public request form (requester info, details, attachments, location)
+- [x] `POST /api/requests/submit` — inserts to `requests` table, sends confirmation email
+- [x] Confirmation screen after submit with tracking info
 
 #### B3 — Requests Dashboard (Admin)
-- [ ] `/dashboard/requests` — filterable list (pending / approved / rejected)
-- [ ] Request detail: submitted info, space, photos
-- [ ] **Approve** → creates Work Order pre-filled from request → email requester with WO number
-- [ ] **Reject** → optional reason → email requester with reason
+- [x] `requests` table + RLS policies (run SQL in Supabase editor)
+- [x] `/dashboard/requests` — list with All/Pending/Approved/Rejected tabs, pending count badge
+- [x] `/dashboard/requests/[id]` — detail with approve/reject modals
+- [x] `POST /api/requests/[id]/approve` — creates WO, links request, sends approval email
+- [x] `POST /api/requests/[id]/reject` — sets rejected status, sends rejection email
+- [x] Requests nav item + red pending badge added to Sidebar
 
 #### B4 — Work Order Status Notifications to Requester
-- [ ] When WO (originated from a request) changes status, email requester
-- [ ] Status flow: `new` → `assigned` → `in_progress` → `on_hold` → `completed` → `finished`
-- [ ] `finished` = fully closed; `completed` = work done, pending invoice/sign-off
+- [x] Email utility `web/src/lib/email.ts` — Nodemailer + Hostinger SMTP
+- [x] `/track/[token]` — public requester tracking page with status timeline
+- [x] `POST /api/requests/notify-status` — sends status update email
+- [x] `doStatusUpdate` in WO detail page hooks into notify-status for in_progress/completed/finished
 
 #### B5 — Space-aware WO Detail (Technician View)
-- [ ] WO linked to a space shows dropdown of assets in that space
-- [ ] Technician selects asset → can mark **online** (commission) or **offline** (decommission)
+- [x] Space Assets tab appears in WO detail when `space_id` is set
+- [x] Lists assets assigned to the space with Commission/Decommission buttons + confirmation dialog
+- [x] Action logged to activity log on asset status change
+
+**⚠️ Manual DB steps required (Supabase SQL editor):** See `docs/superpowers/plans/2026-05-05-sprint-b-spaces-request-portal.md` Task 2
+**⚠️ Env vars required:** `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SECURE`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ---
 

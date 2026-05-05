@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6DCFB0"/>
+      <stop offset="50%" stop-color="#3AAECC"/>
+      <stop offset="100%" stop-color="#1A7FC1"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6DCFB0"/>
+      <stop offset="50%" stop-color="#3AAECC"/>
+      <stop offset="100%" stop-color="#1A7FC1"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B8DDD8"/>
+      <stop offset="100%" stop-color="#3AAECC"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="320" fill="#FFFFFF"/>
+  <g transform="translate(160,160)">
+    <path opacity="0.15" fill="url(#glow)" d="M0,-80 C4,-58 58,-4 80,0 C58,4 4,58 0,80 C-4,58 -58,4 -80,0 C-58,-4 -4,-58 0,-80 Z" transform="rotate(0)"/>
+    <path opacity="0.15" fill="url(#glow)" d="M0,-80 C4,-58 58,-4 80,0 C58,4 4,58 0,80 C-4,58 -58,4 -80,0 C-58,-4 -4,-58 0,-80 Z" transform="rotate(45)"/>
+    <path opacity="0.40" fill="url(#g2)"   d="M0,-64 C3,-46 46,-3 64,0 C46,3 3,46 0,64 C-3,46 -46,3 -64,0 C-46,-3 -3,-46 0,-64 Z" transform="rotate(0)"/>
+    <path opacity="0.40" fill="url(#g2)"   d="M0,-64 C3,-46 46,-3 64,0 C46,3 3,46 0,64 C-3,46 -46,3 -64,0 C-46,-3 -3,-46 0,-64 Z" transform="rotate(45)"/>
+    <path fill="url(#g1)" d="M0,-46 C3,-33 33,-3 46,0 C33,3 3,33 0,46 C-3,33 -33,3 -46,0 C-33,-3 -3,-33 0,-46 Z" transform="rotate(0)"/>
+    <path fill="url(#g2)" d="M0,-46 C3,-33 33,-3 46,0 C33,3 3,33 0,46 C-3,33 -33,3 -46,0 C-33,-3 -3,-33 0,-46 Z" transform="rotate(45)"/>
+    <circle cx="0" cy="0" r="22" fill="#FFFFFF"/>
+    <circle cx="0" cy="0" r="14" fill="url(#g1)" opacity="0.85"/>
+  </g>
+</svg>

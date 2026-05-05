@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Serviq FM — منصة إدارة المرافق الذكية | Facility Management Platform for Saudi Arabia</title>
+  <meta name="description" content="Bilingual Arabic-English facility management SaaS for Saudi Arabia. Work orders, asset management, preventive maintenance, and mobile app. Priced in SAR. ZATCA compliant." />
+  <meta name="keywords" content="facility management Saudi Arabia, CAFM, work orders, asset management, Arabic FM software, إدارة المرافق, سيرفيك" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & Tokens ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #1E2D4E;
+      --navy-80:     rgba(30,45,78,0.80);
+      --navy-light:  #E8ECF2;
+      --teal:        #6DCFB0;
+      --teal-mid:    #3AAECC;
+      --teal-light:  #B8DDD8;
+      --teal-bg:     #E8F7F3;
+      --blue:        #1A7FC1;
+      --blue-light:  #E6F1FB;
+      --offwhite:    #F8FAFC;
+      --muted:       #A0B0BF;
+      --text:        #1E2D4E;
+      --text2:       #4A5568;
+      --border:      #E8ECF0;
+      --grad:        linear-gradient(135deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%);
+      --grad-h:      linear-gradient(90deg,  #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%);
+      --font-en:     'DM Sans', sans-serif;
+      --font-ar:     'Readex Pro', sans-serif;
+      --radius:      12px;
+      --radius-sm:   8px;
+      --shadow-sm:   0 1px 8px rgba(30,45,78,0.06);
+      --shadow-md:   0 4px 24px rgba(30,45,78,0.10);
+      --shadow-lg:   0 12px 48px rgba(30,45,78,0.14);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-en);
+      color: var(--text);
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    img { display: block; max-width: 100%; }
+    a { text-decoration: none; }
+
+    .ar {
+      font-family: var(--font-ar);
+      direction: rtl;
+    }
+
+    /* ── Utility ────────────────────────────────────────────── */
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .grad-text {
+      background: var(--grad-h);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--teal-mid);
+      margin-bottom: 14px;
+    }
+
+    .section-label-ar {
+      font-family: var(--font-ar);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-en);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .btn-grad {
+      background: var(--grad-h);
+      color: #fff;
+    }
+    .btn-grad:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(109,207,176,0.35); }
+
+    .btn-navy {
+      background: var(--navy);
+      color: #fff;
+    }
+    .btn-navy:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    .btn-outline-white {
+      background: transparent;
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.45);
+    }
+    .btn-outline-white:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.7); }
+
+    .btn-outline-navy {
+      background: transparent;
+      color: var(--navy);
+      border: 1.5px solid var(--navy);
+    }
+    .btn-outline-navy:hover { background: var(--navy-light); }
+
+    /* ── NAV ────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 68px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-logo-text {
+      font-family: var(--font-en);
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+
+    .nav-logo-text span {
+      background: var(--grad-h);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text2);
+      padding: 7px 14px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .nav-links a:hover { color: var(--navy); background: var(--offwhite); }
+
+    .nav-cta { display: flex; align-items: center; gap: 10px; }
+
+    .nav-ar {
+      font-family: var(--font-ar);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .hamburger span {
+      width: 24px; height: 2px;
+      background: var(--navy);
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    /* ── HERO ───────────────────────────────────────────────── */
+    .hero {
+      background: var(--navy);
+      padding: 96px 0 112px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .hero-glow-1 {
+      position: absolute;
+      top: -160px; right: -160px;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(109,207,176,0.13) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-glow-2 {
+      position: absolute;
+      bottom: -120px; left: -120px;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(26,127,193,0.12) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(109,207,176,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(109,207,176,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(109,207,176,0.12);
+      border: 1px solid rgba(109,207,176,0.28);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 6px 18px;
+      border-radius: 999px;
+      margin-bottom: 36px;
+      animation: fadeInDown 0.6s ease both;
+    }
+
+    .hero-ar {
+      font-family: var(--font-ar);
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.45;
+      color: #fff;
+      margin-bottom: 8px;
+      direction: rtl;
+      animation: fadeInUp 0.7s ease 0.1s both;
+    }
+
+    .hero-en {
+      font-family: var(--font-en);
+      font-size: 19px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 36px;
+      line-height: 1.65;
+      animation: fadeInUp 0.7s ease 0.2s both;
+    }
+
+    .hero-btns {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 72px;
+      animation: fadeInUp 0.7s ease 0.3s both;
+    }
+
+    .hero-divider {
+      width: 1px;
+      height: 40px;
+      background: rgba(255,255,255,0.12);
+      margin: 0 auto 48px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 0;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.7s ease 0.4s both;
+    }
+
+    .hero-stat {
+      padding: 0 40px;
+      border-right: 1px solid rgba(255,255,255,0.10);
+      text-align: center;
+    }
+    .hero-stat:last-child { border-right: none; }
+
+    .hero-stat-num {
+      font-size: 30px;
+      font-weight: 700;
+      background: var(--grad-h);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .hero-stat-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      font-weight: 400;
+    }
+
+    /* ── TRUST BAR ──────────────────────────────────────────── */
+    .trust-bar {
+      background: var(--teal-bg);
+      border-bottom: 1px solid rgba(109,207,176,0.2);
+      padding: 20px 0;
+    }
+
+    .trust-items {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      flex-wrap: wrap;
+    }
+
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--navy);
+    }
+
+    .trust-check {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--grad-h);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .trust-check svg { width: 10px; height: 10px; }
+
+    /* ── PROBLEM ────────────────────────────────────────────── */
+    .problem {
+      background: var(--offwhite);
+      padding: 88px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .section-title {
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 17px;
+      color: var(--text2);
+      line-height: 1.7;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .problem-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .problem-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+    .problem-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: var(--teal-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 20px;
+    }
+
+    .problem-title-ar {
+      font-family: var(--font-ar);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--teal-mid);
+      direction: rtl;
+      margin-bottom: 4px;
+    }
+
+    .problem-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+
+    .problem-text {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.65;
+    }
+
+    /* ── FEATURES ───────────────────────────────────────────── */
+    .features { padding: 88px 0; background: #fff; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .feature-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--grad-h);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon-wrap {
+      width: 52px; height: 52px;
+      border-radius: 12px;
+      background: var(--teal-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .feature-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+
+    .feature-title-ar {
+      font-family: var(--font-ar);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--teal-mid);
+      direction: rtl;
+      margin-bottom: 14px;
+    }
+
+    .feature-text {
+      font-size: 14px;
+      color: var(--text2);
+      line-height: 1.75;
+      margin-bottom: 20px;
+    }
+
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      background: var(--offwhite);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* ── VERTICALS ──────────────────────────────────────────── */
+    .verticals {
+      background: var(--navy);
+      padding: 88px 0;
+    }
+
+    .verticals .section-label { color: var(--teal); }
+    .verticals .section-title { color: #fff; }
+    .verticals .section-sub { color: rgba(255,255,255,0.55); }
+
+    .verticals-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .vertical-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: var(--radius);
+      padding: 32px 26px;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .vertical-card:hover {
+      background: rgba(109,207,176,0.08);
+      border-color: rgba(109,207,176,0.28);
+      transform: translateY(-2px);
+    }
+
+    .vertical-emoji { font-size: 34px; margin-bottom: 18px; }
+
+    .vertical-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .vertical-title-ar {
+      font-family: var(--font-ar);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--teal);
+      direction: rtl;
+      margin-bottom: 14px;
+    }
+
+    .vertical-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.65;
+    }
+
+    .vertical-features {
+      margin-top: 16px;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .vertical-features li {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      padding-left: 14px;
+      position: relative;
+    }
+    .vertical-features li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--teal);
+    }
+
+    /* ── PRICING ────────────────────────────────────────────── */
+    .pricing { padding: 88px 0; background: var(--offwhite); }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .pricing-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 32px;
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border: 2px solid var(--blue);
+      box-shadow: 0 0 0 4px rgba(26,127,193,0.08), var(--shadow-lg);
+      transform: scale(1.02);
+    }
+
+    .pricing-popular {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--grad-h);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 20px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pricing-plan-ar {
+      font-family: var(--font-ar);
+      font-size: 13px;
+      color: var(--muted);
+      direction: rtl;
+      margin-bottom: 4px;
+    }
+
+    .pricing-plan {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--teal-mid);
+      margin-bottom: 20px;
+    }
+
+    .pricing-price {
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .pricing-price sup { font-size: 18px; vertical-align: super; margin-right: 2px; }
+    .pricing-price small { font-size: 16px; font-weight: 400; color: var(--muted); }
+
+    .pricing-period {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    .pricing-hr {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    .pricing-features {
+      list-style: none;
+      margin-bottom: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pricing-features li {
+      font-size: 14px;
+      color: var(--text2);
+      padding-left: 22px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .pricing-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--teal-mid);
+      font-weight: 700;
+    }
+
+    .pricing-btn {
+      display: block;
+      text-align: center;
+      padding: 13px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.18s;
+    }
+
+    .pricing-btn-outline {
+      border: 1.5px solid var(--navy);
+      color: var(--navy);
+    }
+    .pricing-btn-outline:hover { background: var(--navy-light); }
+
+    .pricing-btn-grad {
+      background: var(--grad-h);
+      color: #fff;
+    }
+    .pricing-btn-grad:hover { opacity: 0.88; box-shadow: 0 6px 20px rgba(109,207,176,0.3); }
+
+    .pricing-note {
+      text-align: center;
+      margin-top: 36px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    /* ── DIFFERENTIATORS ────────────────────────────────────── */
+    .why { padding: 88px 0; background: #fff; }
+
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+
+    .why-card {
+      padding: 28px 24px;
+      border-radius: var(--radius);
+      background: var(--offwhite);
+      border: 1px solid var(--border);
+    }
+
+    .why-num {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--teal-mid);
+      margin-bottom: 10px;
+    }
+
+    .why-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+
+    .why-title-ar {
+      font-family: var(--font-ar);
+      font-size: 13px;
+      color: var(--muted);
+      direction: rtl;
+      margin-bottom: 10px;
+    }
+
+    .why-text {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.65;
+    }
+
+    /* ── FINAL CTA ──────────────────────────────────────────── */
+    .cta-section {
+      background: var(--grad);
+      padding: 100px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .cta-inner { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; }
+
+    .cta-ar {
+      font-family: var(--font-ar);
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+      direction: rtl;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .cta-en {
+      font-size: 19px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 12px;
+    }
+
+    .cta-note {
+      font-size: 13px;
+      color: rgba(255,255,255,0.50);
+      margin-bottom: 40px;
+    }
+
+    .cta-btns {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-white {
+      background: #fff;
+      color: var(--navy);
+      font-weight: 700;
+    }
+    .btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+
+    /* ── FOOTER ─────────────────────────────────────────────── */
+    footer {
+      background: var(--navy);
+      padding: 60px 0 28px;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.8fr 1fr 1fr 1.2fr;
+      gap: 40px;
+      margin-bottom: 48px;
+    }
+
+    .footer-brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .footer-brand-ar {
+      font-family: var(--font-ar);
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      direction: rtl;
+      margin-bottom: 4px;
+    }
+
+    .footer-brand-en {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .footer-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .footer-badge {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: rgba(255,255,255,0.5);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .footer-col-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 18px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .footer-links a {
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+      transition: color 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .footer-links a:hover { color: var(--teal); }
+
+    .footer-links .ar-label {
+      font-family: var(--font-ar);
+      font-size: 11px;
+      color: rgba(255,255,255,0.28);
+      direction: rtl;
+    }
+
+    .footer-contact-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .footer-contact-icon {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .footer-contact-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.5;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-copy {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    .footer-legal {
+      font-size: 11px;
+      color: rgba(255,255,255,0.25);
+      text-align: right;
+      line-height: 1.7;
+    }
+
+    /* ── Animations ─────────────────────────────────────────── */
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .problem-grid { grid-template-columns: repeat(2, 1fr); }
+      .verticals-grid { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .hero-ar { font-size: 32px; }
+      .section-title { font-size: 28px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .pricing-card.featured { transform: scale(1); }
+      .why-grid { grid-template-columns: 1fr; }
+      .hero-stat { padding: 0 20px; }
+      nav .nav-links, nav .nav-cta { display: none; }
+      .hamburger { display: flex; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+      .footer-legal { text-align: center; }
+    }
+
+    @media (max-width: 480px) {
+      .problem-grid { grid-template-columns: 1fr; }
+      .verticals-grid { grid-template-columns: 1fr; }
+      .hero-stats { flex-direction: column; gap: 24px; }
+      .hero-stat { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px 0; }
+      .hero-stat:last-child { border-bottom: none; }
+    }
+
+    /* Mobile menu */
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 200;
+      flex-direction: column;
+      padding: 24px;
+    }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+    .mobile-menu-close {
+      font-size: 28px;
+      cursor: pointer;
+      color: var(--navy);
+      background: none;
+      border: none;
+      line-height: 1;
+    }
+    .mobile-menu-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .mobile-menu-links a {
+      display: block;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .mobile-menu-links .ar-label {
+      font-family: var(--font-ar);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .mobile-menu-cta { margin-top: 32px; }
+  </style>
+</head>
+<body>
+
+<!-- ── MOBILE MENU ─────────────────────────────────────────── -->
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-header">
+    <div class="nav-logo-text">Serviq <span>FM</span></div>
+    <button class="mobile-menu-close" onclick="closeMobileMenu()">×</button>
+  </div>
+  <ul class="mobile-menu-links">
+    <li><a href="#features" onclick="closeMobileMenu()">Features <span class="ar-label">/ المزايا</span></a></li>
+    <li><a href="#verticals" onclick="closeMobileMenu()">Industries <span class="ar-label">/ القطاعات</span></a></li>
+    <li><a href="#pricing" onclick="closeMobileMenu()">Pricing <span class="ar-label">/ الأسعار</span></a></li>
+    <li><a href="#waitlist" onclick="closeMobileMenu()">Join Waitlist <span class="ar-label">/ قائمة الانتظار</span></a></li>
+  </ul>
+  <div class="mobile-menu-cta">
+    <a href="#waitlist" class="btn btn-grad" style="width:100%; justify-content:center;" onclick="closeMobileMenu()">انضم لقائمة الانتظار — Join Waitlist</a>
+  </div>
+</div>
+
+<!-- ── NAV ────────────────────────────────────────────────── -->
+<nav>
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-text">Serviq <span>FM</span></div>
+        <span class="nav-ar">سيرفيك</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#verticals">Industries</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a href="#waitlist" class="btn btn-grad" style="padding:9px 20px; font-size:14px;">🚀 Coming Soon — 1 Aug 2025</a>
+      </div>
+      <div class="hamburger" onclick="openMobileMenu()">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ───────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-glow-1"></div>
+  <div class="hero-glow-2"></div>
+  <div class="hero-grid-bg"></div>
+  <div class="container">
+    <div class="hero-inner">
+
+      <div class="hero-badge">
+        🇸🇦 &nbsp; Made for Saudi Arabia &nbsp;·&nbsp; مصنوع للمملكة العربية السعودية
+      </div>
+
+      <div class="hero-ar">
+        إدارة المرافق<br><span class="grad-text">بشكل أذكى وأسرع</span>
+      </div>
+
+      <div class="hero-en">
+        The bilingual facility management platform built for Saudi Arabia.<br>
+        Arabic-first. Mobile-first. Priced in SAR.
+      </div>
+
+      <div class="hero-btns">
+        <a href="#waitlist" class="btn btn-grad">انضم لقائمة الانتظار — Join the Waitlist →</a>
+        <a href="#waitlist" class="btn btn-outline-white">Launching 1 August 2025</a>
+      </div>
+
+      <div class="hero-divider"></div>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num" id="daysLeft">—</div>
+          <div class="hero-stat-label">Days to Launch</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">1–3</div>
+          <div class="hero-stat-label">Days to Go Live</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">70%</div>
+          <div class="hero-stat-label">Cheaper than UpKeep</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">100%</div>
+          <div class="hero-stat-label">Arabic + English</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── TRUST BAR ──────────────────────────────────────────── -->
+<div class="trust-bar">
+  <div class="container">
+    <div class="trust-items">
+      <div class="trust-item">
+        <div class="trust-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        No credit card required
+      </div>
+      <div class="trust-item">
+        <div class="trust-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        ZATCA VAT-compliant invoicing
+      </div>
+      <div class="trust-item">
+        <div class="trust-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        MADA &amp; STC Pay supported
+      </div>
+      <div class="trust-item">
+        <div class="trust-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        Full RTL Arabic interface
+      </div>
+      <div class="trust-item">
+        <div class="trust-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        PDPL data privacy compliant
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROBLEM ────────────────────────────────────────────── -->
+<section class="problem">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">The Problem — المشكلة</span>
+      <h2 class="section-title">Managing facilities without a system<br>is costing you time and money</h2>
+      <p class="section-sub">Most Saudi facilities still run on WhatsApp groups, paper forms, and spreadsheets. Things fall through the cracks every day.</p>
+    </div>
+    <div class="problem-grid">
+
+      <div class="problem-card reveal">
+        <div class="problem-icon">📱</div>
+        <div class="problem-title-ar">طلبات مبعثرة على واتساب</div>
+        <div class="problem-title">Work requests lost in WhatsApp</div>
+        <div class="problem-text">Maintenance requests arrive across multiple chats with no tracking, no priority, and no accountability. Jobs get forgotten.</div>
+      </div>
+
+      <div class="problem-card reveal">
+        <div class="problem-icon">🔧</div>
+        <div class="problem-title-ar">أعطال متكررة بلا صيانة وقائية</div>
+        <div class="problem-title">Repeated breakdowns, no PM plan</div>
+        <div class="problem-text">Without preventive maintenance schedules, assets fail unexpectedly — costing far more to fix and disrupting daily operations.</div>
+      </div>
+
+      <div class="problem-card reveal">
+        <div class="problem-icon">📋</div>
+        <div class="problem-title-ar">لا توثيق، لا مساءلة</div>
+        <div class="problem-title">No records, no accountability</div>
+        <div class="problem-text">No audit trail means disputes with contractors, no proof of completed work, and zero visibility for management or auditors.</div>
+      </div>
+
+      <div class="problem-card reveal">
+        <div class="problem-icon">💸</div>
+        <div class="problem-title-ar">أنظمة دولية بأسعار مبالغ فيها</div>
+        <div class="problem-title">International tools are overpriced</div>
+        <div class="problem-text">UpKeep, Facilio, and eMaint cost SAR 40,000–150,000/yr and aren't built for Arabic-speaking teams or Saudi compliance.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ───────────────────────────────────────────── -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Core Features — المزايا الأساسية</span>
+      <h2 class="section-title">Everything your team needs.<br>Nothing you don't.</h2>
+      <p class="section-sub">Four powerful modules designed for field technicians, managers, and operations directors across Saudi Arabia.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="#3AAECC" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 12l2 2 4-4" stroke="#6DCFB0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="feature-title">Work Order Management</div>
+        <div class="feature-title-ar">إدارة أوامر العمل</div>
+        <div class="feature-text">Create, assign, and track work orders with SLA countdown timers, priority levels, photo proof of completion, digital sign-off, and full audit trail — in Arabic and English.</div>
+        <div class="feature-tags">
+          <span class="tag">SLA Timers</span>
+          <span class="tag">Photo Proof</span>
+          <span class="tag">Digital Sign-off</span>
+          <span class="tag">Audit Trail</span>
+          <span class="tag">Priority Levels</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke="#3AAECC" stroke-width="2"/>
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke="#6DCFB0" stroke-width="2"/>
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke="#6DCFB0" stroke-width="2"/>
+            <path d="M14 17.5h7M17.5 14v7" stroke="#3AAECC" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="feature-title">Asset Management</div>
+        <div class="feature-title-ar">إدارة الأصول</div>
+        <div class="feature-text">Maintain a complete asset registry with QR code and NFC scanning, warranty tracking, lifecycle history, cost of ownership, and location mapping across all your sites.</div>
+        <div class="feature-tags">
+          <span class="tag">QR Code Scanning</span>
+          <span class="tag">NFC Tags</span>
+          <span class="tag">Warranty Tracking</span>
+          <span class="tag">Multi-site</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="#3AAECC" stroke-width="2"/>
+            <path d="M12 7v5l3 3" stroke="#6DCFB0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="feature-title">Preventive Maintenance</div>
+        <div class="feature-title-ar">الصيانة الوقائية</div>
+        <div class="feature-text">Schedule recurring PM tasks, auto-generate work orders, track PM compliance percentage, and stop costly breakdowns before they happen with smart scheduling.</div>
+        <div class="feature-tags">
+          <span class="tag">Recurring Schedules</span>
+          <span class="tag">PM Compliance %</span>
+          <span class="tag">Auto-generate Tasks</span>
+          <span class="tag">MTTR / MTBF</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="5" y="2" width="14" height="20" rx="2" stroke="#3AAECC" stroke-width="2"/>
+            <path d="M9 7h6M9 11h6M9 15h4" stroke="#6DCFB0" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="feature-title">Mobile Technician App</div>
+        <div class="feature-title-ar">تطبيق الفني المتنقل</div>
+        <div class="feature-text">iOS and Android app built for field use. Works offline, GPS check-in, camera for photo uploads, push notifications on new assignments, and built-in QR scanner.</div>
+        <div class="feature-tags">
+          <span class="tag">Offline-capable</span>
+          <span class="tag">GPS Check-in</span>
+          <span class="tag">Push Notifications</span>
+          <span class="tag">iOS &amp; Android</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── VERTICALS ──────────────────────────────────────────── -->
+<section class="verticals" id="verticals">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Built For Your Industry — مصنوع لقطاعك</span>
+      <h2 class="section-title">Vertical-specific templates,<br>ready from day one</h2>
+      <p class="section-sub">Pre-configured checklists, PM schedules, and workflows for your exact industry — not a generic tool you have to build from scratch.</p>
+    </div>
+    <div class="verticals-grid">
+
+      <div class="vertical-card reveal">
+        <div class="vertical-emoji">🏫</div>
+        <div class="vertical-title">Schools</div>
+        <div class="vertical-title-ar">المدارس</div>
+        <div class="vertical-text">Private and international schools managing multi-building campuses.</div>
+        <ul class="vertical-features">
+          <li>AC service checklists</li>
+          <li>Fire safety inspection forms</li>
+          <li>Classroom equipment register</li>
+          <li>Contractor access portal</li>
+        </ul>
+      </div>
+
+      <div class="vertical-card reveal">
+        <div class="vertical-emoji">🏬</div>
+        <div class="vertical-title">Retail Chains</div>
+        <div class="vertical-title-ar">سلاسل التجزئة</div>
+        <div class="vertical-text">Multi-branch chains needing cross-site visibility and compliance.</div>
+        <ul class="vertical-features">
+          <li>Multi-branch dashboard</li>
+          <li>Refrigeration PM templates</li>
+          <li>Store opening checklists</li>
+          <li>Brand compliance audits</li>
+        </ul>
+      </div>
+
+      <div class="vertical-card reveal">
+        <div class="vertical-emoji">🏘️</div>
+        <div class="vertical-title">Housing Compounds</div>
+        <div class="vertical-title-ar">المجمعات السكنية</div>
+        <div class="vertical-text">Gated communities and residential complexes with resident portals.</div>
+        <ul class="vertical-features">
+          <li>Resident request portal</li>
+          <li>Pool &amp; gym PM templates</li>
+          <li>Unit handover checklists</li>
+          <li>Owner maintenance reports</li>
+        </ul>
+      </div>
+
+      <div class="vertical-card reveal">
+        <div class="vertical-emoji">🏨</div>
+        <div class="vertical-title">Local Hotels</div>
+        <div class="vertical-title-ar">الفنادق المحلية</div>
+        <div class="vertical-text">2–4 star hotels and aparthotels needing fast, trackable maintenance.</div>
+        <ul class="vertical-features">
+          <li>Room maintenance logs</li>
+          <li>Elevator &amp; HVAC PM</li>
+          <li>Preventive room inspections</li>
+          <li>Guest complaint automation</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── WHY SERVIQ ─────────────────────────────────────────── -->
+<section class="why">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Why Serviq FM — لماذا سيرفيك</span>
+      <h2 class="section-title">Built different.<br>Priced fairly.</h2>
+    </div>
+    <div class="why-grid">
+
+      <div class="why-card reveal">
+        <div class="why-num">01</div>
+        <div class="why-title">Arabic-First Platform</div>
+        <div class="why-title-ar">منصة عربية أولاً</div>
+        <div class="why-text">Full RTL support, Arabic PDF reports, Arabic push notifications, and Arabic email alerts — not an afterthought, built in from day one.</div>
+      </div>
+
+      <div class="why-card reveal">
+        <div class="why-num">02</div>
+        <div class="why-title">70–90% Cheaper</div>
+        <div class="why-title-ar">أرخص بـ 70–90%</div>
+        <div class="why-text">UpKeep starts at SAR 40,000/yr. Serviq FM starts at SAR 2,000/yr. Same power, a fraction of the cost, no enterprise sales process.</div>
+      </div>
+
+      <div class="why-card reveal">
+        <div class="why-num">03</div>
+        <div class="why-title">Live in 1–3 Days</div>
+        <div class="why-title-ar">جاهز في 1–3 أيام</div>
+        <div class="why-text">No 6-month implementation. No consultants. Sign up, add your assets, invite your team, and you're live — in days, not months.</div>
+      </div>
+
+      <div class="why-card reveal">
+        <div class="why-num">04</div>
+        <div class="why-title">Saudi Payment Methods</div>
+        <div class="why-title-ar">طرق الدفع السعودية</div>
+        <div class="why-text">Pay by MADA, STC Pay, Visa, or Mastercard. ZATCA-compliant VAT invoices issued automatically at 15% for every subscription.</div>
+      </div>
+
+      <div class="why-card reveal">
+        <div class="why-num">05</div>
+        <div class="why-title">Mobile-First Design</div>
+        <div class="why-title-ar">تصميم للجوال أولاً</div>
+        <div class="why-text">Designed for technicians working in the field, not office managers at a desk. Works offline. Fast. Simple. No training required.</div>
+      </div>
+
+      <div class="why-card reveal">
+        <div class="why-num">06</div>
+        <div class="why-title">PDPL &amp; ZATCA Compliant</div>
+        <div class="why-title-ar">متوافق مع نظام البيانات وزاتكا</div>
+        <div class="why-text">Built for Saudi Arabia's regulatory environment. PDPL data privacy compliance, ZATCA Phase 2 e-invoicing, row-level data isolation.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ────────────────────────────────────────────── -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Pricing — الأسعار</span>
+      <h2 class="section-title">Simple, transparent pricing in SAR</h2>
+      <p class="section-sub">All prices exclude 15% VAT. ZATCA-compliant invoices issued automatically. No setup fees, no hidden costs, no surprises.</p>
+    </div>
+
+    <div class="pricing-grid">
+
+      <!-- Small -->
+      <div class="pricing-card reveal">
+        <div class="pricing-plan-ar">الخطة الصغيرة</div>
+        <div class="pricing-plan">Small</div>
+        <div class="pricing-price"><sup>SAR</sup>2,000<small>/yr</small></div>
+        <div class="pricing-period">excl. VAT &nbsp;·&nbsp; up to 10 technicians</div>
+        <div class="pricing-hr"></div>
+        <ul class="pricing-features">
+          <li>Up to 10 technicians</li>
+          <li>1 site</li>
+          <li>Up to 500 assets</li>
+          <li>Work Orders + Assets + PMs</li>
+          <li>Mobile app (iOS &amp; Android)</li>
+          <li>Arabic + English interface</li>
+          <li>6-month media retention</li>
+          <li>Email support</li>
+        </ul>
+        <a href="#waitlist" class="pricing-btn pricing-btn-outline">Join Waitlist</a>
+      </div>
+
+      <!-- Medium -->
+      <div class="pricing-card featured reveal">
+        <div class="pricing-popular">Most Popular — الأكثر شيوعاً</div>
+        <div class="pricing-plan-ar">الخطة المتوسطة</div>
+        <div class="pricing-plan">Medium</div>
+        <div class="pricing-price"><sup>SAR</sup>5,000<small>/yr</small></div>
+        <div class="pricing-period">excl. VAT &nbsp;·&nbsp; up to 50 technicians</div>
+        <div class="pricing-hr"></div>
+        <ul class="pricing-features">
+          <li>Up to 50 technicians</li>
+          <li>Up to 10 sites</li>
+          <li>Up to 5,000 assets</li>
+          <li>Everything in Small</li>
+          <li>Inspections &amp; Checklists</li>
+          <li>Inventory &amp; Parts Management</li>
+          <li>Vendor Management</li>
+          <li>Analytics Dashboard</li>
+          <li>WhatsApp onboarding support</li>
+        </ul>
+        <a href="#waitlist" class="pricing-btn pricing-btn-grad">Join Waitlist</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="pricing-card reveal">
+        <div class="pricing-plan-ar">خطة المؤسسات</div>
+        <div class="pricing-plan">Enterprise</div>
+        <div class="pricing-price"><sup>SAR</sup>12,000<small>/yr</small></div>
+        <div class="pricing-period">excl. VAT &nbsp;·&nbsp; up to 100 technicians</div>
+        <div class="pricing-hr"></div>
+        <ul class="pricing-features">
+          <li>Up to 100 technicians</li>
+          <li>Unlimited sites</li>
+          <li>Unlimited assets</li>
+          <li>Everything in Medium</li>
+          <li>Dedicated account manager</li>
+          <li>Custom onboarding programme</li>
+          <li>SLA agreement</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="#trial" class="pricing-btn pricing-btn-outline">Contact Us</a>
+      </div>
+
+    </div>
+
+    <p class="pricing-note">
+      Storage add-ons: 12-month retention SAR 600/yr &nbsp;·&nbsp; 24-month SAR 1,200/yr &nbsp;·&nbsp; Unlimited SAR 2,400/yr<br>
+      Structured data (work orders, assets, PM logs) retained permanently on all plans at no extra cost.
+    </p>
+
+  </div>
+</section>
+
+<!-- ── FINAL CTA ──────────────────────────────────────────── -->
+<section class="cta-section" id="waitlist">
+  <div class="container">
+    <div class="cta-inner">
+
+      <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:6px 18px;border-radius:999px;margin-bottom:28px;">
+        🚀 &nbsp; LAUNCHING 1 AUGUST 2025
+      </div>
+
+      <div class="cta-ar">كن من أوائل المستخدمين<br>لسيرفيك FM</div>
+      <div class="cta-en">Be first to access Serviq FM</div>
+      <div class="cta-note">Join the waitlist — get early access, a 3-month discount, and priority onboarding.</div>
+
+      <!-- Waitlist Form -->
+      <div style="background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:36px 32px;margin-top:8px;text-align:left;">
+
+        <div id="waitlist-form">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px;letter-spacing:0.04em;">Full Name &nbsp;<span style="font-family:'Readex Pro',sans-serif;font-size:11px;color:rgba(255,255,255,0.35);">الاسم</span></label>
+              <input id="wl-name" type="text" placeholder="Ahmed Al-Rashidi" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border 0.15s;" onfocus="this.style.borderColor='rgba(255,255,255,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.2)'" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px;letter-spacing:0.04em;">Company &nbsp;<span style="font-family:'Readex Pro',sans-serif;font-size:11px;color:rgba(255,255,255,0.35);">الشركة</span></label>
+              <input id="wl-company" type="text" placeholder="Al Noor School" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border 0.15s;" onfocus="this.style.borderColor='rgba(255,255,255,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.2)'" />
+            </div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px;letter-spacing:0.04em;">Work Email &nbsp;<span style="font-family:'Readex Pro',sans-serif;font-size:11px;color:rgba(255,255,255,0.35);">البريد الإلكتروني</span></label>
+            <input id="wl-email" type="email" placeholder="ahmed@company.com" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border 0.15s;" onfocus="this.style.borderColor='rgba(255,255,255,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.2)'" />
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.04em;">Industry &nbsp;<span style="font-family:'Readex Pro',sans-serif;font-size:11px;color:rgba(255,255,255,0.35);">القطاع</span></label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;" id="industry-btns">
+              <button onclick="selectIndustry(this,'Schools')" class="industry-btn">🏫 Schools</button>
+              <button onclick="selectIndustry(this,'Retail')" class="industry-btn">🏬 Retail</button>
+              <button onclick="selectIndustry(this,'Compounds')" class="industry-btn">🏘️ Compounds</button>
+              <button onclick="selectIndustry(this,'Hotels')" class="industry-btn">🏨 Hotels</button>
+              <button onclick="selectIndustry(this,'Other')" class="industry-btn">🏢 Other</button>
+            </div>
+          </div>
+
+          <button onclick="submitWaitlist()" style="width:100%;padding:14px;background:#fff;color:#1E2D4E;border:none;border-radius:8px;font-size:15px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.18s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            Join the Waitlist — انضم لقائمة الانتظار →
+          </button>
+
+          <p style="font-size:12px;color:rgba(255,255,255,0.35);text-align:center;margin-top:14px;">
+            No spam. Unsubscribe anytime. &nbsp;·&nbsp; لا رسائل مزعجة. إلغاء الاشتراك في أي وقت.
+          </p>
+        </div>
+
+        <!-- Success State -->
+        <div id="waitlist-success" style="display:none;text-align:center;padding:24px 0;">
+          <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+          <div style="font-family:'Readex Pro',sans-serif;font-size:20px;font-weight:700;color:#fff;direction:rtl;margin-bottom:8px;">شكراً لانضمامك!</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:12px;">You're on the list!</div>
+          <div style="font-size:14px;color:rgba(255,255,255,0.65);line-height:1.7;">
+            We'll email you at launch on <strong style="color:#fff;">1 August 2025</strong> with your early access link and exclusive discount.<br>
+            سنراسلك عند الإطلاق في 1 أغسطس 2025.
+          </div>
+        </div>
+
+      </div>
+      <!-- end form box -->
+
+    </div>
+  </div>
+</section>
+
+<style>
+  .industry-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .industry-btn:hover {
+    background: rgba(255,255,255,0.14);
+    color: #fff;
+  }
+  .industry-btn.selected {
+    background: rgba(109,207,176,0.2);
+    border-color: rgba(109,207,176,0.5);
+    color: #fff;
+  }
+
+  @media (max-width: 600px) {
+    #waitlist-form > div:first-child {
+      grid-template-columns: 1fr !important;
+    }
+    .cta-section .cta-inner > div:last-child {
+      padding: 24px 20px !important;
+    }
+  }
+</style>
+
+<!-- ── FOOTER ─────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+
+      <div>
+        <div class="footer-brand-name">Serviq <span style="background:var(--grad-h);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">FM</span></div>
+        <div class="footer-brand-ar">منصة إدارة المرافق الذكية</div>
+        <div class="footer-brand-en">The smart facility management platform<br>built for Saudi Arabia.</div>
+        <div class="footer-badges">
+          <span class="footer-badge">🇸🇦 Saudi-Built</span>
+          <span class="footer-badge">ZATCA Compliant</span>
+          <span class="footer-badge">PDPL Compliant</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Product</div>
+        <ul class="footer-links">
+          <li><a href="#features">Work Orders <span class="ar-label">أوامر العمل</span></a></li>
+          <li><a href="#features">Asset Management <span class="ar-label">الأصول</span></a></li>
+          <li><a href="#features">Preventive Maintenance <span class="ar-label">الصيانة الوقائية</span></a></li>
+          <li><a href="#features">Mobile App <span class="ar-label">التطبيق</span></a></li>
+          <li><a href="#pricing">Pricing <span class="ar-label">الأسعار</span></a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Company</div>
+        <ul class="footer-links">
+          <li><a href="#">About <span class="ar-label">عن الشركة</span></a></li>
+          <li><a href="#">Contact <span class="ar-label">تواصل معنا</span></a></li>
+          <li><a href="#">Privacy Policy <span class="ar-label">سياسة الخصوصية</span></a></li>
+          <li><a href="#">Terms of Service <span class="ar-label">الشروط والأحكام</span></a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Contact</div>
+        <div class="footer-contact-item">
+          <div class="footer-contact-icon">📧</div>
+          <div class="footer-contact-text">hello@serviqfm.com</div>
+        </div>
+        <div class="footer-contact-item">
+          <div class="footer-contact-icon">💬</div>
+          <div class="footer-contact-text">WhatsApp Business<br>+966 XX XXX XXXX</div>
+        </div>
+        <div class="footer-contact-item">
+          <div class="footer-contact-icon">📍</div>
+          <div class="footer-contact-text">Jeddah, Saudi Arabia<br>جدة، المملكة العربية السعودية</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 Serviq FM. All rights reserved. جميع الحقوق محفوظة.</div>
+      <div class="footer-legal">
+        VAT Registration No: [ZATCA Number] &nbsp;·&nbsp; CR: [Commercial Registration No]<br>
+        PDPL Compliant &nbsp;·&nbsp; ZATCA E-Invoicing Phase 2 Compliant
+      </div>
+    </div>
+
+  </div>
+</footer>
+
+<script>
+  // Mobile menu
+  function openMobileMenu() {
+    document.getElementById('mobileMenu').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMobileMenu() {
+    document.getElementById('mobileMenu').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // Scroll reveal
+  const revealEls = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  revealEls.forEach(el => observer.observe(el));
+
+  // Smooth nav active state
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.style.color = a.getAttribute('href') === '#' + current ? 'var(--navy)' : '';
+      a.style.background = a.getAttribute('href') === '#' + current ? 'var(--offwhite)' : '';
+    });
+  });
+
+  // Countdown to 1 August 2025
+  function updateCountdown() {
+    const launch = new Date('2025-08-01T00:00:00+03:00');
+    const now = new Date();
+    const diff = Math.max(0, Math.ceil((launch - now) / (1000 * 60 * 60 * 24)));
+    const el = document.getElementById('daysLeft');
+    if (el) el.textContent = diff > 0 ? diff : '🚀';
+  }
+  updateCountdown();
+
+  // Industry selection
+  let selectedIndustry = '';
+  function selectIndustry(btn, value) {
+    document.querySelectorAll('.industry-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedIndustry = value;
+  }
+
+  // Waitlist form submission
+  function submitWaitlist() {
+    const name    = document.getElementById('wl-name').value.trim();
+    const company = document.getElementById('wl-company').value.trim();
+    const email   = document.getElementById('wl-email').value.trim();
+
+    if (!name || !email) {
+      alert('Please enter your name and email. / الرجاء إدخال الاسم والبريد الإلكتروني.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+
+    // Build mailto link — sends to admin@serviqfm.com
+    const subject = encodeURIComponent('Serviq FM Waitlist — ' + name);
+    const body = encodeURIComponent(
+      'New waitlist signup:\n\n' +
+      'Name: ' + name + '\n' +
+      'Company: ' + company + '\n' +
+      'Email: ' + email + '\n' +
+      'Industry: ' + (selectedIndustry || 'Not specified') + '\n\n' +
+      '---\nSubmitted from serviqfm.com waitlist form'
+    );
+
+    // Open mailto
+    window.location.href = 'mailto:admin@serviqfm.com?subject=' + subject + '&body=' + body;
+
+    // Show success state
+    document.getElementById('waitlist-form').style.display = 'none';
+    document.getElementById('waitlist-success').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

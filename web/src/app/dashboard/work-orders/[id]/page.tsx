@@ -25,7 +25,7 @@ export default function WorkOrderDetailPage() {
   const [history, setHistory] = useState<any[]>([])
   const { lang } = useLanguage()
   const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
-  const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'photos' | 'parts' | 'activity'>('comments')
+  const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'photos' | 'parts' | 'activity' | 'space_assets'>('comments')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventoryItems, setInventoryItems] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,6 +148,30 @@ export default function WorkOrderDetailPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sendPushNotification({ user_id: (wo as any).created_by, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
       }
+    }
+
+    // Send requester email if WO originated from a public request
+    if (wo?.request_id && ['in_progress','completed','finished'].includes(newStatus)) {
+      try {
+        const { data: req } = await supabase
+          .from('requests')
+          .select('requester_name, requester_email, tracking_token, site:site_id(name)')
+          .eq('id', wo.request_id)
+          .single()
+        if (req) {
+          await fetch('/api/requests/notify-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requester_name: req.requester_name,
+              requester_email: req.requester_email,
+              site_name: (Array.isArray(req.site) ? (req.site[0] as { name: string } | undefined)?.name : (req.site as { name: string } | null)?.name) || '',
+              tracking_token: req.tracking_token,
+              status: newStatus,
+            }),
+          })
+        }
+      } catch { /* non-blocking */ }
     }
 
     setShowSignoff(false)
@@ -461,6 +485,7 @@ export default function WorkOrderDetailPage() {
         <button style={tabStyle(activeTab === 'history')} onClick={() => setActiveTab('history')}>History ({history.length})</button>
         <button style={tabStyle(activeTab === 'parts')} onClick={() => setActiveTab('parts')}>Parts Used</button>
         <button style={tabStyle(activeTab === 'activity')} onClick={() => setActiveTab('activity')}>Activity Log ({activities.length})</button>
+        {wo?.space_id && <button style={tabStyle(activeTab === 'space_assets')} onClick={() => setActiveTab('space_assets')}>Space Assets</button>}
       </div>
 
       {activeTab === 'comments' && (
@@ -619,6 +644,85 @@ export default function WorkOrderDetailPage() {
             })
           )}
         </div>
+      )}
+
+      {activeTab === 'space_assets' && wo?.space_id && (
+        <SpaceAssetsPanel spaceId={wo.space_id} woId={wo.id} supabase={supabase} />
+      )}
+    </div>
+  )
+}
+
+function SpaceAssetsPanel({ spaceId, woId, supabase }: { spaceId: string; woId: string; supabase: ReturnType<typeof createClient> }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [assets, setAssets] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [space, setSpace] = useState<any>(null)
+
+  useEffect(() => {
+    async function load() {
+      const { data: sp } = await supabase.from('spaces').select('name, floor').eq('id', spaceId).single()
+      if (sp) setSpace(sp)
+      const { data } = await supabase.from('assets').select('*').eq('space_id', spaceId)
+      if (data) setAssets(data)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spaceId])
+
+  async function changeStatus(assetId: string, assetName: string, newStatus: 'online' | 'offline') {
+    const label = newStatus === 'online' ? 'Commissioned' : 'Decommissioned'
+    if (!confirm(`Mark "${assetName}" as ${newStatus}?`)) return
+    await supabase.from('assets').update({ status: newStatus }).eq('id', assetId)
+    await supabase.from('work_order_comments').insert({
+      work_order_id: woId,
+      body: `[ACTIVITY] [ACTION] ${label} asset: ${assetName}`,
+    })
+    const { data } = await supabase.from('assets').select('*').eq('space_id', spaceId)
+    if (data) setAssets(data)
+  }
+
+  const thS: React.CSSProperties = { padding: '8px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${C.border}`, fontFamily: F.en }
+  const tdS: React.CSSProperties = { padding: '11px 14px', fontSize: 13, color: C.textMid, borderBottom: `1px solid ${C.border}`, fontFamily: F.en }
+
+  return (
+    <div>
+      {space && (
+        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, marginBottom: 16 }}>
+          {space.name} · {space.floor}
+        </p>
+      )}
+      {assets.length === 0 ? (
+        <p style={{ color: C.textLight, fontFamily: F.en }}>No assets assigned to this space.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {['Name','Category','Status',''].map(h => <th key={h} style={thS}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {assets.map(asset => (
+              <tr key={asset.id}>
+                <td style={tdS}>{asset.name}</td>
+                <td style={tdS}>{asset.category}</td>
+                <td style={tdS}>
+                  <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: asset.status === 'online' ? '#DCFCE7' : C.pageBg, color: asset.status === 'online' ? '#166534' : C.textMid }}>
+                    {asset.status === 'online' ? 'Online' : 'Offline'}
+                  </span>
+                </td>
+                <td style={{ ...tdS, whiteSpace: 'nowrap' }}>
+                  <button onClick={() => changeStatus(asset.id, asset.name, 'online')} disabled={asset.status === 'online'} style={{ fontSize: 12, padding: '4px 10px', marginRight: 6, border: `1px solid ${C.border}`, borderRadius: 6, cursor: asset.status === 'online' ? 'not-allowed' : 'pointer', background: C.white, color: asset.status === 'online' ? C.textLight : C.success, fontFamily: F.en }}>
+                    Commission
+                  </button>
+                  <button onClick={() => changeStatus(asset.id, asset.name, 'offline')} disabled={asset.status === 'offline'} style={{ fontSize: 12, padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 6, cursor: asset.status === 'offline' ? 'not-allowed' : 'pointer', background: C.white, color: asset.status === 'offline' ? C.textLight : C.danger, fontFamily: F.en }}>
+                    Decommission
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   )

@@ -14,6 +14,8 @@ export interface WorkOrder {
   priority: Priority
   status: WorkOrderStatus
   wo_number: number | null
+  request_id: string | null
+  space_id: string | null
   sla_hours: number | null
   due_at: string | null
   started_at: string | null

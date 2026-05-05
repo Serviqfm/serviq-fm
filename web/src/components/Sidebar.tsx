@@ -28,6 +28,7 @@ const ICONS = {
   inventory:   <SvgIcon d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />,
   users:       <SvgIcon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z" />,
   invoices:    <SvgIcon d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" d2="M14 2v6h6M16 13H8M16 17H8M10 9H8" />,
+  requests:    <SvgIcon d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
   reports:     <SvgIcon d="M3 20V10h4v10H3zM10 20V4h4v16h-4zM17 20v-6h4v6h-4z" />,
   settings:    <SvgIcon d="M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />,
   language:    <SvgIcon d="M3 5h12M9 3v2M12 5c0 5-3 9-6 11M6 9c0 2 1.5 4 3 5M13 21l4-10 4 10M15.5 16h5" />,
@@ -40,6 +41,7 @@ const ICONS = {
 const NAV = [
   { key: 'dashboard',   href: '/dashboard',              en: 'Dashboard',    ar: 'لوحة التحكم',   exact: true  },
   { key: 'work_orders', href: '/dashboard/work-orders',  en: 'Work Orders',  ar: 'أوامر العمل',   exact: false },
+  { key: 'requests',    href: '/dashboard/requests',     en: 'Requests',     ar: 'الطلبات',        exact: false },
   { key: 'assets',      href: '/dashboard/assets',       en: 'Assets',       ar: 'الأصول',         exact: false },
   { key: 'pm',          href: '/dashboard/pm-schedules', en: 'PM Schedules', ar: 'جدول الصيانة',  exact: false },
   { key: 'sites',       href: '/dashboard/sites',        en: 'Sites',        ar: 'المواقع',        exact: false },
@@ -59,6 +61,7 @@ export default function Sidebar() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null)
   const [woBadge, setWoBadge] = useState(0)
+  const [reqBadge, setReqBadge] = useState(0)
   const supabase = createClient()
   const isAr = lang === 'ar'
 
@@ -81,6 +84,12 @@ export default function Sidebar() {
         .eq('organisation_id', profile.organisation_id)
         .not('status', 'in', '("completed","closed")')
       if (count) setWoBadge(count)
+      const { count: rCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('organisation_id', profile.organisation_id)
+        .eq('status', 'pending')
+      if (rCount) setReqBadge(rCount)
     }
   }
 
@@ -186,6 +195,7 @@ export default function Sidebar() {
             : pathname.startsWith(item.href)
           const label = isAr ? item.ar : item.en
           const isWO = item.key === 'work_orders'
+          const isReq = item.key === 'requests'
           const iconEl = ICONS[item.key as keyof typeof ICONS]
 
           return (
@@ -226,6 +236,28 @@ export default function Sidebar() {
                     position: 'absolute', top: 5, right: 8,
                     width: 7, height: 7, borderRadius: '50%',
                     background: '#1A7FC1',
+                  }} />
+                )}
+
+                {/* Requests badge — expanded */}
+                {!collapsed && isReq && reqBadge > 0 && (
+                  <span style={{
+                    background: isActive ? 'rgba(255,255,255,0.2)' : '#FEE2E2',
+                    color: isActive ? '#fff' : '#DC2626',
+                    fontSize: 11, fontWeight: 700,
+                    padding: '1px 6px', borderRadius: 999,
+                    minWidth: 20, textAlign: 'center', flexShrink: 0,
+                  }}>
+                    {reqBadge > 99 ? '99+' : reqBadge}
+                  </span>
+                )}
+
+                {/* Requests badge — collapsed dot */}
+                {collapsed && isReq && reqBadge > 0 && (
+                  <span style={{
+                    position: 'absolute', top: 5, right: 8,
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: '#DC2626',
                   }} />
                 )}
               </div>

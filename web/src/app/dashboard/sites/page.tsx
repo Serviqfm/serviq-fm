@@ -89,7 +89,10 @@ export default function SitesPage() {
               <p style={{ fontSize: 11, color: C.textLight, margin: '0 0 12px', fontFamily: F.en }}>
                 {lang === 'ar' ? 'أُضيف ' : 'Added '}{format(new Date(site.created_at), 'dd MMM yyyy')}
               </p>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Link href={`/dashboard/sites/${site.id}/spaces`}>
+                  <button style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>Spaces</button>
+                </Link>
                 <Link href={'/dashboard/sites/' + site.id + '/edit'}>
                   <button style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>{t('common.edit')}</button>
                 </Link>
