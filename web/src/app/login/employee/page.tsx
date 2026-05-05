@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { C, F } from '@/lib/brand'
 import Link from 'next/link'
 
-const grad = 'linear-gradient(135deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%)'
 const gradH = 'linear-gradient(90deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%)'
 
 export default function EmployeeLoginPage() {
