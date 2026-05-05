@@ -1,6 +1,236 @@
-# Serviq-FM — Project Context
+# ServIQ-FM — Project Context & Task Tracker
 
-**Serviq-FM** is a bilingual (Arabic + English) Facility Management SaaS platform targeting the Saudi/GCC market. Phase 1 beta launch in progress.
+**ServIQ-FM** is a bilingual (Arabic + English) Facility Management SaaS platform targeting the Saudi/GCC market. Phase 1 beta launch in progress.
+
+> **How to use this file:** Mark tasks `[x]` when done. Each sprint links to its design doc and plan. Update at the start of each session.
+
+---
+
+## Legend
+- `[x]` Done
+- `[ ]` Pending
+- `[~]` In Progress
+- `[!]` Blocked
+
+---
+
+## Completed Work
+
+### Weeks 1 & 2 — Dashboard Brand + ESLint + Mobile Foundation
+- [x] Dashboard layout with branded sidebar (navy/teal gradient)
+- [x] All dashboard pages: work orders, assets, sites, users, vendors, inventory, PM schedules, reports, settings, inspections
+- [x] Bilingual support EN/AR via LanguageContext + `t()` helper
+- [x] Brand constants (`C`, `F`, `cardStyle`, `primaryBtn`, etc.) in `web/src/lib/brand.ts`
+- [x] Next.js `<Image>` migration across all pages
+- [x] ESLint clean — zero warnings or errors
+- [x] Mobile: Expo SDK 54, technician app scaffolded, push notifications, QR scanner
+
+### Week 3 — ZATCA Invoicing, Security, Vercel Deploy
+- [x] `@react-pdf/renderer` installed
+- [x] ZATCA Phase 2 TLV QR encoder (`web/src/lib/zatca.ts`)
+- [x] Invoice PDF generation API (`web/src/app/api/invoices/generate/route.ts`)
+- [x] Download invoice button on closed work orders
+- [x] Invoices list page (`web/src/app/dashboard/invoices/page.tsx`)
+- [x] Invoices nav item in Sidebar
+- [x] Security checks passed (org_id scoping, env files gitignored, no hardcoded URLs)
+- [x] Vercel production deployed — auto-deploy from `main`
+- [ ] **EAS production build (iOS + Android) — PENDING (Task 7 from Week 3 plan)**
+
+### Pre-Mobile Sprint — Landing Page & Auth Polish
+- [x] Landing page at `/` — full branded ServIQ-FM marketing page
+- [x] `/login` now redirects to `/login/employee`
+- [x] `/login/client` — client-facing tenant login portal
+- [x] `/login/employee` — employee/platform admin login portal
+- [x] `/auth/logout` POST route created (was 404)
+- [x] DNS instructions provided (Hostinger A record → 76.76.21.21, CNAME www → cname.vercel-dns.com)
+
+---
+
+## Active Sprints
+
+---
+
+### Sprint A — Quick Fixes *(~0.5 day)*
+**Goal:** Two small bugs with outsized UX impact.
+
+- [ ] **A1 — Logout redirect**
+  - `web/src/app/auth/logout/route.ts` — change redirect from `/login` → `/login/client`
+  - _Users currently land on a 404 after signing out_
+
+- [ ] **A2 — Work order sequential numbering**
+  - Add `wo_number` (per-org auto-increment) to `work_orders` table via Supabase trigger/sequence
+  - Display as `WO-0001`, `WO-0002` in list and detail pages
+  - Support search by WO number
+
+---
+
+### Sprint B — Spaces & Public Request Portal *(~3–4 days)*
+**Goal:** Rooms/spaces within sites with QR codes; public request form pre-filled with space context; admin approves/rejects requests which become work orders.
+
+**Design doc:** `docs/superpowers/specs/` *(to be written)*
+
+#### B1 — Spaces within Sites
+- [ ] `spaces` table: `(id, site_id, organisation_id, name, name_ar, floor, description, qr_token uuid)`
+- [ ] Spaces tab in site detail page (list, add, edit, delete)
+- [ ] QR code generated per space — encodes `/request?space=<qr_token>`
+- [ ] QR download / print button per space
+- [ ] `space_id` added to `assets` table — assets can be assigned to a space
+- [ ] When viewing a space, show its assigned assets
+
+#### B2 — Public Request Portal
+- [ ] Public page `/request?space=<token>` (no login required)
+  - Pre-fills site name + space name from token
+  - Fields: requester name, **email** (required for notifications), phone (optional), issue description, photo upload (optional)
+  - Submit → creates row in `requests` table with `status: 'pending'`
+- [ ] Confirmation screen after submit
+- [ ] Acknowledgement email sent to requester on submission
+
+#### B3 — Requests Dashboard (Admin)
+- [ ] `/dashboard/requests` — filterable list (pending / approved / rejected)
+- [ ] Request detail: submitted info, space, photos
+- [ ] **Approve** → creates Work Order pre-filled from request → email requester with WO number
+- [ ] **Reject** → optional reason → email requester with reason
+
+#### B4 — Work Order Status Notifications to Requester
+- [ ] When WO (originated from a request) changes status, email requester
+- [ ] Status flow: `new` → `assigned` → `in_progress` → `on_hold` → `completed` → `finished`
+- [ ] `finished` = fully closed; `completed` = work done, pending invoice/sign-off
+
+#### B5 — Space-aware WO Detail (Technician View)
+- [ ] WO linked to a space shows dropdown of assets in that space
+- [ ] Technician selects asset → can mark **online** (commission) or **offline** (decommission)
+
+---
+
+### Sprint C — Invoice Redesign *(~2–3 days)*
+**Goal:** Replace the current single-cost auto-invoice with a manual, 3-line itemised invoice.
+
+**Design doc:** `docs/superpowers/specs/` *(to be written)*
+
+- [ ] **C1 — Remove auto-invoice**
+  - Invoice is no longer auto-generated on WO close
+  - When WO moves to `completed`: if site has `invoicing_enabled = true`, show "Generate Invoice" button
+
+- [ ] **C2 — Invoice creation flow (3-line breakdown)**
+  1. **Service Charges** — fixed fee (editable, pre-filled if WO has a value)
+  2. **Labor Charges** — auto-calculated: `Σ(activity hours) × technician hourly_rate`
+     - `hourly_rate` on user profile
+     - Activity durations pulled from WO activity log
+  3. **Spare Parts** — list from WO parts_used (qty × unit cost per item)
+  - Additional surcharges field (label + amount)
+  - Preview: Subtotal → VAT 15% → Total
+  - Confirm → saves invoice record + generates PDF
+
+- [ ] **C3 — PDF update**
+  - Update `web/src/app/api/invoices/generate/route.ts` to accept line items
+  - PDF shows: Service Charges / Labor Charges / Spare Parts as distinct rows
+
+- [ ] **C4 — Site invoicing toggle**
+  - Add `invoicing_enabled` boolean to `sites` table
+  - Toggle in site edit page
+
+---
+
+### Sprint D — Notifications *(~2–3 days)*
+**Goal:** Welcome emails for new users; push and email notifications for work order events.
+
+**Design doc:** `docs/superpowers/specs/` *(to be written)*
+
+- [ ] **D1 — Email infrastructure**
+  - Integrate Resend (simple API, good free tier) — add `RESEND_API_KEY` env var
+  - Create `web/src/lib/email.ts` send wrapper
+
+- [ ] **D2 — Welcome email on user creation**
+  - After admin creates a user from `/dashboard/users/new`
+  - Email: user's name, login URL, magic link or temp password
+
+- [ ] **D3 — Push notifications audit**
+  - Verify existing `web/src/lib/push.ts` works end-to-end on production
+  - WO assignment → push to assigned technician
+  - WO status change → push to relevant users
+
+- [ ] **D4 — Email notifications for WO events**
+  - WO assigned → email to technician
+  - WO status changed → email to WO creator / original requester
+  - WO overdue → email to assignee + manager
+
+---
+
+### Sprint E — Settings: Field Visibility *(~2–3 days)*
+**Goal:** Admins can configure which fields on each form are mandatory, optional, or hidden.
+
+**Design doc:** `docs/superpowers/specs/` *(to be written)*
+
+- [ ] **E1 — Data model**
+  - `field_configs` table: `(organisation_id, page, field_key, visibility: 'required'|'optional'|'hidden')`
+  - Pages covered: `work_orders_new`, `work_orders_close`, `assets_new`, `sites_new`, `users_new`
+
+- [ ] **E2 — Settings UI**
+  - New "Form Fields" section in `/dashboard/settings`
+  - Per page: list of fields with 3-way toggle (Required / Optional / Hidden)
+  - Save → upserts `field_configs`
+
+- [ ] **E3 — Forms respect config**
+  - Work Orders new/close pages read `field_configs` — show/hide/enforce required
+  - Assets new/edit — same
+  - Work order close modal — same
+
+---
+
+### Sprint F — Employee Portal: Platform Super-Admin *(~5–7 days)*
+**Goal:** Transform `/login/employee` into a full ServIQ-FM platform management portal (separate from tenant dashboards).
+
+> `/login/employee` = ServIQ-FM staff portal (platform-level).  
+> `/login/client` = tenant admin portal (organisation-level).
+
+**Design doc:** `docs/superpowers/specs/` *(to be written)*
+
+- [ ] **F1 — Platform auth separation**
+  - `/platform/` route group with its own layout + sidebar
+  - Auth guard checks `is_platform_admin` flag on user
+  - `/login/employee` redirects to `/platform/dashboard` on success
+
+- [ ] **F2 — Command Center Dashboard**
+  - MRR / ARR / Churn rate metric cards
+  - DAU / MAU across all tenants
+  - Platform-wide active properties, work orders, staff counts
+  - Health Score per client (login frequency + feature adoption)
+
+- [ ] **F3 — Tenant Management**
+  - Searchable list of all client organisations
+  - Per-tenant: users, WO count, last active, plan, health score
+  - "Login as Admin" — impersonate tenant admin for troubleshooting
+
+- [ ] **F4 — Onboarding & Offboarding**
+  - **Onboard:** Create tenant org, assign Tenant Admin role, show welcome checklist progress
+  - **Offboard:** Export tenant data (CSV/JSON), disable all tenant users
+
+- [ ] **F5 — Billing & Subscriptions**
+  - View/change plan per tenant (free / starter / pro / enterprise)
+  - Payment status (paid / failed / overdue)
+  - Custom contract notes
+
+- [ ] **F6 — Feature Flags**
+  - Per-tenant toggles: `advanced_reporting`, `api_access`, `invoicing`, `multi_site`, `custom_branding`
+  - Stored in `tenant_feature_flags` table
+
+- [ ] **F7 — System Health & Audit Log**
+  - Server health (Supabase + Vercel status)
+  - Audit log: timestamp, actor, action, affected resource
+
+---
+
+## Backlog / Future
+- [ ] Mobile EAS production build (iOS + Android) — deferred from Week 3
+- [ ] Arabic PDF support in invoices (RTL text rendering)
+- [ ] Bulk asset/inventory import via CSV
+- [ ] PM compliance reporting improvements
+- [ ] Mobile: offline mode for WO updates
+- [ ] Client portal (read-only view for end-clients of tenants)
+- [ ] White-labelling / custom domain per tenant
+- [ ] Stripe integration for in-app billing
+
+---
 
 ---
 
