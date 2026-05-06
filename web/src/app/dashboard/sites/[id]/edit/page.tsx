@@ -14,14 +14,14 @@ export default function EditSitePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name: '', name_ar: '', city: '', address: '' })
+  const [form, setForm] = useState({ name: '', name_ar: '', city: '', address: '', invoicing_enabled: false })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadSite() }, [id])
 
   async function loadSite() {
     const { data } = await supabase.from('sites').select('*').eq('id', id).single()
-    if (data) setForm({ name: data.name ?? '', name_ar: data.name_ar ?? '', city: data.city ?? '', address: data.address ?? '' })
+    if (data) setForm({ name: data.name ?? '', name_ar: data.name_ar ?? '', city: data.city ?? '', address: data.address ?? '', invoicing_enabled: data.invoicing_enabled ?? false })
     setLoading(false)
   }
 
@@ -38,6 +38,7 @@ export default function EditSitePage() {
       name_ar: form.name_ar || null,
       city: form.city || null,
       address: form.address || null,
+      invoicing_enabled: form.invoicing_enabled,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
     if (updateError) { setError(updateError.message); setSaving(false) }
@@ -74,6 +75,18 @@ export default function EditSitePage() {
         <div>
           <label style={labelStyle}>{lang === 'ar' ? 'العنوان' : 'Address'}</label>
           <input name='address' value={form.address} onChange={handleChange} style={fieldStyle} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0' }}>
+          <input
+            type='checkbox'
+            id='invoicing_enabled'
+            checked={form.invoicing_enabled}
+            onChange={e => setForm(prev => ({ ...prev, invoicing_enabled: e.target.checked }))}
+            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: C.navy }}
+          />
+          <label htmlFor='invoicing_enabled' style={{ ...labelStyle, margin: 0, cursor: 'pointer' }}>
+            {lang === 'ar' ? 'تفعيل الفوترة لهذا الموقع' : 'Enable invoicing for this site'}
+          </label>
         </div>
         {error && <p style={{ color: C.danger, fontSize: 13, margin: 0, fontFamily: F.en }}>{error}</p>}
         <div style={{ display: 'flex', gap: 10 }}>
