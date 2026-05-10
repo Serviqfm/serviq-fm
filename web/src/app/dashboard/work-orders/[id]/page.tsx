@@ -42,19 +42,22 @@ export default function WorkOrderDetailPage() {
   const [closeoutPreviewUrls, setCloseoutPreviewUrls] = useState<string[]>([])
   const [signoffName, setSignoffName] = useState('')
   const [showSignoff, setShowSignoff] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [existingInvoice, setExistingInvoice] = useState<any>(null)
   useEffect(() => {
     fetchWorkOrder()
     fetchComments()
     fetchHistory()
     fetchInventory()
     fetchActivities()
+    fetchInvoice()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   async function fetchWorkOrder() {
     const { data } = await supabase
       .from('work_orders')
-      .select('*, assignee:assigned_to(full_name), asset:asset_id(name), site:site_id(name)')
+      .select('*, assignee:assigned_to(full_name), asset:asset_id(name), site:site_id(name, invoicing_enabled)')
       .eq('id', id)
       .single()
     if (data) setWo(data as WorkOrder)
@@ -207,6 +210,16 @@ export default function WorkOrderDetailPage() {
     if (data) setInventoryItems(data)
   }
 
+  async function fetchInvoice() {
+    if (!id) return
+    const { data } = await supabase
+      .from('invoices')
+      .select('id, invoice_number')
+      .eq('work_order_id', id)
+      .maybeSingle()
+    if (data) setExistingInvoice(data)
+  }
+
   async function fetchActivities() {
     const { data } = await supabase.from('work_order_comments').select('*, user:user_id(full_name)').eq('work_order_id', id).order('created_at', { ascending: false })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -313,19 +326,27 @@ export default function WorkOrderDetailPage() {
             <button style={{ ...secondaryBtn, padding: '6px 16px' }}>Edit</button>
           </a>
           <button onClick={() => window.print()} style={{ ...primaryBtn, padding: '6px 16px' }}>Export PDF</button>
-          {wo.status === 'closed' && Number(wo.actual_cost) > 0 && (
+          {wo.status === 'completed' && (wo as any).site?.invoicing_enabled && !existingInvoice && (
+            <a href={`/dashboard/invoices/new?wo=${wo.id}`}>
+              <button style={{ ...primaryBtn, padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                {lang === 'ar' ? 'إنشاء فاتورة' : 'Generate Invoice'}
+              </button>
+            </a>
+          )}
+          {existingInvoice && (
             <button
               onClick={async () => {
                 const res = await fetch('/api/invoices/generate', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ workOrderId: wo.id }),
+                  body: JSON.stringify({ invoiceId: existingInvoice.id }),
                 })
                 const blob = await res.blob()
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
-                a.download = `invoice-${wo.id.slice(0, 8)}.pdf`
+                a.download = `${existingInvoice.invoice_number}.pdf`
                 a.click()
                 URL.revokeObjectURL(url)
               }}
