@@ -113,11 +113,11 @@
 
 **Design doc:** `docs/superpowers/specs/` *(to be written)*
 
-- [ ] **C1 — Remove auto-invoice**
+- [x] **C1 — Remove auto-invoice**
   - Invoice is no longer auto-generated on WO close
   - When WO moves to `completed`: if site has `invoicing_enabled = true`, show "Generate Invoice" button
 
-- [ ] **C2 — Invoice creation flow (3-line breakdown)**
+- [x] **C2 — Invoice creation flow (3-line breakdown)**
   1. **Service Charges** — fixed fee (editable, pre-filled if WO has a value)
   2. **Labor Charges** — auto-calculated: `Σ(activity hours) × technician hourly_rate`
      - `hourly_rate` on user profile
@@ -127,11 +127,11 @@
   - Preview: Subtotal → VAT 15% → Total
   - Confirm → saves invoice record + generates PDF
 
-- [ ] **C3 — PDF update**
+- [x] **C3 — PDF update**
   - Update `web/src/app/api/invoices/generate/route.ts` to accept line items
   - PDF shows: Service Charges / Labor Charges / Spare Parts as distinct rows
 
-- [ ] **C4 — Site invoicing toggle**
+- [x] **C4 — Site invoicing toggle**
   - Add `invoicing_enabled` boolean to `sites` table
   - Toggle in site edit page
 
