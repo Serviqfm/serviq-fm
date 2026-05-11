@@ -1,14 +1,22 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import type { NotificationTypeKey } from './notificationTypes';
 
-let resend: Resend | null = null;
+let transporter: nodemailer.Transporter | null = null;
 
-function getResend() {
-  if (!resend) {
-    resend = new Resend(process.env.RESEND_API_KEY);
+function getTransporter() {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: parseInt(process.env.EMAIL_PORT || '465'),
+      secure: process.env.EMAIL_SECURE === 'true',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
   }
-  return resend;
+  return transporter;
 }
 
 export class NotificationService {
@@ -71,19 +79,19 @@ export class NotificationService {
     html: string
   ): Promise<void> {
     try {
-      const client = getResend();
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-      const fromName = process.env.RESEND_FROM_NAME || 'ServIQ-FM';
+      const transporter = getTransporter();
+      const fromEmail = process.env.EMAIL_FROM || 'noreply@serviqfm.com';
+      const fromName = 'ServIQ-FM';
 
-      const response = await client.emails.send({
+      const info = await transporter.sendMail({
         from: `${fromName} <${fromEmail}>`,
         to: email,
         subject,
         html,
       });
 
-      if (response.error) {
-        throw new Error(`Resend API error: ${JSON.stringify(response.error)}`);
+      if (!info.messageId) {
+        throw new Error('Email sent but no message ID returned');
       }
 
       await this.logNotification(userId, typeKey, 'email', 'sent');
