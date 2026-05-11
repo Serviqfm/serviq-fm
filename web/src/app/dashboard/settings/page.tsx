@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, inputStyle, labelStyle, sectionCard, primaryBtn, dangerBtn } from '@/lib/brand'
 import NotificationsTab from './NotificationsTab'
+import PushAuditTab from './PushAuditTab'
 
 export default function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,7 +15,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications'>('organisation')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit'>('organisation')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -103,6 +104,7 @@ export default function SettingsPage() {
           { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
           { key: 'account',      label: lang === 'ar' ? 'الحساب' : 'Account' },
           { key: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
+          { key: 'push_audit',   label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={tabStyle(activeTab === tab.key)}>
             {tab.label}
@@ -307,6 +309,10 @@ export default function SettingsPage() {
 
       {activeTab === 'notifications' && (
         <NotificationsTab />
+      )}
+
+      {activeTab === 'push_audit' && (
+        <PushAuditTab />
       )}
     </div>
   )
