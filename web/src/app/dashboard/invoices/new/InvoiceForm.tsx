@@ -1,14 +1,37 @@
-import { Suspense } from 'react'
-import InvoiceForm from './InvoiceForm'
+'use client'
 
-export default function NewInvoicePage() {
-  return (
-    <Suspense fallback={<div style={{ padding: '2rem', color: '#4A5568' }}>Loading...</div>}>
-      <InvoiceForm />
-    </Suspense>
-  )
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
+import { C, F, primaryBtn, secondaryBtn, inputStyle, labelStyle, cardStyle, pageStyle, sectionCard } from '@/lib/brand'
+import { formatSAR } from '@/lib/zatca'
+
+type SparePart = { name: string; qty: number; unit_cost: number; total: number }
+type Surcharge = { label: string; amount: number }
+
+function parsePartsFromComments(comments: { body: string }[]): SparePart[] {
+  const parts: SparePart[] = []
+  for (const c of comments) {
+    const m = c.body.match(/^\[ACTIVITY\] Parts used: ([\d.]+) x (.+?) \(SAR ([\d.]+)\)$/)
+    if (m) {
+      const qty       = parseFloat(m[1])
+      const name      = m[2]
+      const total     = parseFloat(m[3])
+      const unit_cost = qty > 0 ? parseFloat((total / qty).toFixed(2)) : 0
+      parts.push({ name, qty, unit_cost, total })
+    }
+  }
+  return parts
 }
 
+function hoursFromDates(start: string | null, end: string | null): number {
+  if (!start || !end) return 0
+  const diff = (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60)
+  return Math.max(0, parseFloat(diff.toFixed(2)))
+}
+
+export default function InvoiceForm() {
   const router   = useRouter()
   const params   = useSearchParams()
   const woId     = params.get('wo') ?? ''
