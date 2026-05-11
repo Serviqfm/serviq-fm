@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, inputStyle, labelStyle, sectionCard, primaryBtn, dangerBtn } from '@/lib/brand'
+import NotificationsTab from './NotificationsTab'
 
 export default function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,7 +14,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account'>('organisation')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications'>('organisation')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -101,6 +102,7 @@ export default function SettingsPage() {
           { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
           { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
           { key: 'account',      label: lang === 'ar' ? 'الحساب' : 'Account' },
+          { key: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={tabStyle(activeTab === tab.key)}>
             {tab.label}
@@ -301,6 +303,10 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <NotificationsTab />
       )}
     </div>
   )
