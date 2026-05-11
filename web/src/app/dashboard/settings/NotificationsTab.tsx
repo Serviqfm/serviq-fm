@@ -1,18 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
 import { NOTIFICATION_TYPES, getAllCategories, getDefaultPreferences } from '@/lib/notificationTypes';
 import { C, cardStyle, labelStyle, primaryBtn, sectionCard } from '@/lib/brand';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function NotificationsTab() {
   const { t, isRTL } = useLanguage();
+  const supabase = createClient();
   const [preferences, setPreferences] = useState<Record<string, boolean>>(getDefaultPreferences());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
