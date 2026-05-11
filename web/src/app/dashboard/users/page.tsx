@@ -43,6 +43,25 @@ export default function UsersPage() {
     fetchUsers()
   }
 
+  async function deleteUser(id: string, email: string) {
+    if (!confirm(`Are you sure you want to delete ${email}? This cannot be undone.`)) return
+    try {
+      const response = await fetch('/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id })
+      })
+      if (response.ok) {
+        fetchUsers()
+      } else {
+        alert('Failed to delete user')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Error deleting user')
+    }
+  }
+
   const roleColors: Record<string, { bg: string; color: string }> = {
     admin:      { bg: C.navy,     color: C.white },
     manager:    { bg: '#e8eaf6',  color: C.navy },
@@ -134,6 +153,9 @@ export default function UsersPage() {
                           </Link>
                           <button onClick={() => toggleActive(u.id, u.is_active !== false)} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11 }}>
                             {u.is_active !== false ? t('common.deactivate') : t('common.activate')}
+                          </button>
+                          <button onClick={() => deleteUser(u.id, u.email)} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA' }}>
+                            Delete
                           </button>
                         </>
                       )}
