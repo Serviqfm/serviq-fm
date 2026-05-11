@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { notifyWelcomeEmail } from '@/lib/notifications/workOrderNotifications'
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,8 +48,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    // Send welcome email
+    await notifyWelcomeEmail(
+      authData.user.id,
+      email,
+      full_name,
+      `${process.env.NEXT_PUBLIC_APP_URL}/login/employee`,
+      tempPassword
+    ).catch(err => {
+      console.error('Failed to send welcome email:', err)
+      // Don't fail the user creation if email fails
+    });
+
+    return NextResponse.json({
+      success: true,
       userId: authData.user.id,
       tempPassword,
     })
