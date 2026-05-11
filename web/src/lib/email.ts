@@ -1,6 +1,13 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | null = null;
+
+function getResend() {
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 export interface EmailTemplate {
   subject: string;
@@ -47,7 +54,8 @@ export async function sendEmail(
   html: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await resend.emails.send({
+    const client = getResend();
+    await client.emails.send({
       from: 'ServIQ-FM <noreply@serviqfm.com>',
       to,
       subject,

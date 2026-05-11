@@ -1,14 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 
-const expo = new Expo({
-  accessToken: process.env.EXPO_ACCESS_TOKEN,
-});
+function getExpoClient() {
+  return new Expo({
+    accessToken: process.env.EXPO_ACCESS_TOKEN,
+  });
+}
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +25,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch device tokens for user
+    // Fetch device tokens for user (deferred to runtime)
+    const supabase = getSupabaseClient();
     const { data: deviceData, error: deviceError } = await supabase
       .from('user_devices')
       .select('push_token')
@@ -55,7 +60,8 @@ export async function POST(request: Request) {
       data: data || {},
     }));
 
-    // Send via Expo
+    // Send via Expo (deferred to runtime)
+    const expo = getExpoClient();
     const chunks = expo.chunkPushNotifications(messages);
     const results = [];
 

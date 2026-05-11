@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { notifyWelcomeEmail } from '@/lib/notifications/workOrderNotifications'
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,10 +9,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Use service role key to create auth user
+    // Use service role key to create auth user (deferred to runtime)
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 })
+    }
+
     const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
@@ -48,17 +51,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
 
-    // Send welcome email
-    await notifyWelcomeEmail(
-      authData.user.id,
-      email,
-      full_name,
-      `${process.env.NEXT_PUBLIC_APP_URL}/login/employee`,
-      tempPassword
-    ).catch(err => {
+    // Send welcome email (deferred to runtime)
+    try {
+      const { notifyWelcomeEmail } = await import('@/lib/notifications/workOrderNotifications')
+      await notifyWelcomeEmail(
+        authData.user.id,
+        email,
+        full_name,
+        `${process.env.NEXT_PUBLIC_APP_URL}/login/employee`,
+        tempPassword
+      );
+    } catch (err) {
       console.error('Failed to send welcome email:', err)
       // Don't fail the user creation if email fails
-    });
+    }
 
     return NextResponse.json({
       success: true,
