@@ -72,12 +72,19 @@ export class NotificationService {
   ): Promise<void> {
     try {
       const client = getResend();
-      await client.emails.send({
-        from: 'ServIQ-FM <noreply@serviqfm.com>',
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      const fromName = process.env.RESEND_FROM_NAME || 'ServIQ-FM';
+
+      const response = await client.emails.send({
+        from: `${fromName} <${fromEmail}>`,
         to: email,
         subject,
         html,
       });
+
+      if (response.error) {
+        throw new Error(`Resend API error: ${JSON.stringify(response.error)}`);
+      }
 
       await this.logNotification(userId, typeKey, 'email', 'sent');
     } catch (error) {
