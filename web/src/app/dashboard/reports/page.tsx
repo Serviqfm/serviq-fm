@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle } from '@/lib/brand'
+import { C, F, pageStyle, cardStyle, LUMINA_COLORS } from '@/lib/brand'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
   PieChart, Pie, Legend,

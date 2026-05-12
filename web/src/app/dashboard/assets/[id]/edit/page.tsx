@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle, labelStyle, LUMINA_COLORS } from '@/lib/brand'
 
 export default function EditAssetPage() {
   const router = useRouter()

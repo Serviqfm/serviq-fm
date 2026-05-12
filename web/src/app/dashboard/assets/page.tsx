@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
+import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn, LUMINA_COLORS } from '@/lib/brand'
 
 export default function AssetsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,8 +63,8 @@ export default function AssetsPage() {
   )
 
   const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    active:            { bg: '#DCFCE7', color: C.success, label: t('assets.status.active') },
-    under_maintenance: { bg: '#FEF3C7', color: C.warning, label: t('assets.status.under_maintenance') },
+    active:            { bg: '#E8F5E9', color: LUMINA_COLORS.success, label: t('assets.status.active') },
+    under_maintenance: { bg: '#FFF3E0', color: LUMINA_COLORS.warning, label: t('assets.status.under_maintenance') },
     retired:           { bg: '#F1F5F9', color: C.textMid, label: 'Retired' },
   }
 
@@ -73,7 +73,7 @@ export default function AssetsPage() {
   const btnStyle = (active: boolean) => ({
     padding: '6px 14px', borderRadius: 20,
     border: `1px solid ${active ? C.navy : C.border}`,
-    background: active ? C.navy : C.white,
+    background: active ? LUMINA_COLORS.primary : C.white,
     color: active ? C.white : C.textMid,
     cursor: 'pointer', fontSize: 13, fontWeight: 500 as const,
     fontFamily: F.en,
@@ -94,7 +94,7 @@ export default function AssetsPage() {
     <div style={pageStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('assets.title')}</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>{t('assets.title')}</h1>
           <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>{assets.length} total assets registered</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -175,7 +175,7 @@ export default function AssetsPage() {
                       <input type='checkbox' checked={selected.includes(asset.id)} onChange={() => toggleSelect(asset.id)} />
                     </td>
                     <td style={tableCell}>
-                      <Link href={'/dashboard/assets/' + asset.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
+                      <Link href={'/dashboard/assets/' + asset.id} style={{ color: LUMINA_COLORS.primary, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
                         {asset.name}
                       </Link>
                       {asset.manufacturer && <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{asset.manufacturer} {asset.model}</p>}
