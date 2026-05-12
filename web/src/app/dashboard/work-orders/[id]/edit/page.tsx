@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { notifyWOAssigned, notifyWOCreatedUpdated } from '@/lib/notifications/workOrderNotifications'
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
@@ -82,7 +83,8 @@ export default function EditWorkOrderPage() {
     e.preventDefault()
     setSaving(true)
     setError('')
-    const { error: updateError } = await supabase.from('work_orders').update({
+
+    const { error: updateError, data: updatedWO } = await supabase.from('work_orders').update({
       title: form.title,
       description: form.description || null,
       priority: form.priority,
@@ -96,10 +98,30 @@ export default function EditWorkOrderPage() {
       actual_cost: form.actual_cost ? parseFloat(form.actual_cost) : null,
       updated_at: new Date().toISOString(),
       status: form.assigned_to ? 'assigned' : 'new',
-    }).eq('id', id)
+    }).eq('id', id).select()
 
-    if (updateError) { setError(updateError.message); setSaving(false) }
-    else router.push('/dashboard/work-orders/' + id)
+    if (updateError) { setError(updateError.message); setSaving(false); return }
+
+    // Send notifications if assigned
+    if (form.assigned_to) {
+      try {
+        const { data: techData } = await supabase.from('users').select('id, email, full_name').eq('id', form.assigned_to).single()
+        if (techData) {
+          await notifyWOAssigned(
+            form.assigned_to,
+            techData.email,
+            'Manager',
+            'WO-' + id?.toString().slice(0, 8),
+            form.title,
+            id?.toString() || ''
+          )
+        }
+      } catch (err) {
+        console.error('Failed to send assignment notification:', err)
+      }
+    }
+
+    router.push('/dashboard/work-orders/' + id)
   }
 
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
