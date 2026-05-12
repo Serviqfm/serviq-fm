@@ -139,10 +139,12 @@ export default function EditWorkOrderPage() {
     if (form.assigned_to && updatedWO && updatedWO.length > 0) {
       try {
         const wo = updatedWO[0]
-        const woNumber = `WO-${String(wo.wo_number).padStart(4, '0')}`
+        const woNumber = wo.wo_number
+          ? `WO-${String(wo.wo_number).padStart(4, '0')}`
+          : id.slice(0, 8)
         const { data: techData } = await supabase.from('users').select('id, email, full_name').eq('id', form.assigned_to).single()
-        if (techData) {
-          await fetch('/api/notifications/wo-assigned', {
+        if (techData?.email) {
+          fetch('/api/notifications/wo-assigned', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -153,7 +155,7 @@ export default function EditWorkOrderPage() {
               woTitle: form.title,
               woId: id,
             }),
-          })
+          }).catch(console.error)
         }
       } catch (err) {
         console.error('Failed to send assignment notification:', err)

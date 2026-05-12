@@ -278,6 +278,27 @@ export default function WorkOrderDetailPage() {
       user_id: user?.id,
       body: '[ACTIVITY] [' + activityType.toUpperCase() + '] ' + activityText.trim(),
     })
+
+    // Notify WO creator about the activity (if different from current user)
+    if (wo && wo.created_by && wo.created_by !== user?.id) {
+      const { data: creator } = await supabase.from('users').select('email').eq('id', wo.created_by).single()
+      if (creator?.email) {
+        const woNumber = wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : wo.id.slice(0, 8)
+        fetch('/api/notifications/wo-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: wo.created_by,
+            userEmail: creator.email,
+            woNumber,
+            woTitle: wo.title,
+            woId: wo.id,
+            newStatus: 'activity',
+          }),
+        }).catch(console.error)
+      }
+    }
+
     setActivityText('')
     await fetchActivities()
     setAddingActivity(false)

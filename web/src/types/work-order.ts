@@ -28,7 +28,7 @@ export interface WorkOrder {
   source: string
   created_at: string
   updated_at: string
-  assignee?: { full_name: string } | null
+  assignee?: { full_name: string; email?: string } | null
   asset?: { name: string } | null
   site?: { name: string } | null
 }

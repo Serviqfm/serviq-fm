@@ -131,12 +131,37 @@ export default function NewWorkOrderPage() {
     if (insertError) { setError(insertError.message); setLoading(false) }
     else {
       if (form.assigned_to && newWO) {
-        await sendPushNotification({
+        // Push notification
+        sendPushNotification({
           user_id: form.assigned_to,
           title: 'New Work Order Assigned',
           body: `You have been assigned: ${form.title}`,
           data: { type: 'work_order', id: newWO.id },
-        })
+        }).catch(console.error)
+
+        // Email notification — fetch technician email server-side
+        const { data: techUser } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', form.assigned_to)
+          .single()
+        if (techUser?.email) {
+          const woNumber = newWO.wo_number
+            ? `WO-${String(newWO.wo_number).padStart(4, '0')}`
+            : newWO.id.slice(0, 8)
+          fetch('/api/notifications/wo-assigned', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: form.assigned_to,
+              userEmail: techUser.email,
+              assignedBy: 'Manager',
+              woNumber,
+              woTitle: form.title,
+              woId: newWO.id,
+            }),
+          }).catch(console.error)
+        }
       }
       router.push('/dashboard/work-orders')
     }
