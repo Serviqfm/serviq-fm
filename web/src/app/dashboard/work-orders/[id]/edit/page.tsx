@@ -39,26 +39,55 @@ export default function EditWorkOrderPage() {
   useEffect(() => { loadData() }, [id])
 
   async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) return
-    const orgId = profile.organisation_id
+    try {
+      if (!id) {
+        setError('No work order ID provided')
+        setLoading(false)
+        return
+      }
 
-    const [{ data: wo }, { data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }] = await Promise.all([
-      supabase.from('work_orders').select('*').eq('id', id).single(),
-      supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
-      supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
-      supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
-      supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
-    ])
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setError('Not authenticated')
+        setLoading(false)
+        return
+      }
 
-    if (assetData) setAssets(assetData)
-    if (siteData) setSites(siteData)
-    if (techData) setTechnicians(techData)
-    if (vendorData) setVendors(vendorData)
+      const { data: profile, error: profileErr } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (profileErr || !profile) {
+        setError('Failed to load user profile')
+        setLoading(false)
+        return
+      }
+      const orgId = profile.organisation_id
 
-    if (wo) {
+      const [woResult, assetResult, siteResult, techResult, vendorResult] = await Promise.all([
+        supabase.from('work_orders').select('*').eq('id', id).single(),
+        supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
+        supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
+        supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
+        supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
+      ])
+
+      if (woResult.error) {
+        console.error('Error loading work order:', woResult.error)
+        setError(`Failed to load work order: ${woResult.error.message}`)
+        setLoading(false)
+        return
+      }
+
+      if (!woResult.data) {
+        setError('Work order not found')
+        setLoading(false)
+        return
+      }
+
+      if (assetResult.data) setAssets(assetResult.data)
+      if (siteResult.data) setSites(siteResult.data)
+      if (techResult.data) setTechnicians(techResult.data)
+      if (vendorResult.data) setVendors(vendorResult.data)
+
+      const wo = woResult.data
       setForm({
         title: wo.title ?? '',
         description: wo.description ?? '',
@@ -72,8 +101,12 @@ export default function EditWorkOrderPage() {
         completion_notes: wo.completion_notes ?? '',
         actual_cost: wo.actual_cost ? String(wo.actual_cost) : '',
       })
+      setLoading(false)
+    } catch (err) {
+      console.error('Unexpected error in loadData:', err)
+      setError(err instanceof Error ? err.message : 'Unexpected error loading work order')
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {

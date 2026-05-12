@@ -43,20 +43,24 @@ export async function POST(req: NextRequest) {
       .eq('assigned_to', userId)
 
     // Delete user profile
+    console.log(`[UserDelete] Attempting to delete user profile for ${userId}`)
     const { error: profileError } = await supabaseAdmin
       .from('users')
       .delete()
       .eq('id', userId)
 
     if (profileError) {
+      console.error(`[UserDelete] Profile deletion failed: ${JSON.stringify(profileError)}`)
+      const errorMsg = profileError.message || JSON.stringify(profileError)
+
       // Check if it's a FK constraint error
-      if (profileError.message.includes('foreign key') || profileError.message.includes('FK')) {
+      if (errorMsg.includes('foreign key') || errorMsg.includes('FK') || errorMsg.includes('constraint')) {
         return NextResponse.json(
-          { error: 'Cannot delete user: user is linked to other records. Please contact support.' },
+          { error: `Cannot delete user: linked records exist. Details: ${errorMsg}` },
           { status: 400 }
         )
       }
-      return NextResponse.json({ error: profileError.message }, { status: 400 })
+      return NextResponse.json({ error: `Failed to delete user: ${errorMsg}` }, { status: 400 })
     }
 
     // Delete auth user

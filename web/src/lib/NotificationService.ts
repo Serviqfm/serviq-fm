@@ -2,13 +2,12 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import type { NotificationTypeKey } from './notificationTypes';
 
-let resend: Resend | null = null;
-
 function getResend() {
-  if (!resend) {
-    resend = new Resend(process.env.RESEND_API_KEY);
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY environment variable is not set. Check Vercel environment variables.');
   }
-  return resend;
+  return new Resend(apiKey);
 }
 
 export class NotificationService {
@@ -71,17 +70,13 @@ export class NotificationService {
     html: string
   ): Promise<void> {
     try {
-      const client = getResend();
       const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@serviqfm.com';
       const fromName = process.env.RESEND_FROM_NAME || 'ServIQ-FM';
-      const apiKey = process.env.RESEND_API_KEY;
 
-      // Diagnostic logging
-      if (!apiKey) {
-        throw new Error('RESEND_API_KEY environment variable is not set');
-      }
+      console.log(`[Email] Initializing Resend client...`);
+      const client = getResend();
 
-      console.log(`[Notification] Sending email to ${email} from ${fromName} <${fromEmail}>`);
+      console.log(`[Email] Sending to ${email} from ${fromName} <${fromEmail}>`);
 
       const response = await client.emails.send({
         from: `${fromName} <${fromEmail}>`,
@@ -91,14 +86,17 @@ export class NotificationService {
       });
 
       if (response.error) {
-        throw new Error(`Resend error: ${JSON.stringify(response.error)}`);
+        const errorMsg = `Resend API error: ${JSON.stringify(response.error)}`;
+        console.error(`[Email] ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
-      console.log(`[Notification] Email sent successfully to ${email}`);
+      console.log(`[Email] ✓ Sent successfully to ${email}. ID: ${response.data?.id}`);
       await this.logNotification(userId, typeKey, 'email', 'sent');
     } catch (error) {
-      console.error(`[Notification] Email notification failed for user ${userId}:`, error);
-      await this.logNotification(userId, typeKey, 'email', 'failed', String(error));
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Email] ✗ Failed for ${userId} (${email}): ${errorMsg}`);
+      await this.logNotification(userId, typeKey, 'email', 'failed', errorMsg);
     }
   }
 
