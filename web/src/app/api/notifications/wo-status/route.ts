@@ -17,25 +17,30 @@ export async function POST(req: NextRequest) {
       completed:   'Completed',
       closed:      'Closed',
       activity:    'New Activity Logged',
+      comment:     'New Comment',
     }
     const label = statusLabels[newStatus] ?? newStatus
     const isActivity = newStatus === 'activity'
+    const isComment = newStatus === 'comment'
+    const isEvent = isActivity || isComment
 
     await NotificationService.notify(userId, 'wo_i_assigned_updated' as NotificationTypeKey, {
       email: userEmail,
-      subject: isActivity ? `Activity logged on ${woNumber}` : `Work Order ${woNumber} — ${label}`,
+      subject: isEvent ? `${label} on ${woNumber}` : `Work Order ${woNumber} — ${label}`,
       htmlContent: `
         <div style="font-family: Arial, sans-serif; max-width: 600px;">
-          <h2>${isActivity ? 'Activity Logged on Work Order' : 'Work Order Status Updated'}</h2>
-          <p>${isActivity
-            ? `A technician has logged new activity on work order <strong>${woNumber}</strong>.`
-            : `Work order <strong>${woNumber}</strong> status has changed to <strong>${label}</strong>.`
+          <h2>${isComment ? 'New Comment on Work Order' : isActivity ? 'Activity Logged on Work Order' : 'Work Order Status Updated'}</h2>
+          <p>${isComment
+            ? `A new comment has been added to work order <strong>${woNumber}</strong>.`
+            : isActivity
+              ? `A technician has logged new activity on work order <strong>${woNumber}</strong>.`
+              : `Work order <strong>${woNumber}</strong> status has changed to <strong>${label}</strong>.`
           }</p>
           <p><strong>Title:</strong> ${woTitle}</p>
           <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
         </div>
       `,
-      pushTitle: isActivity ? `Activity: ${woNumber}` : `${woNumber} — ${label}`,
+      pushTitle: isEvent ? `${woNumber}: ${label}` : `${woNumber} — ${label}`,
       pushBody: woTitle,
       pushData: { woId, woNumber, status: newStatus },
     })

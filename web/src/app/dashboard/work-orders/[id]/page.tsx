@@ -213,6 +213,47 @@ export default function WorkOrderDetailPage() {
     await supabase.from('work_order_comments').insert({ work_order_id: id, user_id: user.id, body: comment })
     setComment('')
     fetchComments()
+
+    // Notify the other party: if commenter is creator → notify assignee, else notify creator
+    if (wo) {
+      const woNumber = wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : String(id).slice(0, 8)
+      const notifyUserId = user.id === wo.created_by ? wo.assigned_to : wo.created_by
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const notifyEmail = user.id === wo.created_by ? (wo.assignee as any)?.email : null
+
+      if (notifyUserId && notifyEmail) {
+        fetch('/api/notifications/wo-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: notifyUserId,
+            userEmail: notifyEmail,
+            woNumber,
+            woTitle: wo.title,
+            woId: wo.id,
+            newStatus: 'comment',
+          }),
+        }).catch(console.error)
+      } else if (notifyUserId && user.id !== wo.created_by) {
+        // Commenter is assignee → need to fetch creator email
+        supabase.from('users').select('email').eq('id', wo.created_by).single().then(({ data: creator }) => {
+          if (creator?.email) {
+            fetch('/api/notifications/wo-status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: wo.created_by,
+                userEmail: creator.email,
+                woNumber,
+                woTitle: wo.title,
+                woId: wo.id,
+                newStatus: 'comment',
+              }),
+            }).catch(console.error)
+          }
+        })
+      }
+    }
   }
 
   function handleCloseoutPhoto(e: React.ChangeEvent<HTMLInputElement>) {

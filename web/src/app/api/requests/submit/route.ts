@@ -49,5 +49,44 @@ export async function POST(req: NextRequest) {
     // email failure should not fail the request submission
   }
 
+  // Notify all admins and managers in the organisation about the new request
+  try {
+    const { data: admins } = await supabase
+      .from('users')
+      .select('id, email, full_name')
+      .eq('organisation_id', organisation_id)
+      .in('role', ['admin', 'manager'])
+      .eq('is_active', true)
+
+    if (admins && admins.length > 0) {
+      const { NotificationService } = await import('@/lib/NotificationService')
+      const requestUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/requests/${request.id}`
+      await Promise.allSettled(
+        admins.map(admin =>
+          NotificationService.notify(admin.id, 'wo_requested_from_portal', {
+            email: admin.email,
+            subject: `New Service Request: ${title}`,
+            htmlContent: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px;">
+                <h2>New Service Request Received</h2>
+                <p><strong>From:</strong> ${requester_name} (${requester_email})</p>
+                <p><strong>Site:</strong> ${site_name || 'Unknown'}</p>
+                <p><strong>Category:</strong> ${category}</p>
+                <p><strong>Title:</strong> ${title}</p>
+                <p><strong>Description:</strong> ${description}</p>
+                <p><a href="${requestUrl}">Review and Approve Request</a></p>
+              </div>
+            `,
+            pushTitle: 'New Service Request',
+            pushBody: `${requester_name}: ${title}`,
+            pushData: { requestId: request.id },
+          })
+        )
+      )
+    }
+  } catch {
+    // non-blocking — don't fail submission if admin notify fails
+  }
+
   return NextResponse.json({ success: true, tracking_token: request.tracking_token })
 }
