@@ -51,14 +51,15 @@ export default function UsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: id })
       })
+      const result = await response.json()
       if (response.ok) {
         fetchUsers()
       } else {
-        alert('Failed to delete user')
+        alert(result.error || 'Failed to delete user')
       }
     } catch (error) {
       console.error('Delete error:', error)
-      alert('Error deleting user')
+      alert('Network error while deleting user')
     }
   }
 

@@ -11,10 +11,17 @@ function getResend() {
 }
 
 export class NotificationService {
-  private static supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  private static _supabase: ReturnType<typeof createClient> | null = null;
+
+  private static get supabase() {
+    if (!this._supabase) {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) throw new Error('Supabase env vars missing in NotificationService');
+      this._supabase = createClient(url, key);
+    }
+    return this._supabase;
+  }
 
   /**
    * Check if a user has enabled notifications for a specific type
@@ -25,7 +32,7 @@ export class NotificationService {
         .from('user_notification_preferences')
         .select('preferences')
         .eq('user_id', userId)
-        .single();
+        .single() as { data: { preferences: Record<string, boolean> } | null, error: unknown };
 
       if (error || !data) {
         return true;
@@ -133,7 +140,8 @@ export class NotificationService {
     errorMessage?: string
   ): Promise<void> {
     try {
-      await this.supabase.from('notification_log').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (this.supabase.from('notification_log') as any).insert({
         user_id: userId,
         type_key: typeKey,
         channel,

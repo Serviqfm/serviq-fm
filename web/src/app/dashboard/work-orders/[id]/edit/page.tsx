@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
-import { notifyWOAssigned, notifyWOCreatedUpdated } from '@/lib/notifications/workOrderNotifications'
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
@@ -136,21 +135,25 @@ export default function EditWorkOrderPage() {
 
     if (updateError) { setError(updateError.message); setSaving(false); return }
 
-    // Send notifications if assigned
+    // Send assignment notification via API (keeps server-side imports server-side)
     if (form.assigned_to && updatedWO && updatedWO.length > 0) {
       try {
-        const wo = updatedWO[0];
-        const woNumber = `WO-${String(wo.wo_number).padStart(4, '0')}`;
+        const wo = updatedWO[0]
+        const woNumber = `WO-${String(wo.wo_number).padStart(4, '0')}`
         const { data: techData } = await supabase.from('users').select('id, email, full_name').eq('id', form.assigned_to).single()
         if (techData) {
-          await notifyWOAssigned(
-            form.assigned_to,
-            techData.email,
-            'Manager',
-            woNumber,
-            form.title,
-            id
-          )
+          await fetch('/api/notifications/wo-assigned', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: form.assigned_to,
+              userEmail: techData.email,
+              assignedBy: 'Manager',
+              woNumber,
+              woTitle: form.title,
+              woId: id,
+            }),
+          })
         }
       } catch (err) {
         console.error('Failed to send assignment notification:', err)
