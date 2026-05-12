@@ -72,7 +72,7 @@ export class NotificationService {
   ): Promise<void> {
     try {
       const client = getResend();
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@serviqfm.com';
       const fromName = process.env.RESEND_FROM_NAME || 'ServIQ-FM';
 
       const response = await client.emails.send({
