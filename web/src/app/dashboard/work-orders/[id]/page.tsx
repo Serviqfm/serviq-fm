@@ -57,7 +57,7 @@ export default function WorkOrderDetailPage() {
   async function fetchWorkOrder() {
     const { data } = await supabase
       .from('work_orders')
-      .select('*, assignee:assigned_to(full_name), asset:asset_id(name), site:site_id(name, invoicing_enabled)')
+      .select('*, assignee:assigned_to(full_name, email), asset:asset_id(name), site:site_id(name, invoicing_enabled)')
       .eq('id', id)
       .single()
     if (data) setWo(data as WorkOrder)
@@ -150,6 +150,27 @@ export default function WorkOrderDetailPage() {
       if (['completed', 'closed'].includes(newStatus) && (wo as any).created_by) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sendPushNotification({ user_id: (wo as any).created_by, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
+      }
+    }
+
+    // Send email notification to assigned technician for all status changes
+    if (wo && wo.assigned_to) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const assigneeEmail = (wo.assignee as any)?.email
+      if (assigneeEmail) {
+        const woNumber = wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : String(id)
+        fetch('/api/notifications/wo-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: wo.assigned_to,
+            userEmail: assigneeEmail,
+            woNumber,
+            woTitle: wo.title,
+            woId: wo.id,
+            newStatus,
+          }),
+        }).catch(console.error)
       }
     }
 

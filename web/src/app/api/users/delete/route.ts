@@ -36,11 +36,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Unassign any other associated work orders (completed/closed ones)
-    await supabaseAdmin
-      .from('work_orders')
-      .update({ assigned_to: null })
-      .eq('assigned_to', userId)
+    // Unassign work orders and null out audit_log references to avoid FK violations
+    await Promise.all([
+      supabaseAdmin.from('work_orders').update({ assigned_to: null }).eq('assigned_to', userId),
+      supabaseAdmin.from('audit_logs').update({ user_id: null }).eq('user_id', userId),
+    ])
 
     // Delete user profile
     console.log(`[UserDelete] Attempting to delete user profile for ${userId}`)
