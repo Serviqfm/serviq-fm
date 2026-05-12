@@ -1,4 +1,6 @@
-// ── Serviq-FM Brand Constants ──────────────────────────────────────────────
+// src/lib/brand.ts
+
+// ── Legacy Brand Constants (for backward compatibility) ──────────────────────
 
 export const C = {
   navy:       '#1E2D4E',
@@ -142,3 +144,117 @@ export const pageSubtitle = {
   margin: '4px 0 0',
   fontFamily: F.en,
 } as const
+
+// ── Lumina Brand Constants ──────────────────────────────────────────────────
+
+export const LUMINA_COLORS = {
+  // Primary brand colors
+  primary: '#006b54',
+  onPrimary: '#ffffff',
+  primaryContainer: '#6dcfb0',
+  onPrimaryContainer: '#005744',
+  inversePrimary: '#76d8b9',
+
+  // Secondary colors
+  secondary: '#00677d',
+  onSecondary: '#ffffff',
+  secondaryContainer: '#75e0ff',
+  onSecondaryContainer: '#006277',
+
+  // Tertiary colors
+  tertiary: '#4f5e82',
+  onTertiary: '#ffffff',
+  tertiaryContainer: '#aebde6',
+  onTertiaryContainer: '#3d4c6f',
+
+  // Error colors
+  error: '#ba1a1a',
+  onError: '#ffffff',
+  errorContainer: '#ffdad6',
+  onErrorContainer: '#93000a',
+
+  // Surface colors (backgrounds)
+  surface: '#f7f9fb',
+  surfaceDim: '#d8dadc',
+  surfaceBright: '#f7f9fb',
+  onSurface: '#191c1e',
+  onSurfaceVariant: '#3e4944',
+  inverseSurface: '#2d3133',
+  inverseOnSurface: '#eff1f3',
+
+  // Outline and dividers
+  outline: '#6e7a74',
+  outlineVariant: '#bdc9c3',
+
+  // Backgrounds
+  background: '#f7f9fb',
+  onBackground: '#191c1e',
+
+  // Surface variants
+  surfaceVariant: '#e0e3e5',
+  surfaceContainerLowest: '#ffffff',
+  surfaceContainerLow: '#f2f4f6',
+  surfaceContainer: '#eceef0',
+  surfaceContainerHigh: '#e6e8ea',
+  surfaceContainerHighest: '#e0e3e5',
+}
+
+export const LUMINA_TYPOGRAPHY = {
+  displayLarge: {
+    fontFamily: 'DM Sans',
+    fontSize: '48px',
+    fontWeight: '700',
+    lineHeight: '1.1',
+    letterSpacing: '-0.02em',
+  },
+  headlineH1: {
+    fontFamily: 'DM Sans',
+    fontSize: '32px',
+    fontWeight: '700',
+    lineHeight: '1.2',
+  },
+  headlineH1Arabic: {
+    fontFamily: 'Readex Pro',
+    fontSize: '32px',
+    fontWeight: '600',
+    lineHeight: '1.4',
+  },
+  bodyMd: {
+    fontFamily: 'DM Sans',
+    fontSize: '16px',
+    fontWeight: '400',
+    lineHeight: '1.6',
+  },
+  bodyMdArabic: {
+    fontFamily: 'Readex Pro',
+    fontSize: '15px',
+    fontWeight: '300',
+    lineHeight: '1.8',
+  },
+  labelCaps: {
+    fontFamily: 'DM Sans',
+    fontSize: '12px',
+    fontWeight: '600',
+    lineHeight: '1.0',
+    letterSpacing: '0.05em',
+  },
+}
+
+export const LUMINA_SPACING = {
+  unit: '4px',
+  sm: '8px',
+  md: '16px',
+  lg: '32px',
+  gutter: '24px',
+  margin: '32px',
+  containerMax: '1440px',
+}
+
+export const LUMINA_RADII = {
+  sm: '0.25rem',
+  DEFAULT: '0.5rem',
+  md: '0.75rem',
+  lg: '1rem',
+  xl: '1.5rem',
+  full: '9999px',
+}
