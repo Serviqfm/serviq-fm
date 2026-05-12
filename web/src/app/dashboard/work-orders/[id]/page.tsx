@@ -11,7 +11,6 @@ import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
 import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
 import { sendPushNotification } from '@/lib/push'
-import { notifyWOCreatedUpdated } from '@/lib/notifications/workOrderNotifications'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
@@ -146,23 +145,11 @@ export default function WorkOrderDetailPage() {
     if (msg && wo) {
       if (['assigned', 'in_progress'].includes(newStatus) && wo.assigned_to) {
         sendPushNotification({ user_id: wo.assigned_to, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
-        // Send email notification
-        const { data: techData } = await supabase.from('users').select('email').eq('id', wo.assigned_to).single()
-        if (techData) {
-          await notifyWOCreatedUpdated(wo.assigned_to, techData.email, 'WO-' + id?.toString().slice(0, 8), wo.title, id?.toString() || '')
-        }
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (['completed', 'closed'].includes(newStatus) && (wo as any).created_by) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sendPushNotification({ user_id: (wo as any).created_by, ...msg, data: { type: 'work_order', id: wo.id } }).catch(console.error)
-        // Send email notification
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: creatorData } = await supabase.from('users').select('email').eq('id', (wo as any).created_by).single()
-        if (creatorData) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await notifyWOCreatedUpdated((wo as any).created_by, creatorData.email, 'WO-' + id?.toString().slice(0, 8), wo.title, id?.toString() || '')
-        }
       }
     }
 
