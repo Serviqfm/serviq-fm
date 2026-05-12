@@ -6,6 +6,18 @@
 
 ---
 
+## 🔴 IMMEDIATE NEXT STEPS (May 12, 2026)
+
+**Sprint D Email Delivery Fix — PENDING USER ACTION:**
+1. Update Vercel environment variable: `RESEND_FROM_EMAIL` = `noreply@serviqfm.com`
+2. Redeploy to Vercel (auto-deploy from main or manual trigger)
+3. Test: Assign work order to technician → verify email arrives in inbox
+4. **Known issue:** User deletion may fail on technicians linked to work orders (FK constraint) — needs cascade delete or cleanup logic
+
+---
+
+---
+
 ## Legend
 - `[x]` Done
 - `[ ]` Pending
@@ -151,6 +163,7 @@
 - [x] **D2 — Welcome email on user creation**
   - Hook added to `/api/users` POST route ✓
   - Sends login URL + temp password ✓
+  - Verified: Welcome emails delivered successfully ✓
 
 - [x] **D3 — Push notifications audit**
   - `/api/push` route for Expo dispatch ✓
@@ -161,12 +174,18 @@
   - 8 WO notification functions implemented ✓
   - Integration guide in `web/src/lib/notifications/wo-hooks.ts` ✓
   - All respect user preferences ✓
+  - **Fixed:** Sender/recipient email conflict resolved (noreply@serviqfm.com) ✓
 
 **Additional:**
 - [x] 17 notification types across 5 categories (WO, Requests, PO, Parts, Reports)
 - [x] User notification preferences table + settings UI
 - [x] Notification logging for audit + debugging
 - [x] Build compiles successfully
+
+**Email Delivery Issue Resolution:**
+- Root cause: Notification emails sent from `admin@serviqfm.com` to technicians with same address
+- Fix: Updated NotificationService default sender to `noreply@serviqfm.com`
+- **PENDING:** Update `RESEND_FROM_EMAIL` environment variable in Vercel to `noreply@serviqfm.com` and redeploy
 
 ---
 
