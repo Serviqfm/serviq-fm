@@ -3,8 +3,9 @@
 import { type FormEvent, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { C, F } from '@/lib/brand'
+import { C, F, LUMINA_COLORS, LUMINA_SPACING, LUMINA_RADII } from '@/lib/brand'
 import Link from 'next/link'
+import Button from '@/components/design-system/Button'
 
 const gradH = 'linear-gradient(90deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%)'
 
@@ -32,7 +33,7 @@ export default function EmployeeLoginPage() {
   return (
     <div style={{ minHeight:'100vh', display:'flex', fontFamily: F.en }}>
       {/* Left panel — branding */}
-      <div style={{ flex:'0 0 42%', background: C.navy, display:'flex', flexDirection:'column', justifyContent:'space-between', padding:'48px 52px', position:'relative', overflow:'hidden' }}>
+      <div style={{ flex:'0 0 42%', background: LUMINA_COLORS.primary, display:'flex', flexDirection:'column', justifyContent:'space-between', padding:'48px 52px', position:'relative', overflow:'hidden' }}>
         {/* Background decoration */}
         <div style={{ position:'absolute', top:-180, right:-180, width:520, height:520, borderRadius:'50%', background:'radial-gradient(circle, rgba(109,207,176,0.14) 0%, transparent 65%)', pointerEvents:'none' }}/>
         <div style={{ position:'absolute', bottom:-140, left:-140, width:440, height:440, borderRadius:'50%', background:'radial-gradient(circle, rgba(26,127,193,0.12) 0%, transparent 65%)', pointerEvents:'none' }}/>
@@ -94,22 +95,22 @@ export default function EmployeeLoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div style={{ flex:1, background: C.pageBg, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px 40px' }}>
+      <div style={{ flex:1, background: LUMINA_COLORS.background, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px 40px' }}>
         <div style={{ width:'100%', maxWidth:420 }}>
           <div style={{ marginBottom:'2.5rem' }}>
-            <h1 style={{ fontSize:26, fontWeight:700, color: C.navy, margin:'0 0 6px', fontFamily: F.en }}>
+            <h1 style={{ fontSize:26, fontWeight:700, color: LUMINA_COLORS.primary, margin:'0 0 6px', fontFamily: F.en }}>
               Employee Sign In
             </h1>
-            <p style={{ fontSize:13, color: C.textLight, margin:0, fontFamily: F.en }}>
+            <p style={{ fontSize:13, color: LUMINA_COLORS.onSurfaceVariant, margin:0, fontFamily: F.en }}>
               Access the Serviq FM admin dashboard &nbsp;·&nbsp;{' '}
               <span style={{ fontFamily:"'Readex Pro', sans-serif" }}>لوحة تحكم الموظفين</span>
             </p>
           </div>
 
-          <div style={{ background: C.white, border:`1px solid ${C.border}`, borderRadius:16, padding:'2rem' }}>
+          <div style={{ background: LUMINA_COLORS.surfaceContainerLowest, border:`1px solid ${LUMINA_COLORS.outlineVariant}`, borderRadius:LUMINA_RADII.lg, padding:'2rem' }}>
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom:'1rem' }}>
-                <label style={{ display:'block', fontSize:12, fontWeight:600, color: C.textMid, marginBottom:6, fontFamily: F.en }}>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color: LUMINA_COLORS.onSurfaceVariant, marginBottom:6, fontFamily: F.en }}>
                   Work Email
                 </label>
                 <input
@@ -118,13 +119,13 @@ export default function EmployeeLoginPage() {
                   onChange={e => setEmail(e.target.value)}
                   required
                   placeholder="you@serviqfm.com"
-                  style={{ width:'100%', padding:'11px 14px', border:`1px solid ${C.border}`, borderRadius:8, fontSize:14, fontFamily: F.en, color: C.textDark, background: C.white, boxSizing:'border-box', outline:'none', transition:'border 0.15s' }}
-                  onFocus={e => e.target.style.borderColor = '#1A7FC1'}
-                  onBlur={e => e.target.style.borderColor = C.border}
+                  style={{ width:'100%', padding:'11px 14px', border:`1px solid ${LUMINA_COLORS.outline}`, borderRadius:LUMINA_RADII.md, fontSize:14, fontFamily: F.en, color: LUMINA_COLORS.onSurface, background: LUMINA_COLORS.surfaceContainerLowest, boxSizing:'border-box', outline:'none', transition:'border 0.15s' }}
+                  onFocus={e => e.target.style.borderColor = LUMINA_COLORS.primary}
+                  onBlur={e => e.target.style.borderColor = LUMINA_COLORS.outline}
                 />
               </div>
               <div style={{ marginBottom:'0.5rem' }}>
-                <label style={{ display:'block', fontSize:12, fontWeight:600, color: C.textMid, marginBottom:6, fontFamily: F.en }}>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color: LUMINA_COLORS.onSurfaceVariant, marginBottom:6, fontFamily: F.en }}>
                   Password
                 </label>
                 <input
@@ -133,56 +134,59 @@ export default function EmployeeLoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  style={{ width:'100%', padding:'11px 14px', border:`1px solid ${C.border}`, borderRadius:8, fontSize:14, fontFamily: F.en, color: C.textDark, background: C.white, boxSizing:'border-box', outline:'none', transition:'border 0.15s' }}
-                  onFocus={e => e.target.style.borderColor = '#1A7FC1'}
-                  onBlur={e => e.target.style.borderColor = C.border}
+                  style={{ width:'100%', padding:'11px 14px', border:`1px solid ${LUMINA_COLORS.outline}`, borderRadius:LUMINA_RADII.md, fontSize:14, fontFamily: F.en, color: LUMINA_COLORS.onSurface, background: LUMINA_COLORS.surfaceContainerLowest, boxSizing:'border-box', outline:'none', transition:'border 0.15s' }}
+                  onFocus={e => e.target.style.borderColor = LUMINA_COLORS.primary}
+                  onBlur={e => e.target.style.borderColor = LUMINA_COLORS.outline}
                 />
               </div>
               <div style={{ textAlign:'right', marginBottom:'1.5rem' }}>
-                <a href="#" style={{ fontSize:12, color: C.blue, fontFamily: F.en }}>Forgot password?</a>
+                <a href="#" style={{ fontSize:12, color: LUMINA_COLORS.primary, fontFamily: F.en }}>Forgot password?</a>
               </div>
               {error && (
-                <div style={{ color: C.danger, marginBottom:'1rem', fontSize:13, background:'#FEE2E2', padding:'10px 12px', borderRadius:8, border:'1px solid #FECACA' }}>
+                <div style={{ color: LUMINA_COLORS.error, marginBottom:'1rem', fontSize:13, background: LUMINA_COLORS.errorContainer, padding:'10px 12px', borderRadius:LUMINA_RADII.md, border:`1px solid ${LUMINA_COLORS.error}` }}>
                   {error}
                 </div>
               )}
-              <button
+              <Button
+                variant="primary"
+                fullWidth
+                isLoading={loading}
                 type="submit"
                 disabled={loading}
-                style={{ width:'100%', padding:'12px', background: C.navy, color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600, fontSize:14, fontFamily: F.en, opacity: loading ? 0.7 : 1, transition:'opacity 0.15s' }}>
+              >
                 {loading ? 'Signing in...' : 'Sign In to Dashboard →'}
-              </button>
+              </Button>
             </form>
           </div>
 
           {/* Divider */}
           <div style={{ margin:'28px 0', display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ flex:1, height:1, background: C.border }}/>
-            <span style={{ fontSize:11, color: C.textLight, fontWeight:500 }}>ADMIN ACCESS</span>
-            <div style={{ flex:1, height:1, background: C.border }}/>
+            <div style={{ flex:1, height:1, background: LUMINA_COLORS.outlineVariant }}/>
+            <span style={{ fontSize:11, color: LUMINA_COLORS.onSurfaceVariant, fontWeight:500 }}>ADMIN ACCESS</span>
+            <div style={{ flex:1, height:1, background: LUMINA_COLORS.outlineVariant }}/>
           </div>
 
           {/* Access info */}
-          <div style={{ background: C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:'16px 20px' }}>
-            <div style={{ fontSize:11, fontWeight:700, color: C.textLight, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:12 }}>Access Levels</div>
+          <div style={{ background: LUMINA_COLORS.surfaceContainerLowest, border:`1px solid ${LUMINA_COLORS.outlineVariant}`, borderRadius:LUMINA_RADII.md, padding:'16px 20px' }}>
+            <div style={{ fontSize:11, fontWeight:700, color: LUMINA_COLORS.onSurfaceVariant, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:12 }}>Access Levels</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {[['Admin','Full system access, user management, billing'],['Manager','Work orders, assets, PM schedules, reports'],['Technician','Assigned work orders, mobile app']].map(([role, desc]) => (
                 <div key={role} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                  <div style={{ width:20, height:20, borderRadius:4, background:'#E8F7F3', border:'1px solid rgba(58,174,204,0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
-                    <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#3AAECC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <div style={{ width:20, height:20, borderRadius:4, background: LUMINA_COLORS.primaryContainer, border:`1px solid ${LUMINA_COLORS.primary}33`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                    <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke={LUMINA_COLORS.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                   <div>
-                    <span style={{ fontSize:12, fontWeight:600, color: C.navy }}>{role}</span>
-                    <span style={{ fontSize:11, color: C.textLight, marginLeft:6 }}>{desc}</span>
+                    <span style={{ fontSize:12, fontWeight:600, color: LUMINA_COLORS.primary }}>{role}</span>
+                    <span style={{ fontSize:11, color: LUMINA_COLORS.onSurfaceVariant, marginLeft:6 }}>{desc}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <p style={{ textAlign:'center', marginTop:24, fontSize:12, color: C.textLight, fontFamily: F.en }}>
+          <p style={{ textAlign:'center', marginTop:24, fontSize:12, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>
             Need an account?{' '}
-            <a href="mailto:hello@serviqfm.com" style={{ color: C.blue, fontWeight:600 }}>Contact your administrator</a>
+            <a href="mailto:hello@serviqfm.com" style={{ color: LUMINA_COLORS.primary, fontWeight:600 }}>Contact your administrator</a>
           </p>
         </div>
       </div>

@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase'
 import { format, isAfter } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, inputStyle, tableHeaderCell, tableCell } from '@/lib/brand'
+import { C, F, pageStyle, cardStyle, primaryBtn, inputStyle, tableHeaderCell, tableCell, LUMINA_COLORS, LUMINA_RADII } from '@/lib/brand'
+import Button from '@/components/design-system/Button'
 
 export default function WorkOrdersPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,19 +99,19 @@ export default function WorkOrdersPage() {
     wo.due_at && !['completed','closed'].includes(wo.status) && isAfter(new Date(), new Date(wo.due_at))
 
   const priorityConfig: Record<string, { bg: string; color: string }> = {
-    low:      { bg: '#e8f5e9', color: C.success },
-    medium:   { bg: '#fff8e1', color: C.warning },
-    high:     { bg: '#fff3e0', color: '#e65100' },
-    critical: { bg: '#fce4ec', color: C.danger },
+    low:      { bg: LUMINA_COLORS.primaryContainer + '33', color: LUMINA_COLORS.primary },
+    medium:   { bg: LUMINA_COLORS.tertiaryContainer + '33', color: LUMINA_COLORS.tertiary },
+    high:     { bg: LUMINA_COLORS.tertiaryContainer + '33', color: LUMINA_COLORS.tertiary },
+    critical: { bg: LUMINA_COLORS.errorContainer, color: LUMINA_COLORS.error },
   }
 
   const statusConfig: Record<string, { bg: string; color: string }> = {
-    new:         { bg: '#e3f2fd', color: C.blue },
-    assigned:    { bg: '#e8eaf6', color: C.navy },
-    in_progress: { bg: '#fff8e1', color: C.warning },
-    on_hold:     { bg: '#fce4ec', color: C.danger },
-    completed:   { bg: '#e8f5e9', color: C.success },
-    closed:      { bg: '#f5f5f5', color: C.textMid },
+    new:         { bg: LUMINA_COLORS.secondaryContainer + '33', color: LUMINA_COLORS.secondary },
+    assigned:    { bg: LUMINA_COLORS.primaryContainer + '33', color: LUMINA_COLORS.primary },
+    in_progress: { bg: LUMINA_COLORS.tertiaryContainer + '33', color: LUMINA_COLORS.tertiary },
+    on_hold:     { bg: LUMINA_COLORS.errorContainer, color: LUMINA_COLORS.error },
+    completed:   { bg: LUMINA_COLORS.primaryContainer + '33', color: LUMINA_COLORS.primary },
+    closed:      { bg: LUMINA_COLORS.surfaceContainer, color: LUMINA_COLORS.onSurfaceVariant },
   }
 
   const badge = (text: string, cfg: { bg: string; color: string }) => (
@@ -119,9 +120,9 @@ export default function WorkOrdersPage() {
 
   const btnStyle = (active: boolean) => ({
     padding: '6px 14px', borderRadius: 20,
-    border: `1px solid ${active ? C.navy : C.border}`,
-    background: active ? C.navy : C.white,
-    color: active ? C.white : C.textMid,
+    border: `1px solid ${active ? LUMINA_COLORS.primary : LUMINA_COLORS.outlineVariant}`,
+    background: active ? LUMINA_COLORS.primary : LUMINA_COLORS.surfaceContainerLowest,
+    color: active ? LUMINA_COLORS.onPrimary : LUMINA_COLORS.onSurfaceVariant,
     cursor: 'pointer', fontSize: 13, fontWeight: 500 as const,
     fontFamily: F.en,
   })
@@ -138,13 +139,13 @@ export default function WorkOrdersPage() {
     <div style={pageStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('wo.title')}</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
-            {counts.all} total · {counts.in_progress} {t('wo.in_progress')} · <span style={{ color: counts.overdue > 0 ? C.danger : C.textLight }}>{counts.overdue} overdue</span>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>{t('wo.title')}</h1>
+          <p style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en, margin: '4px 0 0' }}>
+            {counts.all} total · {counts.in_progress} {t('wo.in_progress')} · <span style={{ color: counts.overdue > 0 ? LUMINA_COLORS.error : LUMINA_COLORS.onSurfaceVariant }}>{counts.overdue} overdue</span>
           </p>
         </div>
         <Link href='/dashboard/work-orders/new'>
-          <button style={primaryBtn}>{t('btn.new_wo')}</button>
+          <Button variant="primary">{t('btn.new_wo')}</Button>
         </Link>
       </div>
 
@@ -172,61 +173,63 @@ export default function WorkOrdersPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ ...inputStyle, width: 'auto', borderColor: LUMINA_COLORS.outline, color: LUMINA_COLORS.onSurface }}>
           <option value='all'>{t('filter.all_cats')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={technicianFilter} onChange={e => setTechnicianFilter(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+        <select value={technicianFilter} onChange={e => setTechnicianFilter(e.target.value)} style={{ ...inputStyle, width: 'auto', borderColor: LUMINA_COLORS.outline, color: LUMINA_COLORS.onSurface }}>
           <option value='all'>{t('filter.all_techs')}</option>
           {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
         </select>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>From</span>
-          <input type='date' value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>From</span>
+          <input type='date' value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: 'auto', cursor: 'pointer', borderColor: LUMINA_COLORS.outline }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>To</span>
-          <input type='date' value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>To</span>
+          <input type='date' value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: 'auto', cursor: 'pointer', borderColor: LUMINA_COLORS.outline }} />
         </div>
         {(categoryFilter !== 'all' || technicianFilter !== 'all' || dateFrom || dateTo) && (
-          <button onClick={() => { setCategoryFilter('all'); setTechnicianFilter('all'); setDateFrom(''); setDateTo('') }} style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 13, color: C.danger, fontFamily: F.en }}>
+          <button onClick={() => { setCategoryFilter('all'); setTechnicianFilter('all'); setDateFrom(''); setDateTo('') }} style={{ padding: '6px 14px', borderRadius: LUMINA_RADII.md, border: `1px solid ${LUMINA_COLORS.outlineVariant}`, background: LUMINA_COLORS.surfaceContainerLowest, cursor: 'pointer', fontSize: 13, color: LUMINA_COLORS.error, fontFamily: F.en }}>
             Clear Filters
           </button>
         )}
       </div>
 
       {selected.length > 0 && (
-        <div style={{ background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.navy, fontFamily: F.en }}>{selected.length} work order{selected.length > 1 ? 's' : ''} selected</span>
-          <select value={bulkTech} onChange={e => setBulkTech(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+        <div style={{ background: LUMINA_COLORS.surfaceContainer, border: `1px solid ${LUMINA_COLORS.outlineVariant}`, borderRadius: 10, padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: LUMINA_COLORS.primary, fontFamily: F.en }}>{selected.length} work order{selected.length > 1 ? 's' : ''} selected</span>
+          <select value={bulkTech} onChange={e => setBulkTech(e.target.value)} style={{ ...inputStyle, width: 'auto', borderColor: LUMINA_COLORS.outline }}>
             <option value=''>Select technician to assign...</option>
             {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
           </select>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleBulkAssign}
             disabled={!bulkTech || bulkAssigning}
-            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: C.navy, color: C.white, cursor: bulkTech ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 500, opacity: bulkTech ? 1 : 0.5, fontFamily: F.en }}
+            isLoading={bulkAssigning}
           >
             {bulkAssigning ? 'Assigning...' : 'Assign All'}
-          </button>
-          <button onClick={() => setSelected([])} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 13, color: C.textMid, fontFamily: F.en }}>
+          </Button>
+          <button onClick={() => setSelected([])} style={{ padding: '7px 14px', borderRadius: LUMINA_RADII.md, border: `1px solid ${LUMINA_COLORS.outlineVariant}`, background: LUMINA_COLORS.surfaceContainerLowest, cursor: 'pointer', fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>
             Cancel
           </button>
         </div>
       )}
 
       {loading ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>Loading...</p>
+        <p style={{ color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>Loading...</p>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: C.textLight, fontFamily: F.en }}>
+        <div style={{ textAlign: 'center', padding: '4rem', color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>
           <p style={{ fontSize: 18, marginBottom: 8 }}>No work orders found</p>
           <p style={{ fontSize: 14 }}>Try adjusting your filters or create a new work order</p>
         </div>
       ) : (
-        <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
+        <div style={{ ...cardStyle, overflow: 'hidden', padding: 0, background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
+              <tr style={{ background: LUMINA_COLORS.surfaceContainer, borderBottom: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
                 <th style={{ padding: '10px 16px', width: 40 }}>
                   <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
                 </th>
@@ -243,33 +246,33 @@ export default function WorkOrdersPage() {
                 const sCfg = statusConfig[wo.status] ?? statusConfig.new
                 const isSelected = selected.includes(wo.id)
                 return (
-                  <tr key={wo.id} style={{ background: isSelected ? '#EEF2FF' : overdue ? '#FFF8F8' : C.white }}>
+                  <tr key={wo.id} style={{ background: isSelected ? LUMINA_COLORS.primaryContainer + '22' : overdue ? LUMINA_COLORS.errorContainer + '22' : LUMINA_COLORS.surfaceContainerLowest, borderBottom: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
                     <td style={{ padding: '12px 16px' }}>
                       <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} />
                     </td>
-                    <td style={{ ...tableCell, color: C.textMid, fontWeight: 500, whiteSpace: 'nowrap' as const }}>
+                    <td style={{ ...tableCell, color: LUMINA_COLORS.onSurfaceVariant, fontWeight: 500, whiteSpace: 'nowrap' as const, borderBottom: 'none' }}>
                       {wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : '—'}
                     </td>
-                    <td style={tableCell}>
-                      <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>
+                      <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: LUMINA_COLORS.primary, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
                         {wo.title}
                       </Link>
-                      {overdue && <span style={{ marginLeft: 8, fontSize: 11, color: C.danger, background: '#fce4ec', padding: '1px 6px', borderRadius: 10, fontFamily: F.en }}>Overdue</span>}
+                      {overdue && <span style={{ marginLeft: 8, fontSize: 11, color: LUMINA_COLORS.error, background: LUMINA_COLORS.errorContainer, padding: '1px 6px', borderRadius: 10, fontFamily: F.en }}>Overdue</span>}
                     </td>
-                    <td style={tableCell}>{wo.asset?.name ?? '—'}</td>
-                    <td style={tableCell}>{wo.site?.name ?? '—'}</td>
-                    <td style={tableCell}>{wo.category ?? '—'}</td>
-                    <td style={tableCell}>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>{wo.asset?.name ?? '—'}</td>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>{wo.site?.name ?? '—'}</td>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>{wo.category ?? '—'}</td>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>
                       {badge(wo.priority === 'critical' ? t('wo.priority.critical') : wo.priority === 'high' ? t('wo.priority.high') : wo.priority === 'medium' ? t('wo.priority.medium') : t('wo.priority.low'), pCfg)}
                     </td>
-                    <td style={tableCell}>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>
                       {badge(wo.status === 'new' ? t('wo.status.new') : wo.status === 'assigned' ? t('wo.status.assigned') : wo.status === 'in_progress' ? t('wo.status.in_progress') : wo.status === 'on_hold' ? t('wo.status.on_hold') : wo.status === 'completed' ? t('wo.status.completed') : t('wo.status.closed'), sCfg)}
                     </td>
-                    <td style={tableCell}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
-                    <td style={{ ...tableCell, color: overdue ? C.danger : C.textMid }}>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
+                    <td style={{ ...tableCell, color: overdue ? LUMINA_COLORS.error : LUMINA_COLORS.onSurfaceVariant, borderBottom: 'none' }}>
                       {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
                     </td>
-                    <td style={tableCell}>
+                    <td style={{ ...tableCell, borderBottom: 'none' }}>
                       {format(new Date(wo.created_at), 'dd MMM yyyy')}
                     </td>
                   </tr>

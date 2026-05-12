@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { LUMINA_COLORS, LUMINA_RADII } from '@/lib/brand'
 
 // ── Inline SVG icons (no emoji, no encoding issues) ────────────────────────
 const SvgIcon = ({ d, d2, size = 17 }: { d: string; d2?: string; size?: number }) => (
@@ -103,10 +104,10 @@ export default function Sidebar() {
     alignItems: 'center' as const,
     gap: 10,
     padding: isCollapsed ? '9px 0' : '8px 10px',
-    borderRadius: 8,
+    borderRadius: LUMINA_RADII.md,
     cursor: 'pointer',
-    background: isActive ? '#1E2D4E' : 'transparent',
-    color: isActive ? '#ffffff' : '#4A5568',
+    background: isActive ? LUMINA_COLORS.primary : 'transparent',
+    color: isActive ? LUMINA_COLORS.onPrimary : LUMINA_COLORS.onSurfaceVariant,
     justifyContent: isCollapsed ? 'center' as const : 'flex-start' as const,
     position: 'relative' as const,
     transition: 'background 0.12s',
@@ -120,10 +121,10 @@ export default function Sidebar() {
     alignItems: 'center' as const,
     gap: 10,
     padding: isCollapsed ? '9px 0' : '8px 10px',
-    borderRadius: 8,
+    borderRadius: LUMINA_RADII.md,
     background: 'transparent',
     border: 'none',
-    color: '#4A5568',
+    color: LUMINA_COLORS.onSurfaceVariant,
     cursor: 'pointer',
     width: '100%',
     justifyContent: isCollapsed ? 'center' as const : 'flex-start' as const,
@@ -137,8 +138,8 @@ export default function Sidebar() {
       width: W, minWidth: W, maxWidth: W,
       minHeight: '100vh', height: '100vh',
       position: 'sticky', top: 0,
-      background: '#ffffff',
-      borderRight: '1px solid #E8ECF0',
+      background: LUMINA_COLORS.surfaceContainerLowest,
+      borderRight: `1px solid ${LUMINA_COLORS.outlineVariant}`,
       display: 'flex', flexDirection: 'column',
       transition: 'width 0.2s ease, min-width 0.2s ease',
       overflowY: 'auto', overflowX: 'hidden',
@@ -151,7 +152,7 @@ export default function Sidebar() {
         display: 'flex', alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'space-between',
         padding: collapsed ? '0 14px' : '0 12px 0 16px',
-        borderBottom: '1px solid #E8ECF0',
+        borderBottom: `1px solid ${LUMINA_COLORS.outlineVariant}`,
         gap: 8,
       }}>
         {/* Icon */}
@@ -162,9 +163,9 @@ export default function Sidebar() {
           <button
             onClick={() => setCollapsed(!collapsed)}
             style={{
-              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-              background: '#F8FAFC', border: '1px solid #E8ECF0',
-              color: '#A0B0BF', cursor: 'pointer',
+              width: 22, height: 22, borderRadius: LUMINA_RADII.sm, flexShrink: 0,
+              background: LUMINA_COLORS.surfaceContainer, border: `1px solid ${LUMINA_COLORS.outlineVariant}`,
+              color: LUMINA_COLORS.onSurfaceVariant, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 0,
             }}>
@@ -176,9 +177,9 @@ export default function Sidebar() {
             onClick={() => setCollapsed(!collapsed)}
             style={{
               position: 'absolute', top: 20, right: -11,
-              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-              background: '#fff', border: '1px solid #E8ECF0',
-              color: '#A0B0BF', cursor: 'pointer',
+              width: 22, height: 22, borderRadius: LUMINA_RADII.sm, flexShrink: 0,
+              background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}`,
+              color: LUMINA_COLORS.onSurfaceVariant, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 0, zIndex: 10,
             }}>
@@ -203,7 +204,7 @@ export default function Sidebar() {
               <div title={collapsed ? label : undefined} style={navItemStyle(isActive, collapsed)}>
 
                 {/* Icon */}
-                <span style={{ color: isActive ? '#ffffff' : '#A0B0BF', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ color: isActive ? LUMINA_COLORS.onPrimary : LUMINA_COLORS.onSurfaceVariant, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                   {iconEl}
                 </span>
 
@@ -211,7 +212,7 @@ export default function Sidebar() {
                 {!collapsed && (
                   <span style={{
                     fontSize: 13, fontWeight: isActive ? 600 : 400,
-                    color: isActive ? '#ffffff' : '#4A5568',
+                    color: isActive ? LUMINA_COLORS.onPrimary : LUMINA_COLORS.onSurfaceVariant,
                     flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     fontFamily: font, direction: isAr ? 'rtl' : 'ltr',
                   }}>{label}</span>
@@ -220,8 +221,8 @@ export default function Sidebar() {
                 {/* WO badge — expanded */}
                 {!collapsed && isWO && woBadge > 0 && (
                   <span style={{
-                    background: isActive ? 'rgba(255,255,255,0.2)' : '#1A7FC11A',
-                    color: isActive ? '#fff' : '#1A7FC1',
+                    background: isActive ? 'rgba(255,255,255,0.2)' : LUMINA_COLORS.secondaryContainer,
+                    color: isActive ? LUMINA_COLORS.onPrimary : LUMINA_COLORS.secondary,
                     fontSize: 11, fontWeight: 700,
                     padding: '1px 6px', borderRadius: 999,
                     minWidth: 20, textAlign: 'center', flexShrink: 0,
@@ -235,15 +236,15 @@ export default function Sidebar() {
                   <span style={{
                     position: 'absolute', top: 5, right: 8,
                     width: 7, height: 7, borderRadius: '50%',
-                    background: '#1A7FC1',
+                    background: LUMINA_COLORS.secondary,
                   }} />
                 )}
 
                 {/* Requests badge — expanded */}
                 {!collapsed && isReq && reqBadge > 0 && (
                   <span style={{
-                    background: isActive ? 'rgba(255,255,255,0.2)' : '#FEE2E2',
-                    color: isActive ? '#fff' : '#DC2626',
+                    background: isActive ? 'rgba(255,255,255,0.2)' : LUMINA_COLORS.errorContainer,
+                    color: isActive ? LUMINA_COLORS.onPrimary : LUMINA_COLORS.error,
                     fontSize: 11, fontWeight: 700,
                     padding: '1px 6px', borderRadius: 999,
                     minWidth: 20, textAlign: 'center', flexShrink: 0,
@@ -257,7 +258,7 @@ export default function Sidebar() {
                   <span style={{
                     position: 'absolute', top: 5, right: 8,
                     width: 7, height: 7, borderRadius: '50%',
-                    background: '#DC2626',
+                    background: LUMINA_COLORS.error,
                   }} />
                 )}
               </div>
@@ -267,17 +268,17 @@ export default function Sidebar() {
       </nav>
 
       {/* ── Footer ─────────────────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid #E8ECF0', padding: '8px 8px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ borderTop: `1px solid ${LUMINA_COLORS.outlineVariant}`, padding: '8px 8px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
 
         {/* Language toggle */}
         <button
           onClick={() => setLang(isAr ? 'en' : 'ar')}
           title={isAr ? 'Switch to English' : 'التبديل إلى العربية'}
           style={footerBtnStyle(collapsed)}>
-          <span style={{ color: '#A0B0BF', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <span style={{ color: LUMINA_COLORS.onSurfaceVariant, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             {ICONS.language}
           </span>
-          {!collapsed && <span style={{ color: '#4A5568' }}>{isAr ? 'English' : 'العربية'}</span>}
+          {!collapsed && <span style={{ color: LUMINA_COLORS.onSurfaceVariant }}>{isAr ? 'English' : 'العربية'}</span>}
         </button>
 
         {/* User row */}
@@ -292,16 +293,16 @@ export default function Sidebar() {
               background: 'linear-gradient(135deg,#6DCFB0,#1A7FC1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <span style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>
+              <span style={{ color: LUMINA_COLORS.onPrimary, fontSize: 11, fontWeight: 700 }}>
                 {user.full_name?.[0]?.toUpperCase() ?? 'U'}
               </span>
             </div>
             {!collapsed && (
               <div style={{ overflow: 'hidden', flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#1E2D4E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: font }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: LUMINA_COLORS.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: font }}>
                   {user.full_name}
                 </div>
-                <div style={{ fontSize: 10, color: '#A0B0BF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: fontEN }}>
+                <div style={{ fontSize: 10, color: LUMINA_COLORS.onSurfaceVariant, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: fontEN }}>
                   {user.email}
                 </div>
               </div>
@@ -314,7 +315,7 @@ export default function Sidebar() {
           <button
             type='submit'
             title={collapsed ? (isAr ? 'تسجيل الخروج' : 'Sign Out') : undefined}
-            style={{ ...footerBtnStyle(collapsed), color: '#A0B0BF' }}>
+            style={{ ...footerBtnStyle(collapsed), color: LUMINA_COLORS.onSurfaceVariant }}>
             <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               {ICONS.signout}
             </span>

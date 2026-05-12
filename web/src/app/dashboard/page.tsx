@@ -6,7 +6,8 @@ import { format, formatDistanceToNow, differenceInHours } from 'date-fns'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, cardStyle, pageStyle } from '@/lib/brand'
+import { C, F, cardStyle, pageStyle, LUMINA_COLORS, LUMINA_SPACING, LUMINA_RADII } from '@/lib/brand'
+import Button from '@/components/design-system/Button'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -115,35 +116,35 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading dashboard...</div>
+  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: LUMINA_COLORS.onSurfaceVariant }}>Loading dashboard...</div>
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const statCards = [
-    { label: t('dashboard.open_wos'),         value: stats.totalOpenWOs,                                                                  color: C.navy,    link: '/dashboard/work-orders' },
-    { label: t('dashboard.overdue'),          value: stats.overdueWOs,                                                                    color: stats.overdueWOs > 0 ? C.danger : C.success,                                                          link: '/dashboard/work-orders' },
-    { label: t('dashboard.pm_due_today'),     value: stats.pmDueToday,                                                                    color: stats.pmDueToday > 0 ? C.warning : C.success,                                                         link: '/dashboard/pm-schedules' },
-    { label: t('dashboard.completed_month'),  value: stats.completedThisMonth,                                                            color: C.success, link: '/dashboard/work-orders' },
-    { label: t('dashboard.active_techs'),     value: stats.activeTechnicians,                                                             color: C.navy,    link: '/dashboard/work-orders' },
-    { label: t('dashboard.pm_compliance'),    value: stats.pmCompliancePercent + '%',                                                     color: stats.pmCompliancePercent >= 80 ? C.success : stats.pmCompliancePercent >= 50 ? C.warning : C.danger, link: '/dashboard/pm-schedules/compliance' },
-    { label: t('dashboard.avg_repair'),       value: stats.mttr > 0 ? stats.mttr + 'h' : '—',                                             color: C.navy,    link: '/dashboard/work-orders' },
-    { label: t('dashboard.cost_mtd'),         value: stats.totalMaintenanceCost > 0 ? 'SAR ' + stats.totalMaintenanceCost.toLocaleString() : '—', color: C.navy, link: '/dashboard/work-orders' },
-    { label: t('dashboard.total_assets'),     value: stats.totalAssets,                                                                   color: C.navy,    link: '/dashboard/assets' },
+    { label: t('dashboard.open_wos'),         value: stats.totalOpenWOs,                                                                  color: LUMINA_COLORS.primary,    link: '/dashboard/work-orders' },
+    { label: t('dashboard.overdue'),          value: stats.overdueWOs,                                                                    color: stats.overdueWOs > 0 ? LUMINA_COLORS.error : LUMINA_COLORS.primary,                                                          link: '/dashboard/work-orders' },
+    { label: t('dashboard.pm_due_today'),     value: stats.pmDueToday,                                                                    color: stats.pmDueToday > 0 ? LUMINA_COLORS.tertiary : LUMINA_COLORS.primary,                                                         link: '/dashboard/pm-schedules' },
+    { label: t('dashboard.completed_month'),  value: stats.completedThisMonth,                                                            color: LUMINA_COLORS.primary, link: '/dashboard/work-orders' },
+    { label: t('dashboard.active_techs'),     value: stats.activeTechnicians,                                                             color: LUMINA_COLORS.primary,    link: '/dashboard/work-orders' },
+    { label: t('dashboard.pm_compliance'),    value: stats.pmCompliancePercent + '%',                                                     color: stats.pmCompliancePercent >= 80 ? LUMINA_COLORS.primary : stats.pmCompliancePercent >= 50 ? LUMINA_COLORS.tertiary : LUMINA_COLORS.error, link: '/dashboard/pm-schedules/compliance' },
+    { label: t('dashboard.avg_repair'),       value: stats.mttr > 0 ? stats.mttr + 'h' : '—',                                             color: LUMINA_COLORS.primary,    link: '/dashboard/work-orders' },
+    { label: t('dashboard.cost_mtd'),         value: stats.totalMaintenanceCost > 0 ? 'SAR ' + stats.totalMaintenanceCost.toLocaleString() : '—', color: LUMINA_COLORS.primary, link: '/dashboard/work-orders' },
+    { label: t('dashboard.total_assets'),     value: stats.totalAssets,                                                                   color: LUMINA_COLORS.primary,    link: '/dashboard/assets' },
   ]
 
   const statusConfig: Record<string, { label: string; color: string }> = {
-    new:         { label: t('wo.status.new'),         color: C.blue },
-    assigned:    { label: t('wo.status.assigned'),    color: C.navy },
-    in_progress: { label: t('wo.status.in_progress'), color: C.warning },
-    on_hold:     { label: t('wo.status.on_hold'),     color: C.danger },
+    new:         { label: t('wo.status.new'),         color: LUMINA_COLORS.secondary },
+    assigned:    { label: t('wo.status.assigned'),    color: LUMINA_COLORS.primary },
+    in_progress: { label: t('wo.status.in_progress'), color: LUMINA_COLORS.tertiary },
+    on_hold:     { label: t('wo.status.on_hold'),     color: LUMINA_COLORS.error },
   }
 
   const priorityConfig: Record<string, { label: string; color: string }> = {
-    critical: { label: t('wo.priority.critical'), color: C.danger },
-    high:     { label: t('wo.priority.high'),     color: C.warning },
-    medium:   { label: t('wo.priority.medium'),   color: C.warning },
-    low:      { label: t('wo.priority.low'),      color: C.success },
+    critical: { label: t('wo.priority.critical'), color: LUMINA_COLORS.error },
+    high:     { label: t('wo.priority.high'),     color: LUMINA_COLORS.tertiary },
+    medium:   { label: t('wo.priority.medium'),   color: LUMINA_COLORS.tertiary },
+    low:      { label: t('wo.priority.low'),      color: LUMINA_COLORS.primary },
   }
 
   return (
@@ -151,17 +152,17 @@ export default function DashboardPage() {
 
       <div style={{ marginBottom: '2rem' }}>
         <Image src="/ServiqFM_Logo_v2.jpg" alt="ServiqFM" width={160} height={40} style={{ objectFit: 'contain' as const, display: 'block', marginBottom: '1rem' }} />
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>
           {userName ? greeting + ', ' + userName.split(' ')[0] : 'Dashboard'}
         </h1>
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
+        <p style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en, margin: '4px 0 0' }}>{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: '2rem' }}>
         {statCards.map(card => (
           <Link key={card.label} href={card.link} style={{ textDecoration: 'none' }}>
-            <div style={{ ...cardStyle, cursor: 'pointer' }}>
-              <p style={{ fontSize: 12, color: C.textLight, margin: '0 0 8px', fontWeight: 500, fontFamily: F.en }}>{card.label}</p>
+            <div style={{ ...cardStyle, cursor: 'pointer', background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
+              <p style={{ fontSize: 12, color: LUMINA_COLORS.onSurfaceVariant, margin: '0 0 8px', fontWeight: 500, fontFamily: F.en }}>{card.label}</p>
               <p style={{ fontSize: 26, fontWeight: 700, margin: 0, color: card.color, fontFamily: F.en }}>{card.value}</p>
             </div>
           </Link>
@@ -170,22 +171,22 @@ export default function DashboardPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '2rem' }}>
 
-        <div style={cardStyle}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الحالة' : 'Open WOs by Status'}</p>
+        <div style={{ ...cardStyle, background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الحالة' : 'Open WOs by Status'}</p>
           {Object.keys(openByStatus).length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No open work orders</p>
+            <p style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>No open work orders</p>
           ) : (
             Object.entries(openByStatus).map(([status, count]) => {
-              const cfg = statusConfig[status] ?? { label: status, color: C.textMid }
+              const cfg = statusConfig[status] ?? { label: status, color: LUMINA_COLORS.onSurfaceVariant }
               const max = Math.max(...Object.values(openByStatus))
               return (
                 <div key={status} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>{cfg.label}</span>
+                    <span style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>{cfg.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color, fontFamily: F.en }}>{count}</span>
                   </div>
-                  <div style={{ background: C.border, borderRadius: 4, height: 6 }}>
-                    <div style={{ background: cfg.color, borderRadius: 4, height: 6, width: (count / max * 100) + '%' }} />
+                  <div style={{ background: LUMINA_COLORS.surfaceContainer, borderRadius: LUMINA_RADII.sm, height: 6 }}>
+                    <div style={{ background: cfg.color, borderRadius: LUMINA_RADII.sm, height: 6, width: (count / max * 100) + '%' }} />
                   </div>
                 </div>
               )
@@ -193,10 +194,10 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div style={cardStyle}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الأولوية' : 'Open WOs by Priority'}</p>
+        <div style={{ ...cardStyle, background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: '0 0 1rem' }}>{lang === 'ar' ? 'أوامر العمل المفتوحة حسب الأولوية' : 'Open WOs by Priority'}</p>
           {Object.keys(openByPriority).length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No open work orders</p>
+            <p style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>No open work orders</p>
           ) : (
             ['critical','high','medium','low'].filter(p => openByPriority[p]).map(priority => {
               const cfg = priorityConfig[priority]
@@ -205,11 +206,11 @@ export default function DashboardPage() {
               return (
                 <div key={priority} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>{cfg.label}</span>
+                    <span style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>{cfg.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color, fontFamily: F.en }}>{count}</span>
                   </div>
-                  <div style={{ background: C.border, borderRadius: 4, height: 6 }}>
-                    <div style={{ background: cfg.color, borderRadius: 4, height: 6, width: (count / max * 100) + '%' }} />
+                  <div style={{ background: LUMINA_COLORS.surfaceContainer, borderRadius: LUMINA_RADII.sm, height: 6 }}>
+                    <div style={{ background: cfg.color, borderRadius: LUMINA_RADII.sm, height: 6, width: (count / max * 100) + '%' }} />
                   </div>
                 </div>
               )
@@ -221,43 +222,43 @@ export default function DashboardPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
-        <div style={cardStyle}>
+        <div style={{ ...cardStyle, background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('dashboard.recent_activity')}</p>
-            <Link href='/dashboard/work-orders' style={{ fontSize: 12, color: C.textLight, textDecoration: 'none', fontFamily: F.en }}>{t('dashboard.view_all')}</Link>
+            <p style={{ fontSize: 14, fontWeight: 600, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>{t('dashboard.recent_activity')}</p>
+            <Link href='/dashboard/work-orders' style={{ fontSize: 12, color: LUMINA_COLORS.onSurfaceVariant, textDecoration: 'none', fontFamily: F.en }}>{t('dashboard.view_all')}</Link>
           </div>
           {recentActivity.length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No recent activity</p>
+            <p style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>No recent activity</p>
           ) : (
             recentActivity.map(log => (
               <div key={log.id} style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.navy, marginTop: 5, flexShrink: 0 }} />
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: LUMINA_COLORS.primary, marginTop: 5, flexShrink: 0 }} />
                 <div>
-                  <p style={{ fontSize: 13, margin: 0, color: C.textDark, fontFamily: F.en }}>{lang === 'ar' ? log.action.replace('assigned', 'مُعيَّن').replace('in_progress', 'قيد التنفيذ').replace('on_hold', 'معلق').replace('completed', 'مكتمل').replace('closed', 'مغلق').replace('Status changed to', 'تم تغيير الحالة إلى') : log.action}</p>
-                  <p style={{ fontSize: 11, color: C.textLight, margin: '2px 0 0', fontFamily: F.en }}>{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</p>
+                  <p style={{ fontSize: 13, margin: 0, color: LUMINA_COLORS.onSurface, fontFamily: F.en }}>{lang === 'ar' ? log.action.replace('assigned', 'مُعيَّن').replace('in_progress', 'قيد التنفيذ').replace('on_hold', 'معلق').replace('completed', 'مكتمل').replace('closed', 'مغلق').replace('Status changed to', 'تم تغيير الحالة إلى') : log.action}</p>
+                  <p style={{ fontSize: 11, color: LUMINA_COLORS.onSurfaceVariant, margin: '2px 0 0', fontFamily: F.en }}>{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</p>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        <div style={cardStyle}>
+        <div style={{ ...cardStyle, background: LUMINA_COLORS.surfaceContainerLowest, border: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('dashboard.upcoming_pm')}</p>
-            <Link href='/dashboard/pm-schedules' style={{ fontSize: 12, color: C.textLight, textDecoration: 'none', fontFamily: F.en }}>{t('dashboard.view_all')}</Link>
+            <p style={{ fontSize: 14, fontWeight: 600, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>{t('dashboard.upcoming_pm')}</p>
+            <Link href='/dashboard/pm-schedules' style={{ fontSize: 12, color: LUMINA_COLORS.onSurfaceVariant, textDecoration: 'none', fontFamily: F.en }}>{t('dashboard.view_all')}</Link>
           </div>
           {upcomingPMs.length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No upcoming PM tasks</p>
+            <p style={{ fontSize: 13, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>No upcoming PM tasks</p>
           ) : (
             upcomingPMs.map(pm => {
               const days = Math.ceil((new Date(pm.next_due_at).getTime() - Date.now()) / 86400000)
               return (
-                <div key={pm.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
+                <div key={pm.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${LUMINA_COLORS.outlineVariant}` }}>
                   <div>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{pm.title}</p>
-                    <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{pm.asset?.name ?? 'No asset'} · {pm.assignee?.full_name ?? t('common.unassigned')}</p>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: LUMINA_COLORS.onSurface, fontFamily: F.en, margin: 0 }}>{pm.title}</p>
+                    <p style={{ fontSize: 12, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en, margin: '2px 0 0' }}>{pm.asset?.name ?? 'No asset'} · {pm.assignee?.full_name ?? t('common.unassigned')}</p>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: days <= 1 ? C.danger : days <= 7 ? C.warning : C.success, whiteSpace: 'nowrap', marginLeft: 8, fontFamily: F.en }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: days <= 1 ? LUMINA_COLORS.error : days <= 7 ? LUMINA_COLORS.tertiary : LUMINA_COLORS.primary, whiteSpace: 'nowrap', marginLeft: 8, fontFamily: F.en }}>
                     {days === 0 ? t('dashboard.today') : days === 1 ? t('dashboard.tomorrow') : 'In ' + days + ' days'}
                   </span>
                 </div>
@@ -270,16 +271,16 @@ export default function DashboardPage() {
 
       <div style={{ marginTop: '2rem', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <Link href='/dashboard/work-orders/new'>
-          <button style={{ background: C.navy, color: C.white, padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.new_wo')}</button>
+          <Button variant="primary">{t('dashboard.new_wo')}</Button>
         </Link>
         <Link href='/dashboard/assets/new'>
-          <button style={{ background: C.white, color: C.navy, padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.navy}`, cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.add_asset')}</button>
+          <Button variant="tertiary">{t('dashboard.add_asset')}</Button>
         </Link>
         <Link href='/dashboard/pm-schedules/new'>
-          <button style={{ background: C.white, color: C.navy, padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.navy}`, cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.new_pm')}</button>
+          <Button variant="tertiary">{t('dashboard.new_pm')}</Button>
         </Link>
         <Link href='/dashboard/pm-schedules/compliance'>
-          <button style={{ background: C.white, color: C.navy, padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.navy}`, cursor: 'pointer', fontWeight: 500, fontSize: 14, fontFamily: F.en }}>{t('dashboard.pm_compliance_btn')}</button>
+          <Button variant="tertiary">{t('dashboard.pm_compliance_btn')}</Button>
         </Link>
       </div>
 

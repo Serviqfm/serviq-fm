@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import TranslateButton from '@/components/TranslateButton'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
+import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle, LUMINA_COLORS } from '@/lib/brand'
 
 export default function AssetDetailPage() {
   const { id } = useParams()
@@ -58,8 +58,8 @@ export default function AssetDetailPage() {
     .reduce((sum: number, w: any) => sum + (w.actual_cost || 0), 0)
 
   const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    active:            { bg: '#DCFCE7', color: C.success, label: t('assets.status.active') },
-    under_maintenance: { bg: '#FEF3C7', color: C.warning, label: t('assets.status.under_maintenance') },
+    active:            { bg: '#E8F5E9', color: LUMINA_COLORS.success, label: t('assets.status.active') },
+    under_maintenance: { bg: '#FFF3E0', color: LUMINA_COLORS.warning, label: t('assets.status.under_maintenance') },
     retired:           { bg: '#F1F5F9', color: C.textMid,  label: t('assets.status.retired') },
   }
 
@@ -76,11 +76,11 @@ export default function AssetDetailPage() {
 
   const tabStyle = (active: boolean) => ({
     padding: '8px 16px', border: 'none',
-    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
+    borderBottom: active ? `2px solid ${LUMINA_COLORS.primary}` : '2px solid transparent',
     background: 'transparent', cursor: 'pointer',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fontSize: 13, fontWeight: (active ? 600 : 400) as any,
-    color: active ? C.navy : C.textLight,
+    color: active ? LUMINA_COLORS.primary : C.textLight,
     fontFamily: F.en,
   })
 
@@ -100,7 +100,7 @@ export default function AssetDetailPage() {
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{translatedAsset.name ?? asset.name}</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>{translatedAsset.name ?? asset.name}</h1>
             {lang === 'ar' && (
               <TranslateButton
                 texts={{ name: asset.name, description: asset.description ?? '' }}

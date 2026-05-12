@@ -1,0 +1,90 @@
+/* src/styles/variables.css */
+
+:root {
+  /* Primary colors */
+  --color-primary: #006b54;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #6dcfb0;
+  --color-on-primary-container: #005744;
+  --color-inverse-primary: #76d8b9;
+
+  /* Secondary colors */
+  --color-secondary: #00677d;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #75e0ff;
+  --color-on-secondary-container: #006277;
+
+  /* Tertiary colors */
+  --color-tertiary: #4f5e82;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #aebde6;
+  --color-on-tertiary-container: #3d4c6f;
+
+  /* Error colors */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Surface colors */
+  --color-surface: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #3e4944;
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+
+  /* Outline and dividers */
+  --color-outline: #6e7a74;
+  --color-outline-variant: #bdc9c3;
+
+  /* Background */
+  --color-background: #f7f9fb;
+  --color-on-background: #191c1e;
+
+  /* Surface variant */
+  --color-surface-variant: #e0e3e5;
+
+  /* Spacing (in rem, based on 4px unit) */
+  --spacing-unit: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-margin: 2rem;
+
+  /* Border radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-family-primary: 'DM Sans', sans-serif;
+  --font-family-secondary: 'Readex Pro', sans-serif;
+
+  --font-size-display-lg: 48px;
+  --font-size-headline-h1: 32px;
+  --font-size-body-md: 16px;
+  --font-size-label-caps: 12px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.2;
+  --line-height-relaxed: 1.6;
+  --line-height-arabic: 1.8;
+}
+
+[dir="rtl"] {
+  --font-family-primary: 'Readex Pro', sans-serif;
+}

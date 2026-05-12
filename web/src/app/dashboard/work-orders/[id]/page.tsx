@@ -9,7 +9,7 @@ import { format, formatDistanceToNow, isAfter, differenceInHours, differenceInDa
 import { useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
-import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
+import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle, LUMINA_COLORS } from '@/lib/brand'
 import { sendPushNotification } from '@/lib/push'
 
 export default function WorkOrderDetailPage() {
@@ -444,7 +444,7 @@ export default function WorkOrderDetailPage() {
       <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
             {wo.wo_number && (
               <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid, background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 10px', fontFamily: F.en, letterSpacing: '0.03em' }}>
                 {`WO-${String(wo.wo_number).padStart(4, '0')}`}
@@ -557,7 +557,7 @@ export default function WorkOrderDetailPage() {
 
       {showSignoff && (
         <div style={{ background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 12px' }}>Digital Sign-off Required</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: LUMINA_COLORS.primary, fontFamily: F.en, margin: '0 0 12px' }}>Digital Sign-off Required</p>
           <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, margin: '0 0 12px' }}>Enter your full name to confirm you have reviewed and approved this work order for closing.</p>
           <input
             value={signoffName}
