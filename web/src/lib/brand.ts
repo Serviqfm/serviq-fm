@@ -197,6 +197,10 @@ export const LUMINA_COLORS = {
   surfaceContainer: '#eceef0',
   surfaceContainerHigh: '#e6e8ea',
   surfaceContainerHighest: '#e0e3e5',
+
+  // Semantic colors (status indicators)
+  success: '#2E7D32',
+  warning: '#F57F17',
 }
 
 export const LUMINA_TYPOGRAPHY = {
