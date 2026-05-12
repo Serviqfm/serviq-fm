@@ -74,6 +74,14 @@ export class NotificationService {
       const client = getResend();
       const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@serviqfm.com';
       const fromName = process.env.RESEND_FROM_NAME || 'ServIQ-FM';
+      const apiKey = process.env.RESEND_API_KEY;
+
+      // Diagnostic logging
+      if (!apiKey) {
+        throw new Error('RESEND_API_KEY environment variable is not set');
+      }
+
+      console.log(`[Notification] Sending email to ${email} from ${fromName} <${fromEmail}>`);
 
       const response = await client.emails.send({
         from: `${fromName} <${fromEmail}>`,
@@ -86,9 +94,10 @@ export class NotificationService {
         throw new Error(`Resend error: ${JSON.stringify(response.error)}`);
       }
 
+      console.log(`[Notification] Email sent successfully to ${email}`);
       await this.logNotification(userId, typeKey, 'email', 'sent');
     } catch (error) {
-      console.error(`Email notification failed for user ${userId}:`, error);
+      console.error(`[Notification] Email notification failed for user ${userId}:`, error);
       await this.logNotification(userId, typeKey, 'email', 'failed', String(error));
     }
   }

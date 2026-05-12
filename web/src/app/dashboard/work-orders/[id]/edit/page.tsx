@@ -7,7 +7,8 @@ import { notifyWOAssigned, notifyWOCreatedUpdated } from '@/lib/notifications/wo
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
-  const { id } = useParams()
+  const params = useParams()
+  const id = typeof params.id === 'string' ? params.id : params.id?.[0] || ''
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -103,17 +104,19 @@ export default function EditWorkOrderPage() {
     if (updateError) { setError(updateError.message); setSaving(false); return }
 
     // Send notifications if assigned
-    if (form.assigned_to) {
+    if (form.assigned_to && updatedWO && updatedWO.length > 0) {
       try {
+        const wo = updatedWO[0];
+        const woNumber = `WO-${String(wo.wo_number).padStart(4, '0')}`;
         const { data: techData } = await supabase.from('users').select('id, email, full_name').eq('id', form.assigned_to).single()
         if (techData) {
           await notifyWOAssigned(
             form.assigned_to,
             techData.email,
             'Manager',
-            'WO-' + id?.toString().slice(0, 8),
+            woNumber,
             form.title,
-            id?.toString() || ''
+            id
           )
         }
       } catch (err) {

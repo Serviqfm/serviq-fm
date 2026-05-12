@@ -19,13 +19,43 @@ export async function POST(req: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Delete user profile first
+    // Check for linked work orders
+    const { data: linkedWOs } = await supabaseAdmin
+      .from('work_orders')
+      .select('id, wo_number')
+      .eq('assigned_to', userId)
+      .eq('status', 'assigned')
+
+    if (linkedWOs && linkedWOs.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete user: ${linkedWOs.length} active work order(s) assigned to this technician. Please reassign or complete these work orders first.`,
+          linkedWorkOrders: linkedWOs,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Unassign any other associated work orders (completed/closed ones)
+    await supabaseAdmin
+      .from('work_orders')
+      .update({ assigned_to: null })
+      .eq('assigned_to', userId)
+
+    // Delete user profile
     const { error: profileError } = await supabaseAdmin
       .from('users')
       .delete()
       .eq('id', userId)
 
     if (profileError) {
+      // Check if it's a FK constraint error
+      if (profileError.message.includes('foreign key') || profileError.message.includes('FK')) {
+        return NextResponse.json(
+          { error: 'Cannot delete user: user is linked to other records. Please contact support.' },
+          { status: 400 }
+        )
+      }
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
 
