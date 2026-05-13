@@ -92,7 +92,7 @@ export default function EmployeeLoginForm() {
                     admin_panel_settings
                   </span>
                 </div>
-                <h2 className="text-on-surface text-3xl mb-2 font-bold">Portal Access</h2>
+                <h2 className="font-headline-h1 text-headline-h1 text-on-surface mb-2">Portal Access</h2>
                 <p className="text-on-surface-variant">
                   Log in to manage your facility assets and operations.
                 </p>
