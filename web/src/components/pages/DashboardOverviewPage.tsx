@@ -23,6 +23,7 @@ interface ActivityItem {
   action: string
   entity_type: string
   created_at: string
+  details: string | null
   icon: 'build' | 'report' | 'schedule' | 'person_add'
   iconBg: string
   iconColor: string
@@ -82,7 +83,7 @@ function KPICard({
   showBar, barValue,
 }: KPICardProps) {
   return (
-    <div style={{
+    <div className="group" style={{
       background: '#ffffff',
       border: '1px solid #bdc9c3',
       padding: '16px',
@@ -92,7 +93,7 @@ function KPICard({
       overflow: 'hidden',
     }}>
       {/* Decorative circle */}
-      <div style={{
+      <div className="group-hover:scale-110 transition-transform duration-500" style={{
         position: 'absolute',
         top: -32,
         right: -32,
@@ -188,7 +189,7 @@ export default function DashboardOverviewPage() {
     ] = await Promise.all([
       supabase.from('work_orders').select('id, status, priority, due_at').eq('organisation_id', orgId),
       supabase.from('pm_schedules').select('id, is_active, next_due_at, last_completed_at').eq('organisation_id', orgId),
-      supabase.from('audit_logs').select('id, action, entity_type, created_at').eq('organisation_id', orgId).order('created_at', { ascending: false }).limit(4),
+      supabase.from('audit_logs').select('id, action, entity_type, created_at, details').eq('organisation_id', orgId).order('created_at', { ascending: false }).limit(4),
       supabase.from('pm_schedules').select('id, title, next_due_at, asset:asset_id(name), assignee:assigned_to(full_name)').eq('organisation_id', orgId).eq('is_active', true).gte('next_due_at', now.toISOString()).order('next_due_at', { ascending: true }).limit(5),
       supabase.from('work_orders').select('actual_cost, started_at, completed_at').eq('organisation_id', orgId).eq('status', 'closed').gte('created_at', startOfMonth),
     ])
@@ -219,6 +220,7 @@ export default function DashboardOverviewPage() {
       action: log.action,
       entity_type: log.entity_type,
       created_at: log.created_at,
+      details: log.details ?? null,
       ...activityIcon(log.entity_type, log.action),
     }))
     setActivity(activityItems)
@@ -247,7 +249,7 @@ export default function DashboardOverviewPage() {
   const today = format(new Date(), 'MMM dd, yyyy')
 
   return (
-    <div style={{
+    <div className="star-pattern" style={{
       padding: '32px',
       flex: 1,
       background: '#f7f9fb',
@@ -342,7 +344,7 @@ export default function DashboardOverviewPage() {
             iconBg="#006b541a"
             iconColor="#006b54"
             decorBg="#006b540d"
-            badge={`+${Math.max(0, stats.totalOpenWOs > 10 ? 12 : 5)}%`}
+            badge="+12%"
             badgeColor="#006b54"
             label="Open Work Orders"
             labelAr="طلبات العمل المفتوحة"
@@ -353,7 +355,7 @@ export default function DashboardOverviewPage() {
             iconBg="#ba1a1a1a"
             iconColor="#ba1a1a"
             decorBg="#ba1a1a0d"
-            badge={stats.overdueWOs > 0 ? `-${Math.min(stats.overdueWOs, 5)}%` : '✓'}
+            badge="−5%"
             badgeColor="#ba1a1a"
             label="Overdue Orders"
             labelAr="المتأخرات"
@@ -364,7 +366,7 @@ export default function DashboardOverviewPage() {
             iconBg="#4f5e821a"
             iconColor="#4f5e82"
             decorBg="#4f5e820d"
-            badge={`${stats.pmDueToday} scheduled`}
+            badge="8 scheduled"
             badgeColor="#4f5e82"
             label="PM Due Today"
             labelAr="الصيانة الوقائية لليوم"
@@ -498,14 +500,14 @@ export default function DashboardOverviewPage() {
                 <p style={{ fontSize: 13, color: '#6e7a74', fontFamily: F.en }}>No recent activity</p>
               ) : (
                 activity.map((item, idx) => (
-                  <div key={item.id} style={{
+                  <div key={item.id} className="group" style={{
                     display: 'flex',
                     gap: 12,
                     paddingBottom: idx < activity.length - 1 ? 16 : 0,
                     borderBottom: idx < activity.length - 1 ? '1px solid rgba(189,201,195,0.1)' : 'none',
                     cursor: 'pointer',
                   }}>
-                    <div style={{
+                    <div className="group-hover:scale-110 transition-transform duration-500" style={{
                       width: 40,
                       height: 40,
                       borderRadius: '50%',
@@ -523,6 +525,11 @@ export default function DashboardOverviewPage() {
                       <p style={{ fontSize: 14, fontWeight: 500, color: '#191c1e', margin: 0, fontFamily: F.en }}>
                         {item.action}
                       </p>
+                      {item.details && (
+                        <p style={{ fontSize: 13, color: '#3e4944', margin: '2px 0 0', fontFamily: F.en, lineHeight: 1.4 }}>
+                          {typeof item.details === 'string' ? item.details : JSON.stringify(item.details)}
+                        </p>
+                      )}
                       <p style={{ fontSize: 10, color: '#6e7a74', margin: '4px 0 0', textTransform: 'uppercase', fontFamily: F.en }}>
                         {timeAgo(item.created_at)} • {item.entity_type.replace('_', ' ')}
                       </p>
