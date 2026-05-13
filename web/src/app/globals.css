@@ -1,3 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Readex+Pro:wght@300;400;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -8,26 +14,17 @@ html, body {
   font-family: 'DM Sans', sans-serif;
   background: #F8FAFC;
   color: #1E2D4E;
-  -webkit-font-smoothing: antialiased;
 }
 
-[dir="rtl"] body,
-[dir="rtl"] * {
-  font-family: 'Readex Pro', sans-serif;
+body {
+  line-height: 1.6;
 }
 
-a { color: inherit; text-decoration: none; }
-
-button { font-family: inherit; }
-
-input, select, textarea {
-  font-family: inherit;
-  outline: none;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: #1A7FC1 !important;
-  box-shadow: 0 0 0 3px rgba(26,127,193,0.12);
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .star-pattern {
@@ -36,6 +33,23 @@ input:focus, select:focus, textarea:focus {
   background-repeat: no-repeat;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #F8FAFC; }
-::-webkit-scrollbar-thumb { background: #B8DDD8; border-radius: 3px; }
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
