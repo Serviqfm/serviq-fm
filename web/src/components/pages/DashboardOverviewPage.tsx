@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { differenceInHours, format } from 'date-fns'
+import { format } from 'date-fns'
 import { useLanguage } from '@/context/LanguageContext'
 import { F } from '@/lib/brand'
 
@@ -27,15 +27,6 @@ interface ActivityItem {
   icon: 'build' | 'report' | 'schedule' | 'person_add'
   iconBg: string
   iconColor: string
-}
-
-interface UpcomingPM {
-  id: string
-  title: string
-  next_due_at: string
-  // Supabase returns joined rows as arrays when using foreign-key selects
-  asset: { name: string }[] | { name: string } | null
-  assignee: { full_name: string }[] | { full_name: string } | null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -112,7 +103,7 @@ function KPICard({
           display: 'flex',
           alignItems: 'center',
         }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{icon}</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 24 }} aria-hidden="true">{icon}</span>
         </div>
         {badge && (
           <span style={{ color: badgeColor, fontWeight: 700, fontSize: 12, fontFamily: F.en }}>
@@ -162,7 +153,6 @@ export default function DashboardOverviewPage() {
     totalOpenForStatus: 0,
   })
   const [activity, setActivity] = useState<ActivityItem[]>([])
-  const [upcomingPMs, setUpcomingPMs] = useState<UpcomingPM[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const { lang } = useLanguage()
@@ -178,20 +168,15 @@ export default function DashboardOverviewPage() {
 
     const now = new Date()
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
     const [
       { data: allWOs },
       { data: pmSchedules },
       { data: auditLogs },
-      { data: upcoming },
-      { data: closedWOs },
     ] = await Promise.all([
       supabase.from('work_orders').select('id, status, priority, due_at').eq('organisation_id', orgId),
       supabase.from('pm_schedules').select('id, is_active, next_due_at, last_completed_at').eq('organisation_id', orgId),
       supabase.from('audit_logs').select('id, action, entity_type, created_at, details').eq('organisation_id', orgId).order('created_at', { ascending: false }).limit(4),
-      supabase.from('pm_schedules').select('id, title, next_due_at, asset:asset_id(name), assignee:assigned_to(full_name)').eq('organisation_id', orgId).eq('is_active', true).gte('next_due_at', now.toISOString()).order('next_due_at', { ascending: true }).limit(5),
-      supabase.from('work_orders').select('actual_cost, started_at, completed_at').eq('organisation_id', orgId).eq('status', 'closed').gte('created_at', startOfMonth),
     ])
 
     const wos = allWOs ?? []
@@ -224,7 +209,6 @@ export default function DashboardOverviewPage() {
       ...activityIcon(log.entity_type, log.action),
     }))
     setActivity(activityItems)
-    setUpcomingPMs(upcoming ?? [])
     setLoading(false)
   }
 
@@ -307,16 +291,16 @@ export default function DashboardOverviewPage() {
               gap: 8,
               fontFamily: F.en,
             }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>calendar_today</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden="true">calendar_today</span>
               Today: {today}
             </button>
-            <button style={{
+            <button disabled style={{
               background: '#00677d',
               color: '#ffffff',
               padding: '8px 16px',
               borderRadius: '12px',
               border: 'none',
-              cursor: 'pointer',
+              cursor: 'not-allowed',
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: '0.05em',
@@ -325,8 +309,9 @@ export default function DashboardOverviewPage() {
               alignItems: 'center',
               gap: 8,
               fontFamily: F.en,
+              opacity: 0.5,
             }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>file_download</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden="true">file_download</span>
               Export Report
             </button>
           </div>
@@ -436,7 +421,7 @@ export default function DashboardOverviewPage() {
                 fontFamily: F.en,
               }}>
                 View Detailed Analytics
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden="true">arrow_forward</span>
               </Link>
             </div>
 
@@ -517,7 +502,7 @@ export default function DashboardOverviewPage() {
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: item.iconColor }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: item.iconColor }} aria-hidden="true">
                         {item.icon}
                       </span>
                     </div>
@@ -640,7 +625,7 @@ export default function DashboardOverviewPage() {
                 flexShrink: 0,
               }}>
                 Analytics Dashboard
-                <span className="material-symbols-outlined">query_stats</span>
+                <span className="material-symbols-outlined" aria-hidden="true">query_stats</span>
               </button>
             </Link>
           </div>
