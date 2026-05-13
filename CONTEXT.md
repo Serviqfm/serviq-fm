@@ -189,6 +189,88 @@
 
 ---
 
+### Sprint G — Lumina UI Redesign *(IN PROGRESS — ~10–15 days)*
+**Goal:** Rebuild entire Serviq-FM web UI as 1:1 clone of HTML design files using Lumina design system with Next.js/React/Tailwind.
+
+**Plan:** `docs/superpowers/plans/2026-05-12-serviq-lumina-ui-redesign.md`  
+**Execution:** Subagent-Driven Development (spec compliance review → code quality review per task)  
+**Date Started:** 2026-05-12  
+**Target:** 17 pages (authentication, dashboard, work orders, assets, inventory, reports, etc.)
+
+#### Phase 1: Foundation & Authentication (Tasks 1-3) ✅ COMPLETE
+- [x] **Task 1 — Tailwind Config + Lumina Tokens** ✅ COMPLETE & APPROVED
+  - Files: `web/src/lib/lumina-tokens.ts`, `web/tailwind.config.ts`, `web/src/app/globals.css`
+  - LUMINA_COLORS: 44 color tokens (primary #006b54, secondary #00677d)
+  - LUMINA_SPACING: 7 tokens (unit 4px → containerMax 1440px)
+  - LUMINA_RADII: 6 tokens (sm/default 0.25rem → xl 0.75rem, fixed from plan mismatch)
+  - Material Symbols Outlined font + star pattern background (4-pointed star #006b54, 0.03 opacity)
+  - Commit: dce73fc
+
+- [x] **Task 2 — Login Portal Selection Page** ✅ COMPLETE & APPROVED
+  - Files: `web/src/components/auth/LoginPortalSelection.tsx`, `web/src/app/login/page.tsx`
+  - 3-section layout (header, 2-column card grid, footer)
+  - Client & Employee portal cards with icons, features, action buttons
+  - Responsive (1 col mobile, 2 col desktop), hover effects with float animation
+  - Commit: dce73fc
+
+- [x] **Task 3 — Employee Login Form Page** ✅ COMPLETE & APPROVED
+  - Files: `web/src/components/auth/EmployeeLoginForm.tsx`, `web/src/app/login/employee/page.tsx`
+  - Split layout: left branded section (primary bg #006b54, hidden mobile), right form section
+  - Form: email, password + visibility toggle, remember checkbox, login button, Azure SSO
+  - Decorative blur circles, glass morphism header
+  - Fixed issues: Typography (text-headline-h1 for 32px), star pattern verified
+  - Commit: 37bb409 (fixes), dc2ebfe (implementation)
+
+#### Phase 2: Dashboard & Layout (Tasks 4-7) ✅ COMPLETE
+- [x] **Task 4 — Sidebar Navigation** ✅ COMPLETE & APPROVED
+  - File: `web/src/components/layout/Sidebar.tsx`
+  - Desktop-only (hidden md:flex), w-64 width, sticky top-0, z-50
+  - Logo + "Serviq Lumina" title, Create Work Order button
+  - 8 nav items with active state styling, user profile section
+  - Commit: fdc2772
+
+- [x] **Task 5 — Top Navigation Bar** ✅ COMPLETE & APPROVED
+  - File: `web/src/components/layout/TopBar.tsx`
+  - Sticky header with glass morphism (backdrop-blur-md)
+  - Mobile menu, desktop nav (3 links), search bar, action buttons
+  - Material Symbols icons, Next.js Link routing
+  - Commit: cb89a9e
+
+- [x] **Task 6 — Mobile Bottom Navigation** ✅ COMPLETE & APPROVED
+  - File: `web/src/components/layout/MobileBottomNav.tsx`
+  - Mobile-only, fixed bottom, glass morphism, FAB button
+  - 4 nav items, active state via usePathname()
+  - Commit: 6e75313
+
+- [x] **Task 7 — Dashboard Layout Wrapper** ✅ COMPLETE & APPROVED
+  - Files: `web/src/components/layout/LayoutWrapper.tsx`, `web/src/app/dashboard/layout.tsx`
+  - Flex layout: Sidebar + Main (TopBar + content) + MobileBottomNav
+  - Responsive padding (pb-20 mobile, pb-0 desktop)
+  - Commit: 20b8232
+
+#### Phase 3: Shared Components (Tasks 8-11)
+- [ ] **Task 8 — KPI Card Component**
+- [ ] **Task 9 — Status Badge Component**
+- [ ] **Task 10 — Data Table Component**
+- [ ] **Task 11 — Progress Steps Component**
+
+#### Phase 4: Dashboard Pages (Tasks 12+)
+- [ ] Dashboard Overview, Work Orders, Assets, Inventory, etc.
+
+---
+
+## ✅ PHASE 1 COMPLETE - Ready for Dashboard Pages
+
+**Design System Reference:**
+- Colors: Primary #006b54 (teal), Secondary #00677d (navy), 40+ semantic colors
+- Typography: Display-lg (48px), Headline-h1 (32px), Body-md (16px), Label-caps (12px)
+- Spacing: unit 4px, stackSm 8px, stackMd 16px, stackLg 32px, gutter 24px, margin 32px
+- Border Radius: 0.25rem, 0.5rem, 0.75rem, 9999px
+- Fonts: DM Sans (English), Readex Pro (Arabic)
+- Icons: Material Symbols Outlined
+
+---
+
 ### Sprint E — Settings: Field Visibility *(~2–3 days)*
 **Goal:** Admins can configure which fields on each form are mandatory, optional, or hidden.
 
