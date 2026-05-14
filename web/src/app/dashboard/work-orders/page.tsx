@@ -1,17 +1,44 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, isAfter } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { C, F, pageStyle, cardStyle, primaryBtn, inputStyle, tableHeaderCell, tableCell } from '@/lib/brand'
 
+interface Technician {
+  id: string
+  full_name: string
+}
+
+interface RelationData {
+  name?: string
+  full_name?: string
+}
+
+interface WorkOrder {
+  id: string
+  wo_number: number
+  title: string
+  status: string
+  priority: string
+  category?: string
+  created_at: string
+  updated_at?: string
+  completed_at?: string
+  due_at?: string
+  assigned_to?: string
+  asset_id?: string
+  site_id?: string
+  asset?: { name: string }
+  site?: { name: string }
+  assignee?: { full_name: string }
+}
+
 export default function WorkOrdersPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [workOrders, setWorkOrders] = useState<any[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [technicians, setTechnicians] = useState<any[]>([])
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
@@ -95,9 +122,9 @@ export default function WorkOrdersPage() {
     return matchSearch && matchDateFrom && matchDateTo
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isOverdue = (wo: any) =>
-    wo.due_at && !['completed','closed'].includes(wo.status) && isAfter(new Date(), new Date(wo.due_at))
+  const isOverdue = useCallback((wo: WorkOrder) =>
+    wo.due_at && !['completed','closed'].includes(wo.status) && isAfter(new Date(), new Date(wo.due_at)),
+  [])
 
   const priorityConfig: Record<string, { bg: string; color: string }> = {
     low:      { bg: '#e8f5e9', color: C.success },
@@ -128,25 +155,35 @@ export default function WorkOrdersPage() {
     fontFamily: F.en,
   })
 
+  const stats = useMemo(() => {
+    const overdueCnt = workOrders.filter(w => isOverdue(w)).length
+    const inProgressCnt = workOrders.filter(w => w.status === 'in_progress').length
+    const completedOrders = workOrders.filter(wo => wo.status === 'completed')
+    const avgCompletionHours = completedOrders.length > 0
+      ? completedOrders.reduce((sum, wo) => {
+          if (wo.created_at && wo.completed_at) {
+            const ms = new Date(wo.completed_at).getTime() - new Date(wo.created_at).getTime()
+            return sum + (ms / (1000 * 60 * 60))
+          }
+          return sum
+        }, 0) / completedOrders.length
+      : 0
+
+    return {
+      all: workOrders.length,
+      overdue: overdueCnt,
+      in_progress: inProgressCnt,
+      avgCompletionDisplay: avgCompletionHours.toFixed(1),
+    }
+  }, [workOrders, isOverdue])
+
   const counts = {
-    all: workOrders.length,
-    overdue: workOrders.filter(w => isOverdue(w)).length,
-    in_progress: workOrders.filter(w => w.status === 'in_progress').length,
+    all: stats.all,
+    overdue: stats.overdue,
+    in_progress: stats.in_progress,
   }
 
-  // Calculate average completion time from completed work orders
-  const completedOrders = workOrders.filter(wo => wo.status === 'completed')
-  const avgCompletionHours = completedOrders.length > 0
-    ? completedOrders.reduce((sum, wo) => {
-        if (wo.created_at && wo.completed_at) {
-          const ms = new Date(wo.completed_at).getTime() - new Date(wo.created_at).getTime()
-          return sum + (ms / (1000 * 60 * 60)) // convert to hours
-        }
-        return sum
-      }, 0) / completedOrders.length
-    : 0
-
-  const avgCompletionDisplay = avgCompletionHours.toFixed(1)
+  const avgCompletionDisplay = stats.avgCompletionDisplay
 
   const categories = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
@@ -207,6 +244,7 @@ export default function WorkOrdersPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={t('wo.search')}
+          aria-label="Search work orders"
           style={{ ...inputStyle, width: '100%' }}
         />
       </div>
