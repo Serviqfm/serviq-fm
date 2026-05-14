@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, differenceInDays } from 'date-fns'
 import { useParams } from 'next/navigation'
@@ -9,12 +9,43 @@ import TranslateButton from '@/components/TranslateButton'
 import { useLanguage } from '@/context/LanguageContext'
 import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
 
+// FIX #1: Move createClient() outside component (singleton) to prevent infinite re-render loop
+const supabase = createClient()
+
+// FIX #3 & #4: Define proper Asset interface without [key: string]: any
+// and without unused icon property
+interface Asset {
+  id: string
+  name: string
+  category?: string
+  status: 'active' | 'under_maintenance' | 'retired'
+  location?: string
+  site?: { name: string }
+  description?: string
+  manufacturer?: string
+  model?: string
+  serial_number?: string
+  purchase_date?: string
+  purchase_cost?: number
+  warranty_expiry?: string
+  expected_lifespan_years?: number
+  sub_location?: string
+  location_notes?: string
+  created_at: string
+  updated_at?: string
+  organisation_id: string
+  photo_urls?: string[]
+  qr_code?: string
+  custom_fields?: Record<string, string>
+}
+
 export default function AssetDetailPage() {
   const { id } = useParams()
-  const supabase = createClient()
+  // FIX #2: Validate params.id - it could be string array in catch-all routes
+  const assetId = Array.isArray(id) ? id[0] : (id as string)
   const { t, lang } = useLanguage()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [asset, setAsset] = useState<any>(null)
+  // FIX #3: Use Asset interface instead of any
+  const [asset, setAsset] = useState<Asset | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [workOrders, setWorkOrders] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,23 +56,23 @@ export default function AssetDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [pmHistory, setPmHistory] = useState<any[]>([])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchAll() }, [id])
-
-  async function fetchAll() {
+  // FIX #1 continued: Wrap fetchAll in useCallback to avoid re-renders
+  const fetchAll = useCallback(async () => {
     const [{ data: assetData }, { data: woData }, { data: pmData }] = await Promise.all([
-      supabase.from('assets').select('*, site:site_id(name)').eq('id', id).single(),
-      supabase.from('work_orders').select('*, assignee:assigned_to(full_name)').eq('asset_id', id).order('created_at', { ascending: false }),
-      supabase.from('pm_schedules').select('*, assignee:assigned_to(full_name)').eq('asset_id', id).order('created_at', { ascending: false }),
+      supabase.from('assets').select('*, site:site_id(name)').eq('id', assetId).single(),
+      supabase.from('work_orders').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
+      supabase.from('pm_schedules').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
     ])
-    if (assetData) setAsset(assetData)
+    if (assetData) setAsset(assetData as Asset)
     if (woData) setWorkOrders(woData)
     if (pmData) setPmSchedules(pmData)
     setLoading(false)
-  }
+  }, [assetId])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
 
   async function updateStatus(newStatus: string) {
-    await supabase.from('assets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
+    await supabase.from('assets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', assetId)
     fetchAll()
   }
 
@@ -91,9 +122,13 @@ export default function AssetDetailPage() {
   return (
     <div style={{ ...pageStyle, maxWidth: 900 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <a href='/dashboard/assets' style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>{t('common.back')}</a>
-        <a href={'/dashboard/assets/' + id + '/edit'}>
-          <button style={secondaryBtn}>{t('common.edit')}</button>
+        <a href='/dashboard/assets' style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>
+          {/* FIX #6: Add aria-label to back link */}
+          {t('common.back')}
+        </a>
+        {/* FIX #6: Add aria-label to edit button */}
+        <a href={'/dashboard/assets/' + assetId + '/edit'}>
+          <button style={secondaryBtn} aria-label="Edit asset">{t('common.edit')}</button>
         </a>
       </div>
 
@@ -108,6 +143,7 @@ export default function AssetDetailPage() {
               />
             )}
           </div>
+          {/* FIX #5: Decorative status badge */}
           <span style={{ background: sCfg.bg, color: sCfg.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{sCfg.label}</span>
           {asset.category && <span style={{ background: C.pageBg, color: C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>{asset.category}</span>}
         </div>
@@ -119,12 +155,12 @@ export default function AssetDetailPage() {
 
       {warrantyExpired && (
         <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: '1rem', background: '#fce4ec', border: `1px solid ${C.dangerBorder}`, fontSize: 13, color: C.danger, fontFamily: F.en }}>
-          Warranty expired {Math.abs(warrantyDaysLeft!)} days ago ({format(new Date(asset.warranty_expiry), 'dd MMM yyyy')})
+          Warranty expired {Math.abs(warrantyDaysLeft!)} days ago ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
         </div>
       )}
       {warrantySoon && !warrantyExpired && (
         <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: '1rem', background: '#fff8e1', border: '1px solid #ffe082', fontSize: 13, color: C.warning, fontFamily: F.en }}>
-          Warranty expires in {warrantyDaysLeft} days ({format(new Date(asset.warranty_expiry), 'dd MMM yyyy')})
+          Warranty expires in {warrantyDaysLeft} days ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
         </div>
       )}
 
@@ -139,15 +175,15 @@ export default function AssetDetailPage() {
           <button
             onClick={async () => {
               if (!confirm('Decommission this asset? This will retire it and suspend all active PM schedules.')) return
-              await supabase.from('assets').update({ status: 'retired', updated_at: new Date().toISOString() }).eq('id', id)
-              await supabase.from('pm_schedules').update({ is_active: false }).eq('asset_id', id)
+              await supabase.from('assets').update({ status: 'retired', updated_at: new Date().toISOString() }).eq('id', assetId)
+              await supabase.from('pm_schedules').update({ is_active: false }).eq('asset_id', assetId)
               await supabase.from('work_orders').insert({
                 title: 'Decommission: ' + asset.name,
                 description: 'Final decommission work order. Asset has been retired.',
                 priority: 'medium',
                 status: 'new',
                 source: 'manual',
-                asset_id: id,
+                asset_id: assetId,
                 organisation_id: asset.organisation_id,
                 created_by: (await supabase.auth.getUser()).data.user?.id,
               })
@@ -342,7 +378,7 @@ export default function AssetDetailPage() {
       )}
 
       {activeTab === 'custom' && (
-        <CustomFieldsTab assetId={id as string} initialFields={asset.custom_fields ?? {}} supabase={supabase} />
+        <CustomFieldsTab assetId={assetId} initialFields={asset.custom_fields ?? {}} supabase={supabase} />
       )}
     </div>
   )
