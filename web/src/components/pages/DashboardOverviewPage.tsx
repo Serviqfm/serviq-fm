@@ -485,13 +485,20 @@ export default function DashboardOverviewPage() {
                 <p style={{ fontSize: 13, color: '#6e7a74', fontFamily: F.en }}>No recent activity</p>
               ) : (
                 activity.map((item, idx) => (
-                  <div key={item.id} className="group" style={{
-                    display: 'flex',
-                    gap: 12,
-                    paddingBottom: idx < activity.length - 1 ? 16 : 0,
-                    borderBottom: idx < activity.length - 1 ? '1px solid rgba(189,201,195,0.1)' : 'none',
-                    cursor: 'pointer',
-                  }}>
+                  <button
+                    key={item.id}
+                    className="group w-full text-left"
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      paddingBottom: idx < activity.length - 1 ? 16 : 0,
+                      borderBottom: idx < activity.length - 1 ? '1px solid rgba(189,201,195,0.1)' : 'none',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                    }}
+                    aria-label={`${item.action} by user - ${item.entity_type.replace('_', ' ')}`}
+                  >
                     <div className="group-hover:scale-110 transition-transform duration-500" style={{
                       width: 40,
                       height: 40,
@@ -519,7 +526,7 @@ export default function DashboardOverviewPage() {
                         {timeAgo(item.created_at)} • {item.entity_type.replace('_', ' ')}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
