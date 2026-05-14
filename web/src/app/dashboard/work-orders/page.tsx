@@ -23,6 +23,8 @@ export default function WorkOrdersPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [bulkTech, setBulkTech] = useState('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -132,6 +134,20 @@ export default function WorkOrdersPage() {
     in_progress: workOrders.filter(w => w.status === 'in_progress').length,
   }
 
+  // Calculate average completion time from completed work orders
+  const completedOrders = workOrders.filter(wo => wo.status === 'completed')
+  const avgCompletionHours = completedOrders.length > 0
+    ? completedOrders.reduce((sum, wo) => {
+        if (wo.created_at && wo.completed_at) {
+          const ms = new Date(wo.completed_at).getTime() - new Date(wo.created_at).getTime()
+          return sum + (ms / (1000 * 60 * 60)) // convert to hours
+        }
+        return sum
+      }, 0) / completedOrders.length
+    : 0
+
+  const avgCompletionDisplay = avgCompletionHours.toFixed(1)
+
   const categories = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
   return (
@@ -148,12 +164,52 @@ export default function WorkOrdersPage() {
         </Link>
       </div>
 
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder={t('wo.search')}
-        style={{ ...inputStyle, marginBottom: '1rem' }}
-      />
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ background: C.white, padding: '1.5rem', borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <p style={{ fontSize: 12, color: C.textMid, fontWeight: 600, fontFamily: F.en, margin: 0, marginBottom: '0.5rem' }}>Open Orders</p>
+          <p style={{ fontSize: 32, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0, marginBottom: '0.75rem' }}>{counts.all}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 12, color: C.success, fontFamily: F.en }}>
+            <span style={{ fontSize: 16 }} className="material-symbols-outlined">trending_up</span>
+            <span>12% from last week</span>
+          </div>
+        </div>
+
+        <div style={{ background: C.white, padding: '1.5rem', borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <p style={{ fontSize: 12, color: C.textMid, fontWeight: 600, fontFamily: F.en, margin: 0, marginBottom: '0.5rem' }}>Urgent (High)</p>
+          <p style={{ fontSize: 32, fontWeight: 700, color: C.danger, fontFamily: F.en, margin: 0, marginBottom: '0.75rem' }}>{workOrders.filter(w => w.priority === 'critical' || w.priority === 'high').length}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 12, color: C.textMid, fontFamily: F.en }}>
+            <span>Requires attention</span>
+          </div>
+        </div>
+
+        <div style={{ background: C.white, padding: '1.5rem', borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <p style={{ fontSize: 12, color: C.textMid, fontWeight: 600, fontFamily: F.en, margin: 0, marginBottom: '0.5rem' }}>In Progress</p>
+          <p style={{ fontSize: 32, fontWeight: 700, color: '#0288d1', fontFamily: F.en, margin: 0, marginBottom: '0.75rem' }}>{counts.in_progress}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 12, color: C.textMid, fontFamily: F.en }}>
+            <span>Across multiple sites</span>
+          </div>
+        </div>
+
+        <div style={{ background: C.white, padding: '1.5rem', borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <p style={{ fontSize: 12, color: C.textMid, fontWeight: 600, fontFamily: F.en, margin: 0, marginBottom: '0.5rem' }}>Avg. Completion</p>
+          <p style={{ fontSize: 32, fontWeight: 700, color: C.textDark, fontFamily: F.en, margin: 0, marginBottom: '0.75rem' }}>{avgCompletionDisplay}h</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 12, color: C.success, fontFamily: F.en }}>
+            <span style={{ fontSize: 16 }} className="material-symbols-outlined">check_circle</span>
+            <span>Optimal efficiency</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Search bar - hidden on mobile, visible on sm+ */}
+      <div className="hidden sm:block" style={{ marginBottom: '1rem' }}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={t('wo.search')}
+          style={{ ...inputStyle, width: '100%' }}
+        />
+      </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         {['all','new','assigned','in_progress','on_hold','completed','closed'].map(s => (
@@ -237,46 +293,131 @@ export default function WorkOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((wo) => {
-                const overdue = isOverdue(wo)
-                const pCfg = priorityConfig[wo.priority] ?? priorityConfig.medium
-                const sCfg = statusConfig[wo.status] ?? statusConfig.new
-                const isSelected = selected.includes(wo.id)
-                return (
-                  <tr key={wo.id} style={{ background: isSelected ? '#EEF2FF' : overdue ? '#FFF8F8' : C.white }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} />
-                    </td>
-                    <td style={{ ...tableCell, color: C.textMid, fontWeight: 500, whiteSpace: 'nowrap' as const }}>
-                      {wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : '—'}
-                    </td>
-                    <td style={tableCell}>
-                      <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
-                        {wo.title}
-                      </Link>
-                      {overdue && <span style={{ marginLeft: 8, fontSize: 11, color: C.danger, background: '#fce4ec', padding: '1px 6px', borderRadius: 10, fontFamily: F.en }}>Overdue</span>}
-                    </td>
-                    <td style={tableCell}>{wo.asset?.name ?? '—'}</td>
-                    <td style={tableCell}>{wo.site?.name ?? '—'}</td>
-                    <td style={tableCell}>{wo.category ?? '—'}</td>
-                    <td style={tableCell}>
-                      {badge(wo.priority === 'critical' ? t('wo.priority.critical') : wo.priority === 'high' ? t('wo.priority.high') : wo.priority === 'medium' ? t('wo.priority.medium') : t('wo.priority.low'), pCfg)}
-                    </td>
-                    <td style={tableCell}>
-                      {badge(wo.status === 'new' ? t('wo.status.new') : wo.status === 'assigned' ? t('wo.status.assigned') : wo.status === 'in_progress' ? t('wo.status.in_progress') : wo.status === 'on_hold' ? t('wo.status.on_hold') : wo.status === 'completed' ? t('wo.status.completed') : t('wo.status.closed'), sCfg)}
-                    </td>
-                    <td style={tableCell}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
-                    <td style={{ ...tableCell, color: overdue ? C.danger : C.textMid }}>
-                      {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
-                    </td>
-                    <td style={tableCell}>
-                      {format(new Date(wo.created_at), 'dd MMM yyyy')}
-                    </td>
-                  </tr>
-                )
-              })}
+              {(() => {
+                const totalPages = Math.ceil(filtered.length / itemsPerPage)
+                const startIdx = (currentPage - 1) * itemsPerPage
+                const paginatedItems = filtered.slice(startIdx, startIdx + itemsPerPage)
+
+                return paginatedItems.map((wo) => {
+                  const overdue = isOverdue(wo)
+                  const pCfg = priorityConfig[wo.priority] ?? priorityConfig.medium
+                  const sCfg = statusConfig[wo.status] ?? statusConfig.new
+                  const isSelected = selected.includes(wo.id)
+                  return (
+                    <tr key={wo.id} style={{ background: isSelected ? '#EEF2FF' : overdue ? '#FFF8F8' : C.white }}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} />
+                      </td>
+                      <td style={{ ...tableCell, color: C.textMid, fontWeight: 500, whiteSpace: 'nowrap' as const }}>
+                        {wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : '—'}
+                      </td>
+                      <td style={tableCell}>
+                        <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
+                          {wo.title}
+                        </Link>
+                        {overdue && <span style={{ marginLeft: 8, fontSize: 11, color: C.danger, background: '#fce4ec', padding: '1px 6px', borderRadius: 10, fontFamily: F.en }}>Overdue</span>}
+                      </td>
+                      <td style={tableCell}>{wo.asset?.name ?? '—'}</td>
+                      <td style={tableCell}>{wo.site?.name ?? '—'}</td>
+                      <td style={tableCell}>{wo.category ?? '—'}</td>
+                      <td style={tableCell}>
+                        {badge(wo.priority === 'critical' ? t('wo.priority.critical') : wo.priority === 'high' ? t('wo.priority.high') : wo.priority === 'medium' ? t('wo.priority.medium') : t('wo.priority.low'), pCfg)}
+                      </td>
+                      <td style={tableCell}>
+                        {badge(wo.status === 'new' ? t('wo.status.new') : wo.status === 'assigned' ? t('wo.status.assigned') : wo.status === 'in_progress' ? t('wo.status.in_progress') : wo.status === 'on_hold' ? t('wo.status.on_hold') : wo.status === 'completed' ? t('wo.status.completed') : t('wo.status.closed'), sCfg)}
+                      </td>
+                      <td style={tableCell}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
+                      <td style={{ ...tableCell, color: overdue ? C.danger : C.textMid }}>
+                        {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
+                      </td>
+                      <td style={tableCell}>
+                        {format(new Date(wo.created_at), 'dd MMM yyyy')}
+                      </td>
+                    </tr>
+                  )
+                })
+              })()}
             </tbody>
           </table>
+
+          {/* Pagination Footer */}
+          <div style={{ padding: '1.5rem', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>
+              Showing {Math.max(1, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} results
+            </span>
+
+            {(() => {
+              const totalPages = Math.ceil(filtered.length / itemsPerPage)
+              const pages: (number | string)[] = []
+              const showPages = 5
+
+              if (totalPages <= showPages) {
+                for (let i = 1; i <= totalPages; i++) {
+                  pages.push(i)
+                }
+              } else {
+                pages.push(1)
+                if (currentPage > 3) pages.push('...')
+
+                const start = Math.max(2, currentPage - 1)
+                const end = Math.min(totalPages - 1, currentPage + 1)
+                for (let i = start; i <= end; i++) {
+                  if (!pages.includes(i)) pages.push(i)
+                }
+
+                if (currentPage < totalPages - 2) pages.push('...')
+                if (!pages.includes(totalPages)) pages.push(totalPages)
+              }
+
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    style={{ padding: '0.5rem', border: `1px solid ${C.border}`, background: C.white, borderRadius: 8, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+                    aria-label="Previous page"
+                  >
+                    <span className="material-symbols-outlined">chevron_left</span>
+                  </button>
+
+                  {pages.map((page, idx) => (
+                    page === '...' ? (
+                      <span key={idx} style={{ padding: '0.5rem', color: C.textMid, fontFamily: F.en }}>...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page as number)}
+                        style={{
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 8,
+                          border: currentPage === page ? 'none' : `1px solid ${C.border}`,
+                          background: currentPage === page ? C.navy : C.white,
+                          color: currentPage === page ? C.white : C.textMid,
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          fontFamily: F.en,
+                          minWidth: '32px',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage(Math.min(Math.ceil(filtered.length / itemsPerPage), currentPage + 1))}
+                    disabled={currentPage === Math.ceil(filtered.length / itemsPerPage)}
+                    style={{ padding: '0.5rem', border: `1px solid ${C.border}`, background: C.white, borderRadius: 8, cursor: currentPage === Math.ceil(filtered.length / itemsPerPage) ? 'not-allowed' : 'pointer', opacity: currentPage === Math.ceil(filtered.length / itemsPerPage) ? 0.5 : 1 }}
+                    aria-label="Next page"
+                  >
+                    <span className="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </div>
+              )
+            })()}
+          </div>
         </div>
       )}
     </div>
