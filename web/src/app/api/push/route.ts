@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const pushTokens = deviceData
-      .map((d: any) => d.push_token)
+      .map((d: { push_token: string }) => d.push_token)
       .filter(token => token && Expo.isExpoPushToken(token));
 
     if (pushTokens.length === 0) {

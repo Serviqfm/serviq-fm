@@ -7,7 +7,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import TranslateButton from '@/components/TranslateButton'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
 
 // FIX #1: Move createClient() outside component (singleton) to prevent infinite re-render loop
 const supabase = createClient()
@@ -76,8 +75,8 @@ export default function AssetDetailPage() {
     fetchAll()
   }
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading...</div>
-  if (!asset) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Asset not found.</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">Loading...</div>
+  if (!asset) return <div className="p-8 text-on-surface-variant">Asset not found.</div>
 
   const warrantyDaysLeft = asset.warranty_expiry ? differenceInDays(new Date(asset.warranty_expiry), new Date()) : null
   const warrantyExpired = warrantyDaysLeft !== null && warrantyDaysLeft < 0
@@ -88,298 +87,292 @@ export default function AssetDetailPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .reduce((sum: number, w: any) => sum + (w.actual_cost || 0), 0)
 
-  const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    active:            { bg: '#DCFCE7', color: C.success, label: t('assets.status.active') },
-    under_maintenance: { bg: '#FEF3C7', color: C.warning, label: t('assets.status.under_maintenance') },
-    retired:           { bg: '#F1F5F9', color: C.textMid,  label: t('assets.status.retired') },
+  const statusConfig: Record<string, { className: string; label: string }> = {
+    active:            { className: 'bg-primary/10 text-primary',                              label: t('assets.status.active') },
+    under_maintenance: { className: 'bg-[#f57f17]/10 text-[#f57f17]',                         label: t('assets.status.under_maintenance') },
+    retired:           { className: 'bg-surface-container-low text-on-surface-variant',        label: t('assets.status.retired') },
   }
 
-  const woStatusConfig: Record<string, { bg: string; color: string }> = {
-    new:         { bg: '#e3f2fd', color: C.blue },
-    assigned:    { bg: '#e8eaf6', color: C.navy },
-    in_progress: { bg: '#fff8e1', color: C.warning },
-    on_hold:     { bg: '#fce4ec', color: C.danger },
-    completed:   { bg: '#e8f5e9', color: C.success },
-    closed:      { bg: '#f5f5f5', color: C.textMid },
+  const woStatusConfig: Record<string, { className: string }> = {
+    new:         { className: 'bg-blue-50 text-blue-700' },
+    assigned:    { className: 'bg-indigo-50 text-indigo-700' },
+    in_progress: { className: 'bg-[#f57f17]/10 text-[#f57f17]' },
+    on_hold:     { className: 'bg-error/10 text-error' },
+    completed:   { className: 'bg-primary/10 text-primary' },
+    closed:      { className: 'bg-surface-container-low text-on-surface-variant' },
   }
 
   const sCfg = statusConfig[asset.status] ?? statusConfig.active
 
-  const tabStyle = (active: boolean) => ({
-    padding: '8px 16px', border: 'none',
-    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
-    background: 'transparent', cursor: 'pointer',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fontSize: 13, fontWeight: (active ? 600 : 400) as any,
-    color: active ? C.navy : C.textLight,
-    fontFamily: F.en,
-  })
+  const tabCls = (active: boolean) =>
+    `px-4 py-2 border-0 bg-transparent cursor-pointer text-sm font-${active ? 'semibold' : 'normal'} ${active ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant border-b-2 border-transparent'}`
 
-  const infoCard = { background: C.pageBg, borderRadius: 8, padding: '12px 16px' }
   const openWOs = workOrders.filter(w => !['completed','closed'].includes(w.status)).length
   const photos = asset.photo_urls ?? []
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 900 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <a href='/dashboard/assets' style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>
-          {/* FIX #6: Add aria-label to back link */}
-          {t('common.back')}
-        </a>
-        {/* FIX #6: Add aria-label to edit button */}
-        <a href={'/dashboard/assets/' + assetId + '/edit'}>
-          <button style={secondaryBtn} aria-label="Edit asset">{t('common.edit')}</button>
-        </a>
-      </div>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[860px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <a href='/dashboard/assets' className="text-on-surface-variant text-sm hover:text-primary transition-colors">
+            {/* FIX #6: Add aria-label to back link */}
+            {t('common.back')}
+          </a>
+          {/* FIX #6: Add aria-label to edit button */}
+          <a href={'/dashboard/assets/' + assetId + '/edit'}>
+            <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" aria-label="Edit asset">{t('common.edit')}</button>
+          </a>
+        </div>
 
-      <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{translatedAsset.name ?? asset.name}</h1>
-            {lang === 'ar' && (
-              <TranslateButton
-                texts={{ name: asset.name, description: asset.description ?? '' }}
-                onTranslated={setTranslatedAsset}
-              />
-            )}
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-[22px] font-bold text-on-surface m-0">{translatedAsset.name ?? asset.name}</h1>
+              {lang === 'ar' && (
+                <TranslateButton
+                  texts={{ name: asset.name, description: asset.description ?? '' }}
+                  onTranslated={setTranslatedAsset}
+                />
+              )}
+            </div>
+            {/* FIX #5: Decorative status badge */}
+            <span className={`${sCfg.className} px-2.5 py-0.5 rounded-full text-xs font-medium`}>{sCfg.label}</span>
+            {asset.category && <span className="bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full text-xs">{asset.category}</span>}
           </div>
-          {/* FIX #5: Decorative status badge */}
-          <span style={{ background: sCfg.bg, color: sCfg.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{sCfg.label}</span>
-          {asset.category && <span style={{ background: C.pageBg, color: C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>{asset.category}</span>}
+          <p className="text-on-surface-variant text-sm mt-1.5">
+            Added {format(new Date(asset.created_at), 'dd MMM yyyy')} · {workOrders.length} work orders · {openWOs} open
+            {asset.purchase_cost && <span> · Purchase cost: SAR {Number(asset.purchase_cost).toLocaleString()}</span>}
+          </p>
         </div>
-        <p style={{ color: C.textLight, fontSize: 13, fontFamily: F.en, marginTop: 6 }}>
-          Added {format(new Date(asset.created_at), 'dd MMM yyyy')} · {workOrders.length} work orders · {openWOs} open
-          {asset.purchase_cost && <span> · Purchase cost: SAR {Number(asset.purchase_cost).toLocaleString()}</span>}
-        </p>
-      </div>
 
-      {warrantyExpired && (
-        <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: '1rem', background: '#fce4ec', border: `1px solid ${C.dangerBorder}`, fontSize: 13, color: C.danger, fontFamily: F.en }}>
-          Warranty expired {Math.abs(warrantyDaysLeft!)} days ago ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
-        </div>
-      )}
-      {warrantySoon && !warrantyExpired && (
-        <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: '1rem', background: '#fff8e1', border: '1px solid #ffe082', fontSize: 13, color: C.warning, fontFamily: F.en }}>
-          Warranty expires in {warrantyDaysLeft} days ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {asset.status !== 'active' && <button onClick={() => updateStatus('active')} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #a5d6a7', background: '#e8f5e9', color: C.success, cursor: 'pointer', fontSize: 13, fontFamily: F.en }}>Mark Active</button>}
-        {asset.status !== 'under_maintenance' && <button onClick={() => updateStatus('under_maintenance')} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #ffe082', background: '#fff8e1', color: C.warning, cursor: 'pointer', fontSize: 13, fontFamily: F.en }}>Mark Under Maintenance</button>}
-        {asset.status !== 'retired' && <button onClick={() => updateStatus('retired')} style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.pageBg, color: C.textMid, cursor: 'pointer', fontSize: 13, fontFamily: F.en }}>Retire Asset</button>}
-        <Link href={'/dashboard/work-orders/new?asset_id=' + asset.id}>
-          <button style={primaryBtn}>+ New Work Order</button>
-        </Link>
-        {asset.status !== 'retired' && (
-          <button
-            onClick={async () => {
-              if (!confirm('Decommission this asset? This will retire it and suspend all active PM schedules.')) return
-              await supabase.from('assets').update({ status: 'retired', updated_at: new Date().toISOString() }).eq('id', assetId)
-              await supabase.from('pm_schedules').update({ is_active: false }).eq('asset_id', assetId)
-              await supabase.from('work_orders').insert({
-                title: 'Decommission: ' + asset.name,
-                description: 'Final decommission work order. Asset has been retired.',
-                priority: 'medium',
-                status: 'new',
-                source: 'manual',
-                asset_id: assetId,
-                organisation_id: asset.organisation_id,
-                created_by: (await supabase.auth.getUser()).data.user?.id,
-              })
-              fetchAll()
-            }}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${C.dangerBorder}`, background: '#fce4ec', color: C.danger, cursor: 'pointer', fontSize: 13, fontFamily: F.en }}
-          >
-            Decommission Asset
-          </button>
+        {warrantyExpired && (
+          <div className="px-3.5 py-2.5 rounded-lg bg-error/10 border border-error/20 text-sm text-error">
+            Warranty expired {Math.abs(warrantyDaysLeft!)} days ago ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
+          </div>
         )}
-      </div>
-
-      <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: '1rem', display: 'flex', flexWrap: 'wrap' }}>
-        <button style={tabStyle(activeTab === 'details')} onClick={() => setActiveTab('details')}>Details</button>
-        <button style={tabStyle(activeTab === 'workorders')} onClick={() => setActiveTab('workorders')}>Work Orders ({workOrders.length})</button>
-        <button style={tabStyle(activeTab === 'pm')} onClick={() => setActiveTab('pm')}>PM Schedules ({pmSchedules.length})</button>
-        <button style={tabStyle(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
-        <button style={tabStyle(activeTab === 'qr')} onClick={() => setActiveTab('qr')}>QR Code</button>
-        <button style={tabStyle(activeTab === 'pmhistory')} onClick={() => setActiveTab('pmhistory')}>PM History ({pmHistory.length})</button>
-        <button style={tabStyle(activeTab === 'custom')} onClick={() => setActiveTab('custom')}>Custom Fields</button>
-      </div>
-
-      {activeTab === 'details' && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            {[
-              { label: 'Site',                         value: asset.site?.name ?? '—' },
-              { label: 'Sub-location',                 value: asset.sub_location ?? '—' },
-              { label: 'Location Notes',               value: asset.location_notes ?? '—' },
-              { label: 'Category',                     value: asset.category ?? '—' },
-              { label: 'Manufacturer',                 value: asset.manufacturer ?? '—' },
-              { label: 'Model',                        value: asset.model ?? '—' },
-              { label: 'Serial Number',                value: asset.serial_number ?? '—' },
-              { label: 'Purchase Date',                value: asset.purchase_date ? format(new Date(asset.purchase_date), 'dd MMM yyyy') : '—' },
-              { label: 'Purchase Cost',                value: asset.purchase_cost ? 'SAR ' + Number(asset.purchase_cost).toLocaleString() : '—' },
-              { label: 'Warranty Expiry',              value: asset.warranty_expiry ? format(new Date(asset.warranty_expiry), 'dd MMM yyyy') : '—' },
-              { label: 'Expected Lifespan',            value: asset.expected_lifespan_years ? asset.expected_lifespan_years + ' years' : '—' },
-              { label: 'Lifecycle Cost (closed WOs)',  value: lifecycleCost > 0 ? 'SAR ' + lifecycleCost.toLocaleString() : '—' },
-            ].map(({ label, value }) => (
-              <div key={label} style={infoCard}>
-                <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px' }}>{label}</p>
-                <p style={{ fontSize: 14, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{value}</p>
-              </div>
-            ))}
+        {warrantySoon && !warrantyExpired && (
+          <div className="px-3.5 py-2.5 rounded-lg bg-[#f57f17]/10 border border-[#f57f17]/20 text-sm text-[#f57f17]">
+            Warranty expires in {warrantyDaysLeft} days ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
           </div>
-          {asset.description && (
-            <div style={{ ...infoCard, marginTop: 4 }}>
-              <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 6px' }}>Description</p>
-              <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6, color: C.textDark, fontFamily: F.en }}>{asset.description}</p>
-            </div>
+        )}
+
+        <div className="flex gap-2 flex-wrap">
+          {asset.status !== 'active' && <button onClick={() => updateStatus('active')} className="px-4 py-1.5 rounded-lg border border-green-300 bg-primary/10 text-primary cursor-pointer text-sm">Mark Active</button>}
+          {asset.status !== 'under_maintenance' && <button onClick={() => updateStatus('under_maintenance')} className="px-4 py-1.5 rounded-lg border border-[#f57f17]/20 bg-[#f57f17]/10 text-[#f57f17] cursor-pointer text-sm">Mark Under Maintenance</button>}
+          {asset.status !== 'retired' && <button onClick={() => updateStatus('retired')} className="px-4 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-on-surface-variant cursor-pointer text-sm">Retire Asset</button>}
+          <Link href={'/dashboard/work-orders/new?asset_id=' + asset.id}>
+            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">+ New Work Order</button>
+          </Link>
+          {asset.status !== 'retired' && (
+            <button
+              onClick={async () => {
+                if (!confirm('Decommission this asset? This will retire it and suspend all active PM schedules.')) return
+                await supabase.from('assets').update({ status: 'retired', updated_at: new Date().toISOString() }).eq('id', assetId)
+                await supabase.from('pm_schedules').update({ is_active: false }).eq('asset_id', assetId)
+                await supabase.from('work_orders').insert({
+                  title: 'Decommission: ' + asset.name,
+                  description: 'Final decommission work order. Asset has been retired.',
+                  priority: 'medium',
+                  status: 'new',
+                  source: 'manual',
+                  asset_id: assetId,
+                  organisation_id: asset.organisation_id,
+                  created_by: (await supabase.auth.getUser()).data.user?.id,
+                })
+                fetchAll()
+              }}
+              className="px-4 py-1.5 rounded-lg border border-error/20 bg-error/10 text-error cursor-pointer text-sm"
+            >
+              Decommission Asset
+            </button>
           )}
         </div>
-      )}
 
-      {activeTab === 'workorders' && (
-        <div>
-          {workOrders.length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No work orders raised for this asset yet.</p>
-          ) : (
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                    {['Title','Priority','Status','Assigned To','Created'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: F.en }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {workOrders.map((wo) => {
-                    const woCfg = woStatusConfig[wo.status] ?? woStatusConfig.new
-                    return (
-                      <tr key={wo.id} style={{ background: C.white }}>
-                        <td style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}` }}>
-                          <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 13, fontFamily: F.en }}>{wo.title}</Link>
-                        </td>
-                        <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 500, fontFamily: F.en, borderBottom: `1px solid ${C.border}`, color: wo.priority === 'critical' ? C.danger : wo.priority === 'high' ? C.warning : wo.priority === 'medium' ? C.warning : C.success }}>
-                          {wo.priority.charAt(0).toUpperCase() + wo.priority.slice(1)}
-                        </td>
-                        <td style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}` }}>
-                          <span style={{ background: woCfg.bg, color: woCfg.color, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-                            {wo.status.replace('_',' ').replace(/\w/g, (l: string) => l.toUpperCase())}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 16px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{wo.assignee?.full_name ?? 'Unassigned'}</td>
-                        <td style={{ padding: '10px 16px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{format(new Date(wo.created_at), 'dd MMM yyyy')}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <div className="border-b border-outline-variant flex flex-wrap">
+          <button className={tabCls(activeTab === 'details')} onClick={() => setActiveTab('details')}>Details</button>
+          <button className={tabCls(activeTab === 'workorders')} onClick={() => setActiveTab('workorders')}>Work Orders ({workOrders.length})</button>
+          <button className={tabCls(activeTab === 'pm')} onClick={() => setActiveTab('pm')}>PM Schedules ({pmSchedules.length})</button>
+          <button className={tabCls(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
+          <button className={tabCls(activeTab === 'qr')} onClick={() => setActiveTab('qr')}>QR Code</button>
+          <button className={tabCls(activeTab === 'pmhistory')} onClick={() => setActiveTab('pmhistory')}>PM History ({pmHistory.length})</button>
+          <button className={tabCls(activeTab === 'custom')} onClick={() => setActiveTab('custom')}>Custom Fields</button>
         </div>
-      )}
 
-      {activeTab === 'pm' && (
-        <div>
-          {pmSchedules.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: C.textLight, fontFamily: F.en }}>
-              <p style={{ fontSize: 14, marginBottom: 12 }}>No PM schedules linked to this asset yet.</p>
-              <Link href='/dashboard/pm-schedules/new'>
-                <button style={primaryBtn}>+ Create PM Schedule</button>
-              </Link>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pmSchedules.map(pm => (
-                <div key={pm.id} style={{ background: C.pageBg, borderRadius: 8, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{pm.title}</p>
-                    <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
-                      {pm.frequency.charAt(0).toUpperCase() + pm.frequency.slice(1)} · {pm.assignee?.full_name ?? 'Unassigned'}
-                      {pm.next_due_at && ' · Next due: ' + format(new Date(pm.next_due_at), 'dd MMM yyyy')}
-                    </p>
-                  </div>
-                  <span style={{ background: pm.is_active ? '#DCFCE7' : C.pageBg, color: pm.is_active ? C.success : C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-                    {pm.is_active ? 'Active' : 'Paused'}
-                  </span>
+        {activeTab === 'details' && (
+          <div>
+            <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+              {[
+                { label: 'Site',                         value: asset.site?.name ?? '—' },
+                { label: 'Sub-location',                 value: asset.sub_location ?? '—' },
+                { label: 'Location Notes',               value: asset.location_notes ?? '—' },
+                { label: 'Category',                     value: asset.category ?? '—' },
+                { label: 'Manufacturer',                 value: asset.manufacturer ?? '—' },
+                { label: 'Model',                        value: asset.model ?? '—' },
+                { label: 'Serial Number',                value: asset.serial_number ?? '—' },
+                { label: 'Purchase Date',                value: asset.purchase_date ? format(new Date(asset.purchase_date), 'dd MMM yyyy') : '—' },
+                { label: 'Purchase Cost',                value: asset.purchase_cost ? 'SAR ' + Number(asset.purchase_cost).toLocaleString() : '—' },
+                { label: 'Warranty Expiry',              value: asset.warranty_expiry ? format(new Date(asset.warranty_expiry), 'dd MMM yyyy') : '—' },
+                { label: 'Expected Lifespan',            value: asset.expected_lifespan_years ? asset.expected_lifespan_years + ' years' : '—' },
+                { label: 'Lifecycle Cost (closed WOs)',  value: lifecycleCost > 0 ? 'SAR ' + lifecycleCost.toLocaleString() : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-surface-container-low rounded-lg px-4 py-3">
+                  <p className="text-xs text-on-surface-variant mb-1">{label}</p>
+                  <p className="text-sm font-medium text-on-surface m-0">{value}</p>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'photos' && (
-        <div>
-          {photos.length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No photos attached to this asset.</p>
-          ) : (
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {photos.map((url: string, i: number) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={url} alt={'Photo ' + (i+1)} style={{ width: 150, height: 150, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'qr' && (
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1.5rem' }}>Scan this QR code to open this asset on any device. Print and attach it physically to the asset.</p>
-          <div style={{ display: 'inline-block', padding: '1.5rem', border: `1px solid ${C.border}`, borderRadius: 12, background: C.white, marginBottom: '1rem' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt={t('assets.qr')} width={200} height={200} />
+            {asset.description && (
+              <div className="bg-surface-container-low rounded-lg px-4 py-3 mt-1">
+                <p className="text-xs text-on-surface-variant mb-1.5">Description</p>
+                <p className="text-sm m-0 leading-relaxed text-on-surface">{asset.description}</p>
+              </div>
+            )}
           </div>
-          <p style={{ fontSize: 12, color: C.textLight, fontFamily: 'monospace' }}>{asset.qr_code}</p>
-          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginTop: 8 }}>{asset.name} · {asset.site?.name ?? 'No site'}</p>
-          <button onClick={() => window.print()} style={{ ...primaryBtn, marginTop: '1rem' }}>Print QR Code</button>
-        </div>
-      )}
+        )}
 
-      {activeTab === 'pmhistory' && (
-        <div>
-          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1rem' }}>All completed preventive maintenance tasks for this asset.</p>
-          {pmHistory.length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No PM history yet. PMs will appear here once completed.</p>
-          ) : (
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                    {['Task','Schedule','Technician','Status','Due Date','Completed'].map(h => (
-                      <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: F.en }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {pmHistory.map((pm: any) => (
-                    <tr key={pm.id} style={{ background: C.white }}>
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 500, color: C.textDark, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{pm.title ?? pm.schedule?.title ?? '—'}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{pm.schedule?.frequency ?? '—'}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{pm.technician?.full_name ?? 'Unassigned'}</td>
-                      <td style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
-                        <span style={{ background: pm.status === 'completed' ? '#e8f5e9' : pm.status === 'overdue' ? '#fce4ec' : '#fff8e1', color: pm.status === 'completed' ? C.success : pm.status === 'overdue' ? C.danger : C.warning, padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 500, fontFamily: F.en }}>
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {pm.status?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{pm.due_date ? new Date(pm.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{pm.completed_at ? new Date(pm.completed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+        {activeTab === 'workorders' && (
+          <div>
+            {workOrders.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">No work orders raised for this asset yet.</p>
+            ) : (
+              <div className="border border-outline-variant rounded-xl overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container-low border-b border-outline-variant">
+                      {['Title','Priority','Status','Assigned To','Created'].map(h => (
+                        <th key={h} className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant text-left">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+                  </thead>
+                  <tbody>
+                    {workOrders.map((wo) => {
+                      const woCfg = woStatusConfig[wo.status] ?? woStatusConfig.new
+                      return (
+                        <tr key={wo.id} className="bg-surface-container-lowest hover:bg-surface-container-low transition-colors">
+                          <td className="px-4 py-2.5 border-b border-outline-variant">
+                            <Link href={'/dashboard/work-orders/' + wo.id} className="text-primary font-medium no-underline text-sm">{wo.title}</Link>
+                          </td>
+                          <td className={`px-4 py-2.5 text-xs font-medium border-b border-outline-variant ${wo.priority === 'critical' ? 'text-error' : wo.priority === 'high' ? 'text-[#f57f17]' : wo.priority === 'medium' ? 'text-[#f57f17]' : 'text-primary'}`}>
+                            {wo.priority.charAt(0).toUpperCase() + wo.priority.slice(1)}
+                          </td>
+                          <td className="px-4 py-2.5 border-b border-outline-variant">
+                            <span className={`${woCfg.className} px-2 py-0.5 rounded-full text-xs font-medium`}>
+                              {wo.status.replace('_',' ').replace(/\w/g, (l: string) => l.toUpperCase())}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{wo.assignee?.full_name ?? 'Unassigned'}</td>
+                          <td className="px-4 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{format(new Date(wo.created_at), 'dd MMM yyyy')}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-      {activeTab === 'custom' && (
-        <CustomFieldsTab assetId={assetId} initialFields={asset.custom_fields ?? {}} supabase={supabase} />
-      )}
+        {activeTab === 'pm' && (
+          <div>
+            {pmSchedules.length === 0 ? (
+              <div className="text-center py-8 text-on-surface-variant">
+                <p className="text-sm mb-3">No PM schedules linked to this asset yet.</p>
+                <Link href='/dashboard/pm-schedules/new'>
+                  <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">+ Create PM Schedule</button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {pmSchedules.map(pm => (
+                  <div key={pm.id} className="bg-surface-container-low rounded-lg px-4 py-3 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-on-surface m-0">{pm.title}</p>
+                      <p className="text-xs text-on-surface-variant mt-1 mb-0">
+                        {pm.frequency.charAt(0).toUpperCase() + pm.frequency.slice(1)} · {pm.assignee?.full_name ?? 'Unassigned'}
+                        {pm.next_due_at && ' · Next due: ' + format(new Date(pm.next_due_at), 'dd MMM yyyy')}
+                      </p>
+                    </div>
+                    <span className={`${pm.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'} px-2.5 py-0.5 rounded-full text-xs font-medium`}>
+                      {pm.is_active ? 'Active' : 'Paused'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'photos' && (
+          <div>
+            {photos.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">No photos attached to this asset.</p>
+            ) : (
+              <div className="flex gap-3 flex-wrap">
+                {photos.map((url: string, i: number) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={url} alt={'Photo ' + (i+1)} className="w-[150px] h-[150px] object-cover rounded-lg border border-outline-variant" />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'qr' && (
+          <div className="text-center py-8">
+            <p className="text-sm text-on-surface-variant mb-6">Scan this QR code to open this asset on any device. Print and attach it physically to the asset.</p>
+            <div className="inline-block p-6 border border-outline-variant rounded-xl bg-surface-container-lowest mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt={t('assets.qr')} width={200} height={200} />
+            </div>
+            <p className="text-xs text-outline font-mono">{asset.qr_code}</p>
+            <p className="text-sm text-on-surface-variant mt-2">{asset.name} · {asset.site?.name ?? 'No site'}</p>
+            <button onClick={() => window.print()} className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 mt-4">Print QR Code</button>
+          </div>
+        )}
+
+        {activeTab === 'pmhistory' && (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">All completed preventive maintenance tasks for this asset.</p>
+            {pmHistory.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">No PM history yet. PMs will appear here once completed.</p>
+            ) : (
+              <div className="border border-outline-variant rounded-xl overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container-low border-b border-outline-variant">
+                      {['Task','Schedule','Technician','Status','Due Date','Completed'].map(h => (
+                        <th key={h} className="px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wider text-on-surface-variant text-left">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {pmHistory.map((pm: any) => (
+                      <tr key={pm.id} className="bg-surface-container-lowest hover:bg-surface-container-low transition-colors">
+                        <td className="px-3.5 py-2.5 text-sm font-medium text-on-surface border-b border-outline-variant">{pm.title ?? pm.schedule?.title ?? '—'}</td>
+                        <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.schedule?.frequency ?? '—'}</td>
+                        <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.technician?.full_name ?? 'Unassigned'}</td>
+                        <td className="px-3.5 py-2.5 border-b border-outline-variant">
+                          <span className={`${pm.status === 'completed' ? 'bg-primary/10 text-primary' : pm.status === 'overdue' ? 'bg-error/10 text-error' : 'bg-[#f57f17]/10 text-[#f57f17]'} px-2 py-0.5 rounded-lg text-[11px] font-medium`}>
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {pm.status?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—'}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.due_date ? new Date(pm.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                        <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.completed_at ? new Date(pm.completed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'custom' && (
+          <CustomFieldsTab assetId={assetId} initialFields={asset.custom_fields ?? {}} supabase={supabase} />
+        )}
+      </div>
     </div>
   )
 }
@@ -411,24 +404,24 @@ function CustomFieldsTab({ assetId, initialFields, supabase }: { assetId: string
 
   return (
     <div>
-      <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1rem' }}>Add custom fields to capture asset-specific data like hotel room number, classroom ID, or target temperature.</p>
+      <p className="text-sm text-on-surface-variant mb-4">Add custom fields to capture asset-specific data like hotel room number, classroom ID, or target temperature.</p>
       {Object.keys(fields).length === 0 ? (
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, marginBottom: '1rem' }}>No custom fields yet.</p>
+        <p className="text-sm text-on-surface-variant mb-4">No custom fields yet.</p>
       ) : (
-        <div style={{ marginBottom: '1rem' }}>
+        <div className="mb-4">
           {Object.entries(fields).map(([key, value]) => (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, background: C.pageBg, borderRadius: 8, padding: '8px 12px' }}>
-              <span style={{ fontSize: 13, fontWeight: 500, minWidth: 150, color: C.textDark, fontFamily: F.en }}>{key}</span>
-              <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, flex: 1 }}>{value}</span>
-              <button onClick={() => removeField(key)} style={{ background: 'none', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 13, fontFamily: F.en }}>Remove</button>
+            <div key={key} className="flex items-center gap-2.5 mb-2 bg-surface-container-low rounded-lg px-3 py-2">
+              <span className="text-sm font-medium min-w-[150px] text-on-surface">{key}</span>
+              <span className="text-sm text-on-surface-variant flex-1">{value}</span>
+              <button onClick={() => removeField(key)} className="bg-transparent border-0 text-error cursor-pointer text-sm">Remove</button>
             </div>
           ))}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder='Field name (e.g. Room Number)' style={{ ...inputStyle, flex: 1 }} />
-        <input value={newValue} onChange={e => setNewValue(e.target.value)} placeholder='Value (e.g. 204)' style={{ ...inputStyle, flex: 1 }} />
-        <button onClick={addField} disabled={saving || !newKey.trim()} style={{ padding: '8px 18px', background: C.navy, color: C.white, border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: F.en }}>
+      <div className="flex gap-2 items-center flex-wrap">
+        <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder='Field name (e.g. Room Number)' className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all flex-1" />
+        <input value={newValue} onChange={e => setNewValue(e.target.value)} placeholder='Value (e.g. 204)' className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all flex-1" />
+        <button onClick={addField} disabled={saving || !newKey.trim()} className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 disabled:opacity-50">
           {saving ? '...' : 'Add Field'}
         </button>
       </div>

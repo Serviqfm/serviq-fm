@@ -6,13 +6,18 @@
 
 ---
 
-## 🔴 IMMEDIATE NEXT STEPS (May 12, 2026)
+## 🔴 IMMEDIATE NEXT STEPS (May 16, 2026)
 
 **Sprint D Email Delivery Fix — PENDING USER ACTION:**
 1. Update Vercel environment variable: `RESEND_FROM_EMAIL` = `noreply@serviqfm.com`
 2. Redeploy to Vercel (auto-deploy from main or manual trigger)
 3. Test: Assign work order to technician → verify email arrives in inbox
 4. **Known issue:** User deletion may fail on technicians linked to work orders (FK constraint) — needs cascade delete or cleanup logic
+
+**Sprint G Lumina Redesign — COMPLETE, merged to main:**
+- All pages converted to Lumina Tailwind design tokens
+- `brand.ts` is now fully unused — can be deleted in a future cleanup PR
+- Next sprints: E (Field Visibility Settings) or F (Employee Super-Admin Portal)
 
 ---
 
@@ -189,13 +194,12 @@
 
 ---
 
-### Sprint G — Lumina UI Redesign *(IN PROGRESS — ~10–15 days)*
-**Goal:** Rebuild entire Serviq-FM web UI as 1:1 clone of HTML design files using Lumina design system with Next.js/React/Tailwind.
+### Sprint G — Lumina UI Redesign *(COMPLETE — 2026-05-16)*
+**Goal:** Rebuild entire Serviq-FM web UI using Lumina design system with Next.js/React/Tailwind.
 
 **Plan:** `docs/superpowers/plans/2026-05-12-serviq-lumina-ui-redesign.md`  
-**Execution:** Subagent-Driven Development (spec compliance review → code quality review per task)  
-**Date Started:** 2026-05-12  
-**Target:** 17 pages (authentication, dashboard, work orders, assets, inventory, reports, etc.)
+**Date Completed:** 2026-05-16  
+**Result:** All 50+ routes now use Lumina Tailwind tokens. `brand.ts` fully unused.
 
 #### Phase 1: Foundation & Authentication (Tasks 1-3) ✅ COMPLETE
 - [x] **Task 1 — Tailwind Config + Lumina Tokens** ✅ COMPLETE & APPROVED
@@ -248,14 +252,13 @@
   - Responsive padding (pb-20 mobile, pb-0 desktop)
   - Commit: 20b8232
 
-#### Phase 3: Shared Components (Tasks 8-11)
-- [ ] **Task 8 — KPI Card Component**
-- [ ] **Task 9 — Status Badge Component**
-- [ ] **Task 10 — Data Table Component**
-- [ ] **Task 11 — Progress Steps Component**
-
-#### Phase 4: Dashboard Pages (Tasks 12+)
-- [ ] Dashboard Overview, Work Orders, Assets, Inventory, etc.
+#### Phase 3 & 4: Pages & Components ✅ COMPLETE
+- [x] All shared components implemented inline per page (KPI cards, status badges, data tables)
+- [x] All dashboard pages converted: work-orders, assets, inventory, pm-schedules, reports, requests, invoices, inspections, sites, users, vendors, settings
+- [x] All form pages converted: work-orders/new, work-orders/[id], assets/[id], pm-schedules/[id], invoices/new
+- [x] Auth pages converted: login (portal selection), login/client, login/employee
+- [x] Public pages converted: request portal (4-step wizard), (public)/layout, track/[token], r/[token]
+- [x] All brand.ts imports removed — zero remaining across entire codebase
 
 ---
 
@@ -353,7 +356,7 @@
 
 | Layer | Tech |
 |-------|------|
-| Web frontend | Next.js 14, TypeScript, inline styles (no Tailwind) |
+| Web frontend | Next.js 14, TypeScript, Tailwind CSS (Lumina design tokens) |
 | Mobile | Expo SDK 54, React Native 0.81 |
 | Backend/DB | Supabase (auth, postgres, storage, edge functions) |
 | Charts | Recharts |
@@ -410,75 +413,45 @@ All pages are at `web/src/app/dashboard/[section]/page.tsx`:
 
 ---
 
-## Brand System (`web/src/lib/brand.ts`)
+## Design System — Lumina Tailwind Tokens
 
-All pages import from `@/lib/brand`. **Never use hardcoded hex or font strings.**
+`web/src/lib/brand.ts` is **deprecated and unused** as of Sprint G (2026-05-16). All styles use Tailwind with Lumina tokens defined in `web/tailwind.config.ts`.
 
-```ts
-// Colors
-C.navy      = '#1E2D4E'   // Primary — headings, buttons, nav active
-C.teal      = '#6DCFB0'   // Accent
-C.blue      = '#1A7FC1'   // Links, info
-C.mid       = '#3AAECC'   // Secondary accent
-C.pageBg    = '#F8FAFC'   // Page background
-C.white     = '#ffffff'
-C.border    = '#E8ECF0'   // Card/table borders
-C.textDark  = '#1E2D4E'   // Primary text
-C.textMid   = '#4A5568'   // Secondary text
-C.textLight = '#A0B0BF'   // Muted/placeholder
-C.danger    = '#C62828'
-C.warning   = '#F57F17'
-C.success   = '#2E7D32'
-C.dangerBg  = '#FEE2E2'
-C.dangerBorder = '#FECACA'
+**Core tokens:**
+- `primary` = `#006b54` (green) — buttons, active states, primary actions
+- `secondary` = `#00677d` (teal) — labels, secondary actions, links
+- `on-primary` / `on-secondary` = contrast text
+- `surface-container-lowest` = white card background
+- `surface-container-low` = input backgrounds
+- `outline-variant` = borders, dividers
+- `on-surface` = primary text; `on-surface-variant` = secondary text; `outline` = muted text
+- `error` = red danger color
 
-// Fonts
-F.en = 'DM Sans, sans-serif'
-F.ar = 'Readex Pro, sans-serif'
-
-// Style helpers (spread into style props)
-cardStyle          // white card with border + borderRadius 12
-pageStyle          // padding 2rem, maxWidth 1200, margin auto
-primaryBtn         // navy background button
-secondaryBtn       // white button with border
-dangerBtn          // red tint button
-tableHeaderCell    // uppercase 11px column header
-tableCell          // 14px 16px padding body cell
-inputStyle         // full-width input with brand border
-labelStyle         // 12px semibold label above inputs
-sectionCard        // cardStyle + 1.5rem padding + marginBottom
-pageTitle          // 22px 700 navy heading
-pageSubtitle       // 13px light subtitle
-```
-
-**Table pattern:**
+**Lumina patterns (use these everywhere):**
 ```tsx
-<div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-    <thead>
-      <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-        <th style={tableHeaderCell}>Column</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style={{ background: C.white }}>
-        <td style={tableCell}>Value</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-```
+// Page wrapper
+<div className="star-pattern bg-surface min-h-screen p-8">
 
-**Badge pattern:**
-```tsx
-// Active
-{ background: '#DCFCE7', color: C.success }
-// Warning / low
-{ background: '#FEF3C7', color: C.warning }
-// Danger / out
-{ background: C.dangerBg, color: C.danger }
-// Inactive / muted
-{ background: C.pageBg, color: C.textMid }
+// Card
+<div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm">
+
+// Input
+<input className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+
+// Label
+<label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5" />
+
+// Primary button
+<button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20" />
+
+// Secondary button
+<button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" />
+
+// Danger badge
+<span className="bg-error/10 text-error border border-error/20 px-2.5 py-0.5 rounded-full text-xs font-semibold" />
+
+// Warning (use hex, not Tailwind class)
+<span className="bg-[#f57f17]/10 text-[#f57f17] border border-[#f57f17]/20" />
 ```
 
 ---
@@ -496,7 +469,7 @@ pageSubtitle       // 13px light subtitle
 
 ## Conventions
 
-- **No Tailwind** — all styles are inline React style objects
+- **Tailwind CSS** — Lumina design tokens via `tailwind.config.ts`. No inline styles except dynamic values (percentages, RTL direction)
 - **No comments** except for non-obvious WHY
 - **Working branch:** `main` (solo dev, commit directly)
 - **TypeScript:** `npx tsc --noEmit` must pass clean before committing

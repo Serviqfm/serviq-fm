@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function PMSchedulesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,13 +103,13 @@ export default function PMSchedulesPage() {
   }
 
   const freqLabel: Record<string, string> = {
-    daily:       lang === 'ar' ? 'يومي'         : 'Daily',
-    weekly:      lang === 'ar' ? 'أسبوعي'       : 'Weekly',
-    fortnightly: lang === 'ar' ? 'كل أسبوعين'   : 'Fortnightly',
-    monthly:     lang === 'ar' ? 'شهري'         : 'Monthly',
-    quarterly:   lang === 'ar' ? 'ربع سنوي'     : 'Quarterly',
-    biannual:    lang === 'ar' ? 'كل 6 أشهر'    : 'Every 6 Months',
-    annual:      lang === 'ar' ? 'سنوي'         : 'Annual',
+    daily:       lang === 'ar' ? 'يومي'        : 'Daily',
+    weekly:      lang === 'ar' ? 'أسبوعي'      : 'Weekly',
+    fortnightly: lang === 'ar' ? 'كل أسبوعين'  : 'Fortnightly',
+    monthly:     lang === 'ar' ? 'شهري'        : 'Monthly',
+    quarterly:   lang === 'ar' ? 'ربع سنوي'    : 'Quarterly',
+    biannual:    lang === 'ar' ? 'كل 6 أشهر'   : 'Every 6 Months',
+    annual:      lang === 'ar' ? 'سنوي'        : 'Annual',
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,124 +128,157 @@ export default function PMSchedulesPage() {
     soon:   schedules.filter(s => s.is_active && isDueSoon(s) && !isDue(s)).length,
   }
 
-  const filterBtnStyle = (active: boolean) => ({
-    padding: '6px 14px', borderRadius: 8,
-    border: active ? 'none' : `1px solid ${C.border}`,
-    background: active ? C.navy : C.white,
-    color: active ? C.white : C.textMid,
-    cursor: 'pointer', fontSize: 13,
-    fontWeight: active ? 600 : 400,
-    fontFamily: F.en,
-  })
+  if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
   return (
-    <div style={pageStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('pm.title')}</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
-            {stats.total} {t('pm.title').toLowerCase()} &middot; {stats.active} {t('common.active').toLowerCase()}
-            {stats.due > 0 && <span style={{ color: C.danger }}> &middot; {stats.due} {lang === 'ar' ? 'متأخر' : 'overdue'}</span>}
-            {stats.soon > 0 && <span style={{ color: C.warning }}> &middot; {stats.soon} {lang === 'ar' ? 'قريباً' : 'due soon'}</span>}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Link href='/dashboard/pm-schedules/calendar'>
-            <button style={filterBtnStyle(false)}>{t('pm.calendar')}</button>
-          </Link>
-          <Link href='/dashboard/pm-schedules/compliance'>
-            <button style={filterBtnStyle(false)}>{t('pm.compliance')}</button>
-          </Link>
-          <Link href='/dashboard/pm-schedules/new'>
-            <button style={primaryBtn}>{t('pm.new')}</button>
-          </Link>
-        </div>
-      </div>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto space-y-6">
 
-      {selected.length > 0 && (
-        <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.danger, fontFamily: F.en }}>{selected.length} {t('common.selected')}</span>
-          <button onClick={deleteSelected} disabled={deleting} style={{ ...dangerBtn, padding: '6px 16px', fontSize: 12 }}>
-            {deleting ? t('common.loading') : t('btn.delete_selected')}
-          </button>
-          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.dangerBorder}`, background: C.white, cursor: 'pointer', fontSize: 12, color: C.textMid, fontFamily: F.en }}>{t('common.cancel')}</button>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface">{t('pm.title')}</h1>
+            <p className="text-on-surface-variant mt-1 text-sm">
+              {stats.total} {t('pm.title').toLowerCase()} · {stats.active} {t('common.active').toLowerCase()}
+              {stats.due > 0 && <span className="text-error ml-1">· {stats.due} {lang === 'ar' ? 'متأخر' : 'overdue'}</span>}
+              {stats.soon > 0 && <span className="text-[#f57f17] ml-1">· {stats.soon} {lang === 'ar' ? 'قريباً' : 'due soon'}</span>}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link href="/dashboard/pm-schedules/calendar">
+              <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                {t('pm.calendar')}
+              </button>
+            </Link>
+            <Link href="/dashboard/pm-schedules/compliance">
+              <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                {t('pm.compliance')}
+              </button>
+            </Link>
+            <Link href="/dashboard/pm-schedules/new">
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">add</span>{t('pm.new')}
+              </button>
+            </Link>
+          </div>
         </div>
-      )}
 
-      {loading ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</p>
-      ) : schedules.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: C.textLight, fontFamily: F.en }}>
-          <p style={{ fontSize: 18, marginBottom: 8 }}>{lang === 'ar' ? 'لا توجد جداول صيانة بعد' : 'No PM schedules yet'}</p>
-          <p style={{ fontSize: 13 }}>{lang === 'ar' ? 'أنشئ أول جدول صيانة وقائية للبدء' : 'Create your first preventive maintenance schedule to get started'}</p>
+        {/* Stats bento */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: lang === 'ar' ? 'إجمالي الجداول' : 'Total Schedules', value: stats.total,  icon: 'event_repeat',    color: 'text-primary',    decor: 'bg-primary/5' },
+            { label: lang === 'ar' ? 'نشطة'            : 'Active',          value: stats.active, icon: 'check_circle',    color: 'text-primary',    decor: 'bg-primary/5' },
+            { label: lang === 'ar' ? 'متأخرة'          : 'Overdue',         value: stats.due,    icon: 'warning',         color: 'text-error',      decor: 'bg-error/5'   },
+            { label: lang === 'ar' ? 'مستحقة قريباً'   : 'Due Soon',        value: stats.soon,   icon: 'schedule',        color: 'text-[#f57f17]',  decor: 'bg-[#f57f17]/5' },
+          ].map(s => (
+            <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-5 rounded-[12px] shadow-sm relative overflow-hidden group">
+              <div className={`absolute top-0 right-0 w-20 h-20 -mr-6 -mt-6 rounded-full group-hover:scale-110 transition-transform duration-500 ${s.decor}`} />
+              <div className={`p-2 rounded-lg w-fit mb-3 ${s.decor}`}>
+                <span className={`material-symbols-outlined ${s.color}`}>{s.icon}</span>
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1">{s.label}</p>
+              <p className={`text-4xl font-bold ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
         </div>
-      ) : (
-        <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                <th style={{ padding: '10px 16px', width: 40 }}>
-                  <input type='checkbox' checked={selected.length === schedules.length && schedules.length > 0} onChange={toggleSelectAll} />
-                </th>
-                {[t('pm.col.title'), t('pm.col.asset'), t('pm.col.freq'), t('pm.col.compliance'), t('pm.col.due'), t('wo.col.assigned'), t('common.status'), t('common.actions')].map(h => (
-                  <th key={h} style={tableHeaderCell}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {schedules.map((s) => {
-                const due = isDue(s)
-                const soon = isDueSoon(s)
-                return (
-                  <tr key={s.id} style={{ background: selected.includes(s.id) ? '#EEF2FF' : due ? '#FFF8F8' : C.white }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <input type='checkbox' checked={selected.includes(s.id)} onChange={() => toggleSelect(s.id)} />
-                    </td>
-                    <td style={tableCell}>
-                      <Link href={'/dashboard/pm-schedules/' + s.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>{s.title}</Link>
-                      {s.description && <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{s.description.substring(0, 60)}...</p>}
-                    </td>
-                    <td style={tableCell}>{s.asset?.name ?? s.site?.name ?? '—'}</td>
-                    <td style={tableCell}>
-                      <span style={{ background: C.pageBg, color: C.textMid, border: `1px solid ${C.border}`, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>
-                        {freqLabel[s.frequency] ?? s.frequency}
-                      </span>
-                    </td>
-                    <td style={tableCell}>
-                      {s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) + '%' : '—'}
-                    </td>
-                    <td style={{ ...tableCell, color: due ? C.danger : soon ? C.warning : C.textMid }}>
-                      {s.next_due_at ? format(new Date(s.next_due_at), 'dd MMM yyyy') : '—'}
-                      {due && <span style={{ fontSize: 10, display: 'block', color: C.danger, fontFamily: F.en }}>{lang === 'ar' ? 'متأخر' : 'Overdue'}</span>}
-                      {soon && !due && <span style={{ fontSize: 10, display: 'block', color: C.warning, fontFamily: F.en }}>{lang === 'ar' ? 'قريباً' : 'Due soon'}</span>}
-                    </td>
-                    <td style={tableCell}>{s.assignee?.full_name ?? t('common.unassigned')}</td>
-                    <td style={tableCell}>
-                      <span style={{ background: s.is_active ? '#DCFCE7' : C.pageBg, color: s.is_active ? C.success : C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>
-                        {s.is_active ? t('common.active') : t('common.inactive')}
-                      </span>
-                    </td>
-                    <td style={tableCell}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: C.navy, color: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>
-                          {generating === s.id ? '...' : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate WO')}
-                        </button>
-                        <Link href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
-                          <button style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.edit')}</button>
-                        </Link>
-                        <button onClick={() => toggleActive(s.id, s.is_active)} style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>
-                          {s.is_active ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تفعيل' : 'Resume')}
-                        </button>
-                        <button onClick={() => deleteOne(s.id)} style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
-                      </div>
-                    </td>
+
+        {/* Bulk delete */}
+        {selected.length > 0 && (
+          <div className="bg-error/5 border border-error/20 rounded-xl p-3 flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-semibold text-error">{selected.length} {t('common.selected')}</span>
+            <button onClick={deleteSelected} disabled={deleting}
+              className="px-4 py-2 rounded-xl bg-error text-on-error text-sm font-semibold disabled:opacity-50 hover:bg-error/90 transition-colors">
+              {deleting ? t('common.loading') : t('btn.delete_selected')}
+            </button>
+            <button onClick={() => setSelected([])} className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.cancel')}</button>
+          </div>
+        )}
+
+        {/* Table */}
+        {schedules.length === 0 ? (
+          <div className="text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
+            <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">event_repeat</span>
+            <p className="text-lg font-semibold mb-1">{lang === 'ar' ? 'لا توجد جداول صيانة بعد' : 'No PM schedules yet'}</p>
+            <p className="text-sm">{lang === 'ar' ? 'أنشئ أول جدول صيانة وقائية للبدء' : 'Create your first preventive maintenance schedule to get started'}</p>
+          </div>
+        ) : (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-surface-container border-b border-outline-variant/30">
+                    <th className="p-3 w-10">
+                      <input type="checkbox" checked={selected.length === schedules.length && schedules.length > 0} onChange={toggleSelectAll} className="rounded" />
+                    </th>
+                    {[t('pm.col.title'), t('pm.col.asset'), t('pm.col.freq'), t('pm.col.compliance'), t('pm.col.due'), t('wo.col.assigned'), t('common.status'), t('common.actions')].map(h => (
+                      <th key={h} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </thead>
+                <tbody className="divide-y divide-outline-variant/20">
+                  {schedules.map(s => {
+                    const due = isDue(s)
+                    const soon = isDueSoon(s)
+                    return (
+                      <tr key={s.id} className={`hover:bg-surface-container-low transition-colors ${selected.includes(s.id) ? 'bg-primary/5' : due ? 'bg-error/5' : ''}`}>
+                        <td className="p-3">
+                          <input type="checkbox" checked={selected.includes(s.id)} onChange={() => toggleSelect(s.id)} className="rounded" />
+                        </td>
+                        <td className="p-3">
+                          <Link href={'/dashboard/pm-schedules/' + s.id} className="text-sm font-semibold text-primary hover:underline">
+                            {s.title}
+                          </Link>
+                          {s.description && (
+                            <p className="text-xs text-on-surface-variant mt-0.5 max-w-[240px] truncate">{s.description}</p>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{s.asset?.name ?? s.site?.name ?? '—'}</td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface-container text-on-surface-variant">
+                            {freqLabel[s.frequency] ?? s.frequency}
+                          </span>
+                        </td>
+                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">
+                          {s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) + '%' : '—'}
+                        </td>
+                        <td className={`p-3 text-sm whitespace-nowrap ${due ? 'text-error' : soon ? 'text-[#f57f17]' : 'text-on-surface-variant'}`}>
+                          {s.next_due_at ? format(new Date(s.next_due_at), 'dd MMM yyyy') : '—'}
+                          {due && <span className="text-[10px] block text-error font-semibold">{lang === 'ar' ? 'متأخر' : 'Overdue'}</span>}
+                          {soon && !due && <span className="text-[10px] block text-[#f57f17] font-semibold">{lang === 'ar' ? 'قريباً' : 'Due soon'}</span>}
+                        </td>
+                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{s.assignee?.full_name ?? t('common.unassigned')}</td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
+                            {s.is_active ? t('common.active') : t('common.inactive')}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex gap-1.5 flex-wrap">
+                            <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id}
+                              className="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap">
+                              {generating === s.id ? '...' : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate WO')}
+                            </button>
+                            <Link href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
+                              <button className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                            </Link>
+                            <button onClick={() => toggleActive(s.id, s.is_active)}
+                              className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">
+                              {s.is_active ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تفعيل' : 'Resume')}
+                            </button>
+                            <button onClick={() => deleteOne(s.id)}
+                              className="px-2.5 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">{t('common.delete')}</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   )
 }

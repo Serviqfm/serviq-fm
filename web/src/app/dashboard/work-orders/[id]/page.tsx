@@ -9,7 +9,6 @@ import { format, formatDistanceToNow, isAfter, differenceInHours, differenceInDa
 import { useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
-import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle } from '@/lib/brand'
 import { sendPushNotification } from '@/lib/push'
 
 export default function WorkOrderDetailPage() {
@@ -362,8 +361,8 @@ export default function WorkOrderDetailPage() {
     return { expires, daysLeft, warning: daysLeft <= 30 }
   }
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading...</div>
-  if (!wo) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Work order not found.</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">Loading...</div>
+  if (!wo) return <div className="p-8 text-on-surface-variant">Work order not found.</div>
 
   const sla = getSLAInfo()
   const mediaExpiry = getMediaExpiryInfo()
@@ -378,381 +377,384 @@ export default function WorkOrderDetailPage() {
     closed:      [],
   }
 
-  const infoCard = { background: C.pageBg, borderRadius: 8, padding: '12px 16px' }
-
-  const tabStyle = (active: boolean) => ({
-    padding: '8px 16px',
-    border: 'none',
-    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
-    background: 'transparent',
-    cursor: 'pointer',
-    fontSize: 13,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fontWeight: (active ? 600 : 400) as any,
-    color: active ? C.navy : C.textLight,
-    fontFamily: F.en,
-  })
-
-  const statusActionColor = (s: WorkOrderStatus): React.CSSProperties => {
-    if (s === 'completed') return { background: C.teal, color: C.white, border: 'none' }
-    if (s === 'closed')    return { background: C.navy, color: C.white, border: 'none' }
-    if (s === 'in_progress') return { background: C.blue, color: C.white, border: 'none' }
-    return { background: C.white, color: C.textMid, border: `1px solid ${C.border}` }
+  function statusActionClass(s: WorkOrderStatus): string {
+    if (s === 'completed') return 'bg-primary text-on-primary border-0'
+    if (s === 'closed') return 'bg-on-surface text-surface border-0'
+    if (s === 'in_progress') return 'bg-secondary text-on-secondary border-0'
+    return 'border border-outline-variant text-on-surface-variant bg-surface-container-lowest'
   }
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 860 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <a href="/dashboard/work-orders" style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>Back to Work Orders</a>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <a href={'/dashboard/work-orders/' + id + '/edit'}>
-            <button style={{ ...secondaryBtn, padding: '6px 16px' }}>Edit</button>
-          </a>
-          <button onClick={() => window.print()} style={{ ...primaryBtn, padding: '6px 16px' }}>Export PDF</button>
-          {wo.status === 'completed' && (wo as any).site?.invoicing_enabled && !existingInvoice && (
-            <a href={`/dashboard/invoices/new?wo=${wo.id}`}>
-              <button style={{ ...primaryBtn, padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                {lang === 'ar' ? 'إنشاء فاتورة' : 'Generate Invoice'}
-              </button>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[860px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <a href="/dashboard/work-orders" className="text-on-surface-variant text-sm hover:text-primary transition-colors">Back to Work Orders</a>
+          <div className="flex gap-2">
+            <a href={'/dashboard/work-orders/' + id + '/edit'}>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>Edit</button>
             </a>
-          )}
-          {existingInvoice && (
-            <button
-              onClick={async () => {
-                const res = await fetch('/api/invoices/generate', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ invoiceId: existingInvoice.id }),
-                })
-                const blob = await res.blob()
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `${existingInvoice.invoice_number}.pdf`
-                a.click()
-                URL.revokeObjectURL(url)
-              }}
-              style={{ ...secondaryBtn, padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              {lang === 'ar' ? 'تحميل الفاتورة' : 'Download Invoice'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{translatedWO.title ?? wo.title}</h1>
-            {wo.wo_number && (
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid, background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 10px', fontFamily: F.en, letterSpacing: '0.03em' }}>
-                {`WO-${String(wo.wo_number).padStart(4, '0')}`}
-              </span>
+            <button onClick={() => window.print()} className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors" style={{ padding: '6px 16px' }}>Export PDF</button>
+            {wo.status === 'completed' && wo.site?.invoicing_enabled && !existingInvoice && (
+              <a href={`/dashboard/invoices/new?wo=${wo.id}`}>
+                <button className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors flex items-center gap-1.5" style={{ padding: '6px 16px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  {lang === 'ar' ? 'إنشاء فاتورة' : 'Generate Invoice'}
+                </button>
+              </a>
             )}
-            {lang === 'ar' && (
-              <TranslateButton
-                texts={{ title: wo.title, description: wo.description ?? '' }}
-                onTranslated={setTranslatedWO}
-              />
-            )}
-          </div>
-          {translatedWO.description && lang === 'ar' && (
-            <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, margin: '6px 0 0', direction: 'rtl', background: C.pageBg, padding: '8px 12px', borderRadius: 6 }}>
-              {translatedWO.description}
-            </p>
-          )}
-          <PriorityBadge priority={wo.priority} />
-          <StatusBadge status={wo.status} />
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {(wo as any).category && (
-            <span style={{ fontSize: 12, background: C.pageBg, color: C.textMid, padding: '2px 10px', borderRadius: 12, fontFamily: F.en }}>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {(wo as any).category}
-            </span>
-          )}
-        </div>
-        <p style={{ color: C.textLight, fontSize: 13, marginTop: 6, fontFamily: F.en }}>
-          Created {format(new Date(wo.created_at), 'dd MMM yyyy, HH:mm')} · Updated {formatDistanceToNow(new Date(wo.updated_at), { addSuffix: true })}
-        </p>
-      </div>
-
-      {sla && !['completed', 'closed'].includes(wo.status) && (
-        <div style={{
-          padding: '12px 16px', borderRadius: 8, marginBottom: '1rem',
-          background: sla.overdue ? '#fce4ec' : sla.hoursLeft < 24 ? '#fff8e1' : '#e8f5e9',
-          border: `1px solid ${sla.overdue ? '#ef9a9a' : sla.hoursLeft < 24 ? '#ffe082' : '#a5d6a7'}`,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <span>{sla.overdue ? '🔴' : sla.hoursLeft < 24 ? '🟡' : '🟢'}</span>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: F.en, color: sla.overdue ? C.danger : sla.hoursLeft < 24 ? C.warning : C.success }}>
-            {sla.overdue ? `Overdue by ${sla.hoursPast} hours` : sla.hoursLeft < 24 ? `Due in ${sla.hoursLeft} hours` : `Due ${format(sla.due, 'dd MMM yyyy, HH:mm')}`}
-          </p>
-        </div>
-      )}
-
-      {mediaExpiry && mediaExpiry.warning && allPhotos.length > 0 && (
-        <div style={{
-          padding: '10px 14px', borderRadius: 8, marginBottom: '1rem',
-          background: '#fff3e0', border: '1px solid #ffcc80',
-          fontSize: 13, color: '#e65100', fontFamily: F.en,
-        }}>
-          ⏳ Photos attached to this work order will be purged in {mediaExpiry.daysLeft} days ({format(mediaExpiry.expires, 'dd MMM yyyy')}). Download them before this date if needed.
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: '1.5rem' }}>
-        {[
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { label: 'Asset', value: (wo.asset as any)?.name ?? '—' },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { label: 'Site', value: (wo.site as any)?.name ?? '—' },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? 'Unassigned' },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { label: 'Category', value: (wo as any).category ?? '—' },
-          { label: 'Started', value: wo.started_at ? format(new Date(wo.started_at), 'dd MMM yyyy, HH:mm') : '—' },
-          { label: 'Completed', value: wo.completed_at ? format(new Date(wo.completed_at), 'dd MMM yyyy, HH:mm') : '—' },
-          { label: 'SLA', value: wo.sla_hours ? `${wo.sla_hours} hours` : '—' },
-          { label: 'Source', value: wo.source?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—' },
-        ].map(({ label, value }) => (
-          <div key={label} style={infoCard}>
-            <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px' }}>{label}</p>
-            <p style={{ fontSize: 14, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {wo.description && (
-        <div style={{ ...infoCard, marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 6px' }}>Description</p>
-          <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6, color: C.textDark, fontFamily: F.en }}>{wo.description}</p>
-        </div>
-      )}
-
-      {wo.completion_notes && (
-        <div style={{ ...infoCard, marginBottom: '1.5rem', border: `1px solid ${C.lightTeal}` }}>
-          <p style={{ fontSize: 12, color: C.success, fontFamily: F.en, margin: '0 0 6px' }}>Digital Sign-off</p>
-          <p style={{ fontSize: 14, margin: 0, color: C.textDark, fontFamily: F.en }}>{wo.completion_notes}</p>
-        </div>
-      )}
-
-      {nextStatuses[wo.status].length > 0 && (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: C.textMid, fontFamily: F.en }}>Update Status</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {nextStatuses[wo.status].map(s => (
+            {existingInvoice && (
               <button
-                key={s}
-                onClick={() => updateStatus(s)}
-                disabled={updating}
-                style={{ padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: F.en, ...statusActionColor(s) }}
-              >
-                {updating ? '...' : `→ ${s.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`}
+                onClick={async () => {
+                  const res = await fetch('/api/invoices/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invoiceId: existingInvoice.id }),
+                  })
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${existingInvoice.invoice_number}.pdf`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors flex items-center gap-1.5" style={{ padding: '6px 16px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                {lang === 'ar' ? 'تحميل الفاتورة' : 'Download Invoice'}
               </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {showSignoff && (
-        <div style={{ background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: C.navy, fontFamily: F.en, margin: '0 0 12px' }}>Digital Sign-off Required</p>
-          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, margin: '0 0 12px' }}>Enter your full name to confirm you have reviewed and approved this work order for closing.</p>
-          <input
-            value={signoffName}
-            onChange={e => setSignoffName(e.target.value)}
-            placeholder="Your full name"
-            style={{ ...inputStyle, marginBottom: 12 }}
-          />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => { if (signoffName.trim()) doStatusUpdate('closed', signoffName.trim()) }}
-              disabled={!signoffName.trim() || updating}
-              style={{ ...primaryBtn, opacity: !signoffName.trim() || updating ? 0.5 : 1 }}
-            >
-              {updating ? 'Closing...' : 'Confirm & Close Work Order'}
-            </button>
-            <button
-              onClick={() => setShowSignoff(false)}
-              style={secondaryBtn}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: '1rem', display: 'flex', gap: 0 }}>
-        <button style={tabStyle(activeTab === 'comments')} onClick={() => setActiveTab('comments')}>Comments ({comments.length})</button>
-        <button style={tabStyle(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({allPhotos.length + closeoutPreviewUrls.length})</button>
-        <button style={tabStyle(activeTab === 'history')} onClick={() => setActiveTab('history')}>History ({history.length})</button>
-        <button style={tabStyle(activeTab === 'parts')} onClick={() => setActiveTab('parts')}>Parts Used</button>
-        <button style={tabStyle(activeTab === 'activity')} onClick={() => setActiveTab('activity')}>Activity Log ({activities.length})</button>
-        {wo?.space_id && <button style={tabStyle(activeTab === 'space_assets')} onClick={() => setActiveTab('space_assets')}>Space Assets</button>}
-      </div>
-
-      {activeTab === 'comments' && (
-        <div>
-          {comments.length === 0 && <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, marginBottom: 12 }}>No comments yet.</p>}
-          {comments.map(c => (
-            <div key={c.id} style={{ ...infoCard, marginBottom: 8 }}>
-              <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px' }}>{c.user?.full_name ?? 'Unknown'} · {format(new Date(c.created_at), 'dd MMM yyyy, HH:mm')}</p>
-              <p style={{ fontSize: 14, margin: 0, color: C.textDark, fontFamily: F.en }}>{c.body}</p>
-            </div>
-          ))}
-          <form onSubmit={addComment} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Add a comment..." style={{ ...inputStyle, flex: 1 }} />
-            <button type="submit" style={primaryBtn}>Post</button>
-          </form>
-        </div>
-      )}
-
-      {activeTab === 'photos' && (
-        <div>
-          {mediaExpiry && allPhotos.length > 0 && (
-            <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, marginBottom: 12 }}>
-              Photos retained until {format(mediaExpiry.expires, 'dd MMM yyyy')} · {mediaExpiry.daysLeft} days remaining
-            </p>
-          )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-            {allPhotos.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={url} alt={`Photo ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
-            ))}
-            {allPhotos.length === 0 && closeoutPreviewUrls.length === 0 && (
-              <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No photos attached yet.</p>
             )}
           </div>
-          {!['completed', 'closed'].includes(wo.status) && (
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 500, color: C.textMid, fontFamily: F.en, marginBottom: 8 }}>
-                Add close-out photos {wo.status === 'in_progress' ? '(required before marking Completed)' : ''}
-              </p>
-              <input type="file" accept="image/*" multiple onChange={handleCloseoutPhoto} style={{ fontSize: 13, fontFamily: F.en }} />
-              {closeoutPreviewUrls.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                  {closeoutPreviewUrls.map((url, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={i} src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }} />
-                  ))}
-                </div>
+        </div>
+
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-[22px] font-bold text-primary m-0">{translatedWO.title ?? wo.title}</h1>
+              {wo.wo_number && (
+                <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                  {`WO-${String(wo.wo_number).padStart(4, '0')}`}
+                </span>
+              )}
+              {lang === 'ar' && (
+                <TranslateButton
+                  texts={{ title: wo.title, description: wo.description ?? '' }}
+                  onTranslated={setTranslatedWO}
+                />
               )}
             </div>
-          )}
+            {translatedWO.description && lang === 'ar' && (
+              <p className="text-sm text-on-surface-variant mt-1.5 direction-rtl bg-surface-container-low px-3 py-2 rounded-xl w-full">
+                {translatedWO.description}
+              </p>
+            )}
+            <PriorityBadge priority={wo.priority} />
+            <StatusBadge status={wo.status} />
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(wo as any).category && (
+              <span className="text-xs bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {(wo as any).category}
+              </span>
+            )}
+          </div>
+          <p className="text-on-surface-variant text-sm mt-1.5">
+            Created {format(new Date(wo.created_at), 'dd MMM yyyy, HH:mm')} · Updated {formatDistanceToNow(new Date(wo.updated_at), { addSuffix: true })}
+          </p>
         </div>
-      )}
 
-      {activeTab === 'history' && (
-        <div>
-          {history.length === 0 && <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No history yet. Status changes will appear here.</p>}
-          {history.map(h => (
-            <div key={h.id} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.navy, marginTop: 5, flexShrink: 0 }} />
-              <div>
-                <p style={{ fontSize: 13, margin: 0, fontWeight: 500, color: C.textDark, fontFamily: F.en }}>{h.action}</p>
-                <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</p>
-              </div>
+        {sla && !['completed', 'closed'].includes(wo.status) && (
+          <div className={
+            sla.overdue
+              ? 'bg-error/10 border border-error/30 rounded-xl px-4 py-3 flex items-center gap-3'
+              : sla.hoursLeft < 24
+                ? 'bg-[#f57f17]/10 border border-[#f57f17]/30 rounded-xl px-4 py-3 flex items-center gap-3'
+                : 'bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 flex items-center gap-3'
+          }>
+            <span>{sla.overdue ? '🔴' : sla.hoursLeft < 24 ? '🟡' : '🟢'}</span>
+            <p className={`m-0 text-sm font-semibold ${sla.overdue ? 'text-error' : sla.hoursLeft < 24 ? 'text-[#f57f17]' : 'text-primary'}`}>
+              {sla.overdue ? `Overdue by ${sla.hoursPast} hours` : sla.hoursLeft < 24 ? `Due in ${sla.hoursLeft} hours` : `Due ${format(sla.due, 'dd MMM yyyy, HH:mm')}`}
+            </p>
+          </div>
+        )}
+
+        {mediaExpiry && mediaExpiry.warning && allPhotos.length > 0 && (
+          <div className="bg-[#f57f17]/10 border border-[#f57f17]/20 rounded-xl px-4 py-3 text-sm text-[#f57f17]">
+            Photos attached to this work order will be purged in {mediaExpiry.daysLeft} days ({format(mediaExpiry.expires, 'dd MMM yyyy')}). Download them before this date if needed.
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { label: 'Asset', value: (wo.asset as any)?.name ?? '—' },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { label: 'Site', value: (wo.site as any)?.name ?? '—' },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? 'Unassigned' },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { label: 'Category', value: (wo as any).category ?? '—' },
+            { label: 'Started', value: wo.started_at ? format(new Date(wo.started_at), 'dd MMM yyyy, HH:mm') : '—' },
+            { label: 'Completed', value: wo.completed_at ? format(new Date(wo.completed_at), 'dd MMM yyyy, HH:mm') : '—' },
+            { label: 'SLA', value: wo.sla_hours ? `${wo.sla_hours} hours` : '—' },
+            { label: 'Source', value: wo.source?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—' },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-surface-container-low rounded-xl px-4 py-3">
+              <p className="text-xs text-on-surface-variant mb-1">{label}</p>
+              <p className="text-sm font-medium text-on-surface m-0">{value}</p>
             </div>
           ))}
         </div>
-      )}
 
-      {activeTab === 'parts' && (
-        <div>
-          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1rem' }}>Log parts and materials consumed on this work order. Stock levels are automatically deducted.</p>
-          {partsUsed.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <p style={{ fontSize: 13, fontWeight: 500, color: C.textDark, fontFamily: F.en, marginBottom: 8 }}>Parts logged this session:</p>
-              {partsUsed.map((p, i) => (
-                <div key={i} style={{ ...infoCard, marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, color: C.textDark, fontFamily: F.en }}>{p.qty} {p.unit} × {p.name}</span>
-                  <span style={{ fontSize: 13, color: C.textMid, fontFamily: F.en }}>{p.cost ? 'SAR ' + p.cost.toFixed(2) : '—'}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: 2, minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: 12, color: C.textMid, fontFamily: F.en, marginBottom: 4 }}>Select Part / Material</label>
-              <select value={selectedPartId} onChange={e => setSelectedPartId(e.target.value)} style={inputStyle}>
-                <option value=''>Select inventory item...</option>
-                {inventoryItems.map(item => (
-                  <option key={item.id} value={item.id}>{item.name} (Stock: {item.stock_quantity} {item.unit})</option>
-                ))}
-              </select>
-            </div>
-            <div style={{ flex: 1, minWidth: 100 }}>
-              <label style={{ display: 'block', fontSize: 12, color: C.textMid, fontFamily: F.en, marginBottom: 4 }}>Quantity Used</label>
-              <input type='number' value={partQty} onChange={e => setPartQty(e.target.value)} min='0.01' step='0.01' placeholder='0' style={inputStyle} />
-            </div>
-            <button onClick={addPart} disabled={addingPart || !selectedPartId || !partQty} style={{ ...primaryBtn, opacity: !selectedPartId || !partQty ? 0.5 : 1 }}>
-              {addingPart ? '...' : 'Log Parts'}
-            </button>
+        {wo.description && (
+          <div className="bg-surface-container-low rounded-xl px-4 py-3">
+            <p className="text-xs text-on-surface-variant mb-1.5">Description</p>
+            <p className="text-sm m-0 leading-relaxed text-on-surface">{wo.description}</p>
           </div>
-          {inventoryItems.length === 0 && (
-            <p style={{ fontSize: 13, color: C.warning, fontFamily: F.en, marginTop: 12 }}>No inventory items found. <a href='/dashboard/inventory/new' style={{ color: C.blue }}>Add items to inventory first.</a></p>
-          )}
-        </div>
-      )}
+        )}
 
-      {activeTab === 'activity' && (
-        <div>
-          <p style={{ fontSize: 13, color: C.textMid, fontFamily: F.en, marginBottom: '1rem' }}>Log structured work updates — what was done, findings, or next steps.</p>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-              {['update','finding','action','waiting','completed'].map(t => (
-                <button key={t} type='button' onClick={() => setActivityType(t)} style={{ padding: '5px 14px', borderRadius: 20, border: `2px solid ${activityType === t ? C.navy : C.border}`, background: activityType === t ? C.navy : C.white, color: activityType === t ? C.white : C.textMid, cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+        {wo.completion_notes && (
+          <div className="bg-surface-container-low rounded-xl px-4 py-3 border border-primary/20">
+            <p className="text-xs text-primary mb-1.5">Digital Sign-off</p>
+            <p className="text-sm m-0 text-on-surface">{wo.completion_notes}</p>
+          </div>
+        )}
+
+        {nextStatuses[wo.status].length > 0 && (
+          <div>
+            <p className="text-sm font-medium mb-2 text-on-surface-variant">Update Status</p>
+            <div className="flex gap-2 flex-wrap">
+              {nextStatuses[wo.status].map(s => (
+                <button
+                  key={s}
+                  onClick={() => updateStatus(s)}
+                  disabled={updating}
+                  className={`px-[18px] py-2 rounded-xl cursor-pointer text-sm font-medium transition-colors ${statusActionClass(s)}`}
+                >
+                  {updating ? '...' : `→ ${s.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`}
                 </button>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input value={activityText} onChange={e => setActivityText(e.target.value)} placeholder='Describe what was done or found...' style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={addActivity} disabled={addingActivity || !activityText.trim()} style={{ ...primaryBtn, opacity: !activityText.trim() ? 0.5 : 1 }}>
-                {addingActivity ? '...' : 'Log Activity'}
+          </div>
+        )}
+
+        {showSignoff && (
+          <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6">
+            <p className="text-[15px] font-semibold text-primary mb-3">Digital Sign-off Required</p>
+            <p className="text-sm text-on-surface-variant mb-3">Enter your full name to confirm you have reviewed and approved this work order for closing.</p>
+            <input
+              value={signoffName}
+              onChange={e => setSignoffName(e.target.value)}
+              placeholder="Your full name"
+              className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40 mb-3"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { if (signoffName.trim()) doStatusUpdate('closed', signoffName.trim()) }}
+                disabled={!signoffName.trim() || updating}
+                className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!signoffName.trim() || updating ? 'opacity-50' : ''}`}
+              >
+                {updating ? 'Closing...' : 'Confirm & Close Work Order'}
+              </button>
+              <button
+                onClick={() => setShowSignoff(false)}
+                className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </div>
-          {activities.length === 0 ? (
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No activity logged yet. Use the form above to record work updates.</p>
-          ) : (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            activities.map((a: any) => {
-              const body = a.body.replace('[ACTIVITY] ', '')
-              const typeMatch = body.match(/^\[(\w+)\]/)
-              const type = typeMatch ? typeMatch[1].toLowerCase() : 'update'
-              const text = body.replace(/^\[\w+\] /, '')
-              const typeColors: Record<string, { bg: string; color: string }> = {
-                update:    { bg: '#e8eaf6', color: C.navy },
-                finding:   { bg: '#fff8e1', color: C.warning },
-                action:    { bg: '#e8f5e9', color: C.success },
-                waiting:   { bg: '#fce4ec', color: C.danger },
-                completed: { bg: '#e8f5e9', color: C.success },
-                parts:     { bg: '#f3e5f5', color: '#6a1b9a' },
-              }
-              const cfg = typeColors[type] ?? typeColors.update
-              return (
-                <div key={a.id} style={{ ...infoCard, marginBottom: 8, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', marginTop: 2, fontFamily: F.en }}>
-                    {type.toUpperCase()}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, margin: 0, color: C.textDark, fontFamily: F.en }}>{text}</p>
-                    <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
-                      {a.user?.full_name ?? 'Unknown'} · {new Date(a.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              )
-            })
+        )}
+
+        <div className="border-b border-outline-variant flex gap-0">
+          {(
+            [
+              { key: 'comments', label: `Comments (${comments.length})` },
+              { key: 'photos', label: `Photos (${allPhotos.length + closeoutPreviewUrls.length})` },
+              { key: 'history', label: `History (${history.length})` },
+              { key: 'parts', label: 'Parts Used' },
+              { key: 'activity', label: `Activity Log (${activities.length})` },
+            ] as { key: typeof activeTab; label: string }[]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-4 py-2 text-sm border-b-2 bg-transparent cursor-pointer transition-colors ${activeTab === key ? 'border-primary text-primary font-semibold' : 'border-transparent text-on-surface-variant'}`}
+            >
+              {label}
+            </button>
+          ))}
+          {wo?.space_id && (
+            <button
+              onClick={() => setActiveTab('space_assets')}
+              className={`px-4 py-2 text-sm border-b-2 bg-transparent cursor-pointer transition-colors ${activeTab === 'space_assets' ? 'border-primary text-primary font-semibold' : 'border-transparent text-on-surface-variant'}`}
+            >
+              Space Assets
+            </button>
           )}
         </div>
-      )}
 
-      {activeTab === 'space_assets' && wo?.space_id && (
-        <SpaceAssetsPanel spaceId={wo.space_id} woId={wo.id} supabase={supabase} />
-      )}
+        {activeTab === 'comments' && (
+          <div>
+            {comments.length === 0 && <p className="text-sm text-on-surface-variant mb-3">No comments yet.</p>}
+            {comments.map(c => (
+              <div key={c.id} className="bg-surface-container-low rounded-xl px-4 py-3 mb-2">
+                <p className="text-xs text-on-surface-variant mb-1">{c.user?.full_name ?? 'Unknown'} · {format(new Date(c.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                <p className="text-sm m-0 text-on-surface">{c.body}</p>
+              </div>
+            ))}
+            <form onSubmit={addComment} className="flex gap-2 mt-3">
+              <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Add a comment..." className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40 flex-1" />
+              <button type="submit" className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors">Post</button>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'photos' && (
+          <div>
+            {mediaExpiry && allPhotos.length > 0 && (
+              <p className="text-xs text-on-surface-variant mb-3">
+                Photos retained until {format(mediaExpiry.expires, 'dd MMM yyyy')} · {mediaExpiry.daysLeft} days remaining
+              </p>
+            )}
+            <div className="flex gap-2.5 flex-wrap mb-6">
+              {allPhotos.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-[120px] h-[120px] object-cover rounded-xl border border-outline-variant" />
+              ))}
+              {allPhotos.length === 0 && closeoutPreviewUrls.length === 0 && (
+                <p className="text-sm text-on-surface-variant">No photos attached yet.</p>
+              )}
+            </div>
+            {!['completed', 'closed'].includes(wo.status) && (
+              <div>
+                <p className="text-sm font-medium text-on-surface-variant mb-2">
+                  Add close-out photos {wo.status === 'in_progress' ? '(required before marking Completed)' : ''}
+                </p>
+                <input type="file" accept="image/*" multiple onChange={handleCloseoutPhoto} className="text-sm text-on-surface-variant" />
+                {closeoutPreviewUrls.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-2.5">
+                    {closeoutPreviewUrls.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={url} alt="" className="w-20 h-20 object-cover rounded-xl border border-outline-variant" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div>
+            {history.length === 0 && <p className="text-sm text-on-surface-variant">No history yet. Status changes will appear here.</p>}
+            {history.map(h => (
+              <div key={h.id} className="flex gap-3 mb-3 items-start">
+                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm m-0 font-medium text-on-surface">{h.action}</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">{formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'parts' && (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">Log parts and materials consumed on this work order. Stock levels are automatically deducted.</p>
+            {partsUsed.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm font-medium text-on-surface mb-2">Parts logged this session:</p>
+                {partsUsed.map((p, i) => (
+                  <div key={i} className="bg-surface-container-low rounded-xl px-4 py-3 mb-1.5 flex justify-between">
+                    <span className="text-sm text-on-surface">{p.qty} {p.unit} × {p.name}</span>
+                    <span className="text-sm text-on-surface-variant">{p.cost ? 'SAR ' + p.cost.toFixed(2) : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2.5 items-end flex-wrap">
+              <div className="flex-[2] min-w-[200px]">
+                <label className="block text-xs text-on-surface-variant mb-1">Select Part / Material</label>
+                <select value={selectedPartId} onChange={e => setSelectedPartId(e.target.value)} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                  <option value=''>Select inventory item...</option>
+                  {inventoryItems.map(item => (
+                    <option key={item.id} value={item.id}>{item.name} (Stock: {item.stock_quantity} {item.unit})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[100px]">
+                <label className="block text-xs text-on-surface-variant mb-1">Quantity Used</label>
+                <input type='number' value={partQty} onChange={e => setPartQty(e.target.value)} min='0.01' step='0.01' placeholder='0' className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+              </div>
+              <button onClick={addPart} disabled={addingPart || !selectedPartId || !partQty} className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!selectedPartId || !partQty ? 'opacity-50' : ''}`}>
+                {addingPart ? '...' : 'Log Parts'}
+              </button>
+            </div>
+            {inventoryItems.length === 0 && (
+              <p className="text-sm text-[#f57f17] mt-3">No inventory items found. <a href='/dashboard/inventory/new' className="text-primary hover:underline">Add items to inventory first.</a></p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">Log structured work updates — what was done, findings, or next steps.</p>
+            <div className="mb-6">
+              <div className="flex gap-2 mb-2 flex-wrap">
+                {['update','finding','action','waiting','completed'].map(t => (
+                  <button key={t} type='button' onClick={() => setActivityType(t)} className={`px-3.5 py-1.5 rounded-full border-2 cursor-pointer text-xs font-medium transition-colors ${activityType === t ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface text-on-surface-variant'}`}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={activityText} onChange={e => setActivityText(e.target.value)} placeholder='Describe what was done or found...' className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40 flex-1" />
+                <button onClick={addActivity} disabled={addingActivity || !activityText.trim()} className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!activityText.trim() ? 'opacity-50' : ''}`}>
+                  {addingActivity ? '...' : 'Log Activity'}
+                </button>
+              </div>
+            </div>
+            {activities.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">No activity logged yet. Use the form above to record work updates.</p>
+            ) : (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              activities.map((a: any) => {
+                const body = a.body.replace('[ACTIVITY] ', '')
+                const typeMatch = body.match(/^\[(\w+)\]/)
+                const type = typeMatch ? typeMatch[1].toLowerCase() : 'update'
+                const text = body.replace(/^\[\w+\] /, '')
+                const typeBadgeClass: Record<string, string> = {
+                  update:    'bg-secondary/10 text-secondary',
+                  finding:   'bg-[#f57f17]/10 text-[#f57f17]',
+                  action:    'bg-primary/10 text-primary',
+                  waiting:   'bg-error/10 text-error',
+                  completed: 'bg-primary/10 text-primary',
+                  parts:     'bg-tertiary/10 text-tertiary',
+                }
+                const badgeClass = typeBadgeClass[type] ?? typeBadgeClass.update
+                return (
+                  <div key={a.id} className="bg-surface-container-low rounded-xl px-4 py-3 mb-2 flex gap-3 items-start">
+                    <span className={`${badgeClass} px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap mt-0.5`}>
+                      {type.toUpperCase()}
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-sm m-0 text-on-surface">{text}</p>
+                      <p className="text-[11px] text-on-surface-variant mt-1">
+                        {a.user?.full_name ?? 'Unknown'} · {new Date(a.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
+
+        {activeTab === 'space_assets' && wo?.space_id && (
+          <SpaceAssetsPanel spaceId={wo.space_id} woId={wo.id} supabase={supabase} />
+        )}
+      </div>
     </div>
   )
 }
@@ -786,40 +788,47 @@ function SpaceAssetsPanel({ spaceId, woId, supabase }: { spaceId: string; woId: 
     if (data) setAssets(data)
   }
 
-  const thS: React.CSSProperties = { padding: '8px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${C.border}`, fontFamily: F.en }
-  const tdS: React.CSSProperties = { padding: '11px 14px', fontSize: 13, color: C.textMid, borderBottom: `1px solid ${C.border}`, fontFamily: F.en }
-
   return (
     <div>
       {space && (
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, marginBottom: 16 }}>
+        <p className="text-sm text-on-surface-variant mb-4">
           {space.name} · {space.floor}
         </p>
       )}
       {assets.length === 0 ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>No assets assigned to this space.</p>
+        <p className="text-on-surface-variant">No assets assigned to this space.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="w-full border-collapse">
           <thead>
             <tr>
-              {['Name','Category','Status',''].map(h => <th key={h} style={thS}>{h}</th>)}
+              {['Name','Category','Status',''].map(h => (
+                <th key={h} className="px-3.5 py-2 text-left text-[11px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-outline-variant">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {assets.map(asset => (
               <tr key={asset.id}>
-                <td style={tdS}>{asset.name}</td>
-                <td style={tdS}>{asset.category}</td>
-                <td style={tdS}>
-                  <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: asset.status === 'online' ? '#DCFCE7' : C.pageBg, color: asset.status === 'online' ? '#166534' : C.textMid }}>
+                <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{asset.name}</td>
+                <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{asset.category}</td>
+                <td className="px-3.5 py-2.5 text-sm border-b border-outline-variant">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${asset.status === 'online' ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
                     {asset.status === 'online' ? 'Online' : 'Offline'}
                   </span>
                 </td>
-                <td style={{ ...tdS, whiteSpace: 'nowrap' }}>
-                  <button onClick={() => changeStatus(asset.id, asset.name, 'online')} disabled={asset.status === 'online'} style={{ fontSize: 12, padding: '4px 10px', marginRight: 6, border: `1px solid ${C.border}`, borderRadius: 6, cursor: asset.status === 'online' ? 'not-allowed' : 'pointer', background: C.white, color: asset.status === 'online' ? C.textLight : C.success, fontFamily: F.en }}>
+                <td className="px-3.5 py-2.5 text-sm border-b border-outline-variant whitespace-nowrap">
+                  <button
+                    onClick={() => changeStatus(asset.id, asset.name, 'online')}
+                    disabled={asset.status === 'online'}
+                    className={`text-xs px-2.5 py-1 mr-1.5 border border-outline-variant rounded-lg transition-colors ${asset.status === 'online' ? 'cursor-not-allowed text-on-surface-variant opacity-50 bg-surface' : 'cursor-pointer text-primary hover:bg-primary/10 bg-surface'}`}
+                  >
                     Commission
                   </button>
-                  <button onClick={() => changeStatus(asset.id, asset.name, 'offline')} disabled={asset.status === 'offline'} style={{ fontSize: 12, padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 6, cursor: asset.status === 'offline' ? 'not-allowed' : 'pointer', background: C.white, color: asset.status === 'offline' ? C.textLight : C.danger, fontFamily: F.en }}>
+                  <button
+                    onClick={() => changeStatus(asset.id, asset.name, 'offline')}
+                    disabled={asset.status === 'offline'}
+                    className={`text-xs px-2.5 py-1 border border-outline-variant rounded-lg transition-colors ${asset.status === 'offline' ? 'cursor-not-allowed text-on-surface-variant opacity-50 bg-surface' : 'cursor-pointer text-error hover:bg-error/10 bg-surface'}`}
+                  >
                     Decommission
                   </button>
                 </td>

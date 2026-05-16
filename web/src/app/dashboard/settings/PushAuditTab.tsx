@@ -3,18 +3,23 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
-import { C, cardStyle, labelStyle, primaryBtn, dangerBtn, sectionCard, tableHeaderCell, tableCell } from '@/lib/brand';
+
+interface DeliveryLogEntry {
+  type_key: string;
+  status: string;
+  created_at: string;
+}
 
 export default function PushAuditTab() {
   const { isRTL } = useLanguage();
   const supabase = createClient();
   const [sendingTest, setSendingTest] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [deliveryLog, setDeliveryLog] = useState<any[]>([]);
+  const [deliveryLog, setDeliveryLog] = useState<DeliveryLogEntry[]>([]);
 
   useEffect(() => {
     loadDeliveryLog();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadDeliveryLog() {
     try {
@@ -77,75 +82,70 @@ export default function PushAuditTab() {
 
   return (
     <div style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
-      <h3 style={{ ...labelStyle, marginBottom: '1.5rem', fontSize: '18px' }}>
+      <h3 className="text-lg font-bold text-on-surface mb-6">
         Push Notifications Audit
       </h3>
 
       {message && (
         <div
-          style={{
-            ...cardStyle,
-            marginBottom: '1rem',
-            padding: '1rem',
-            background: message.type === 'success' ? '#DCFCE7' : '#FEE2E2',
-            borderColor: message.type === 'success' ? '#86EFAC' : '#FECACA',
-            color: message.type === 'success' ? '#16A34A' : '#DC2626',
-          }}
+          className={`rounded-[12px] border px-4 py-4 mb-4 text-sm ${
+            message.type === 'success'
+              ? 'bg-primary/10 border-primary/20 text-primary'
+              : 'bg-error/10 border-error/20 text-error'
+          }`}
         >
           {message.text}
         </div>
       )}
 
-      <div style={sectionCard}>
-        <h4 style={{ ...labelStyle, marginBottom: '1rem' }}>Send Test Push</h4>
-        <p style={{ fontSize: '14px', color: C.textMid, marginBottom: '1rem' }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 mb-6">
+        <h4 className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-4">
+          Send Test Push
+        </h4>
+        <p className="text-sm text-on-surface-variant mb-4">
           Send a test notification to verify push is working on your devices.
         </p>
         <button
           onClick={sendTestPush}
           disabled={sendingTest}
-          style={{
-            ...primaryBtn,
-            opacity: sendingTest ? 0.7 : 1,
-            cursor: sendingTest ? 'not-allowed' : 'pointer',
-          }}
+          className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${sendingTest ? ' opacity-70 cursor-not-allowed' : ''}`}
         >
           {sendingTest ? 'Sending...' : 'Send Test Push'}
         </button>
       </div>
 
-      <div style={sectionCard}>
-        <h4 style={{ ...labelStyle, marginBottom: '1rem' }}>Recent Push Delivery Log</h4>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+        <h4 className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-4">
+          Recent Push Delivery Log
+        </h4>
         {deliveryLog.length === 0 ? (
-          <p style={{ fontSize: '14px', color: C.textMid }}>No push notifications sent yet</p>
+          <p className="text-sm text-on-surface-variant">No push notifications sent yet</p>
         ) : (
-          <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="border border-outline-variant rounded-[12px] overflow-hidden">
+            <table className="w-full border-collapse">
               <thead>
-                <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                  <th style={tableHeaderCell}>Type</th>
-                  <th style={tableHeaderCell}>Status</th>
-                  <th style={tableHeaderCell}>Time</th>
+                <tr className="bg-surface-container-low border-b border-outline-variant">
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Type</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Time</th>
                 </tr>
               </thead>
               <tbody>
                 {deliveryLog.map((log, idx) => (
-                  <tr key={idx} style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
-                    <td style={tableCell}>{log.type_key}</td>
-                    <td style={tableCell}>
+                  <tr key={idx} className="bg-surface-container-lowest border-b border-outline-variant">
+                    <td className="px-4 py-3 text-sm text-on-surface">{log.type_key}</td>
+                    <td className="px-4 py-3">
                       <span
-                        style={{
-                          background: log.status === 'sent' ? '#DCFCE7' : '#FEE2E2',
-                          color: log.status === 'sent' ? '#16A34A' : '#DC2626',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                        }}
+                        className={`px-3 py-0.5 rounded text-xs font-medium ${
+                          log.status === 'sent'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-error/10 text-error'
+                        }`}
                       >
                         {log.status}
                       </span>
                     </td>
-                    <td style={tableCell}>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
                   </tr>

@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, dangerBtn } from '@/lib/brand'
 
 export default function SitesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,64 +46,68 @@ export default function SitesPage() {
   )
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 1000 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('nav.sites')}</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
-            {sites.length} {lang === 'ar' ? 'مواقع مسجلة' : 'sites registered'}
-          </p>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface">{t('nav.sites')}</h1>
+            <p className="text-sm text-on-surface-variant mt-1">
+              {sites.length} {lang === 'ar' ? 'مواقع مسجلة' : 'sites registered'}
+            </p>
+          </div>
+          <Link href='/dashboard/sites/new'>
+            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+              {lang === 'ar' ? '+ إضافة موقع' : 'Add Site +'}
+            </button>
+          </Link>
         </div>
-        <Link href='/dashboard/sites/new'>
-          <button style={primaryBtn}>{lang === 'ar' ? '+ إضافة موقع' : 'Add Site +'}</button>
-        </Link>
+
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={lang === 'ar' ? 'البحث...' : 'Search by name, city, or address...'}
+          className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+        />
+
+        {loading ? (
+          <p className="text-on-surface-variant">{t('common.loading')}</p>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-on-surface-variant">
+            <p className="text-lg">{lang === 'ar' ? 'لا توجد مواقع بعد' : 'No sites yet'}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+            {filtered.map(site => (
+              <div key={site.id} className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-[15px] font-semibold text-on-surface">{site.name}</h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${site.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
+                    {site.is_active ? t('common.active') : t('common.inactive')}
+                  </span>
+                </div>
+                {site.name_ar && <p className="text-[13px] text-on-surface-variant mb-1.5 text-right" dir="rtl">{site.name_ar}</p>}
+                {site.city && <p className="text-[13px] text-on-surface-variant mb-1">{lang === 'ar' ? 'المدينة: ' : 'City: '}{site.city}</p>}
+                {site.address && <p className="text-[13px] text-outline mb-2">{site.address}</p>}
+                <p className="text-[11px] text-outline mb-3">
+                  {lang === 'ar' ? 'أُضيف ' : 'Added '}{format(new Date(site.created_at), 'dd MMM yyyy')}
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  <Link href={`/dashboard/sites/${site.id}/spaces`}>
+                    <button className="border border-outline-variant text-on-surface-variant px-3 py-1 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors">Spaces</button>
+                  </Link>
+                  <Link href={'/dashboard/sites/' + site.id + '/edit'}>
+                    <button className="border border-outline-variant text-on-surface-variant px-3 py-1 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                  </Link>
+                  <button onClick={() => toggleActive(site.id, site.is_active)} className="border border-outline-variant text-on-surface-variant px-3 py-1 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors">
+                    {site.is_active ? (lang === 'ar' ? 'إيقاف' : 'Deactivate') : (lang === 'ar' ? 'تفعيل' : 'Activate')}
+                  </button>
+                  <button onClick={() => deleteSite(site.id)} className="text-error border border-error/20 bg-error/10 px-3 py-1 rounded-xl text-xs font-semibold hover:bg-error/20 transition-colors">{t('common.delete')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder={lang === 'ar' ? 'البحث...' : 'Search by name, city, or address...'}
-        style={{ ...inputStyle, marginBottom: '1.5rem' }}
-      />
-
-      {loading ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: C.textLight, fontFamily: F.en }}>
-          <p style={{ fontSize: 18 }}>{lang === 'ar' ? 'لا توجد مواقع بعد' : 'No sites yet'}</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-          {filtered.map(site => (
-            <div key={site.id} style={cardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: C.textDark, fontFamily: F.en }}>{site.name}</h3>
-                <span style={{ background: site.is_active ? '#DCFCE7' : C.pageBg, color: site.is_active ? C.success : C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>
-                  {site.is_active ? t('common.active') : t('common.inactive')}
-                </span>
-              </div>
-              {site.name_ar && <p style={{ fontSize: 13, color: C.textMid, margin: '0 0 6px', direction: 'rtl', fontFamily: F.ar }}>{site.name_ar}</p>}
-              {site.city && <p style={{ fontSize: 13, color: C.textMid, margin: '0 0 4px', fontFamily: F.en }}>{lang === 'ar' ? 'المدينة: ' : 'City: '}{site.city}</p>}
-              {site.address && <p style={{ fontSize: 13, color: C.textLight, margin: '0 0 8px', fontFamily: F.en }}>{site.address}</p>}
-              <p style={{ fontSize: 11, color: C.textLight, margin: '0 0 12px', fontFamily: F.en }}>
-                {lang === 'ar' ? 'أُضيف ' : 'Added '}{format(new Date(site.created_at), 'dd MMM yyyy')}
-              </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link href={`/dashboard/sites/${site.id}/spaces`}>
-                  <button style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>Spaces</button>
-                </Link>
-                <Link href={'/dashboard/sites/' + site.id + '/edit'}>
-                  <button style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>{t('common.edit')}</button>
-                </Link>
-                <button onClick={() => toggleActive(site.id, site.is_active)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
-                  {site.is_active ? (lang === 'ar' ? 'إيقاف' : 'Deactivate') : (lang === 'ar' ? 'تفعيل' : 'Activate')}
-                </button>
-                <button onClick={() => deleteSite(site.id)} style={{ ...dangerBtn, padding: '5px 12px', fontSize: 12 }}>{t('common.delete')}</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { C, F } from '@/lib/brand'
 import { format } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
@@ -17,11 +16,11 @@ export default async function TrackRequestPage({ params }: { params: { token: st
     .single()
 
   if (!request) return (
-    <div style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-      <div style={{ textAlign: 'center', maxWidth: 440 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 12px' }}>Tracking Link Invalid</h2>
-        <p style={{ color: C.textLight, fontFamily: F.en, lineHeight: 1.6 }}>This tracking link is no longer valid.</p>
+    <div className="min-h-[calc(100vh-56px)] flex items-center justify-center p-8">
+      <div className="text-center max-w-[440px]">
+        <div className="text-5xl mb-4">🔍</div>
+        <h2 className="text-[22px] font-bold text-on-surface mb-3">Tracking Link Invalid</h2>
+        <p className="text-on-surface-variant leading-relaxed">This tracking link is no longer valid.</p>
       </div>
     </div>
   )
@@ -53,52 +52,54 @@ export default async function TrackRequestPage({ params }: { params: { token: st
   }
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 640, margin: '0 auto' }}>
-      <div style={{ marginBottom: 28 }}>
-        <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+    <div className="px-6 py-8 max-w-[640px] mx-auto">
+      <div className="mb-7">
+        <p className="text-xs text-on-surface-variant mb-1 uppercase tracking-[0.06em]">
           {(request.site as { name: string } | null)?.name}
           {request.space ? ` · ${(request.space as { name: string; floor: string }).name} (${(request.space as { name: string; floor: string }).floor})` : ''}
         </p>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 4px' }}>{request.title}</h1>
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: 0 }}>
+        <h1 className="text-2xl font-bold text-on-surface mb-1">{request.title}</h1>
+        <p className="text-sm text-on-surface-variant">
           Submitted {format(new Date(request.created_at), 'dd MMM yyyy')} · {request.category}
         </p>
       </div>
 
       {request.description && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: F.en }}>Description</div>
-          <p style={{ fontSize: 14, color: C.textMid, lineHeight: 1.6, margin: 0, fontFamily: F.en }}>{request.description}</p>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm px-5 py-4 mb-6">
+          <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-[0.06em] mb-2">Description</div>
+          <p className="text-sm text-on-surface-variant leading-relaxed">{request.description}</p>
         </div>
       )}
 
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px 24px' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 20, fontFamily: F.en }}>Request Status</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm px-6 py-5">
+        <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-[0.06em] mb-5">Request Status</div>
+        <div className="flex flex-col gap-0">
           {steps.map((step, i) => (
-            <div key={step.key} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: step.failed ? '#FEE2E2' : step.done ? '#DCFCE7' : C.pageBg,
-                  border: `2px solid ${step.failed ? C.danger : step.done ? C.success : C.border}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, color: step.failed ? C.danger : C.success,
-                }}>
+            <div key={step.key} className="flex gap-3.5 items-start">
+              <div className="flex flex-col items-center shrink-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] border-2 ${
+                  step.failed
+                    ? 'bg-error/10 border-error text-error'
+                    : step.done
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-surface-container-low border-outline-variant text-on-surface-variant'
+                }`}>
                   {step.failed ? '✗' : step.done ? '✓' : ''}
                 </div>
                 {i < steps.length - 1 && (
-                  <div style={{ width: 2, height: 28, background: step.done ? C.success : C.border, margin: '2px 0' }} />
+                  <div className={`w-0.5 h-7 my-0.5 ${step.done ? 'bg-primary' : 'bg-outline-variant'}`} />
                 )}
               </div>
-              <div style={{ paddingTop: 4 }}>
-                <span style={{
-                  fontSize: 14, fontWeight: step.done ? 600 : 400,
-                  color: step.failed ? C.danger : step.done ? C.navy : C.textLight,
-                  fontFamily: F.en,
-                }}>{step.label}</span>
+              <div className="pt-1">
+                <span className={`text-sm ${
+                  step.failed
+                    ? 'font-semibold text-error'
+                    : step.done
+                    ? 'font-semibold text-on-surface'
+                    : 'font-normal text-on-surface-variant'
+                }`}>{step.label}</span>
                 {step.key === 'outcome' && request.status === 'rejected' && request.rejection_reason && (
-                  <p style={{ fontSize: 12, color: C.textLight, margin: '2px 0 0', fontFamily: F.en }}>{request.rejection_reason}</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">{request.rejection_reason}</p>
                 )}
               </div>
             </div>

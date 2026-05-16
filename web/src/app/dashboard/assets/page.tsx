@@ -5,7 +5,29 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, inputStyle, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
+
+const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'HVAC': 'ac_unit',
+  'Electrical': 'electrical_services',
+  'Plumbing': 'water_pump',
+  'Elevator / Lift': 'elevator',
+  'Fire Safety': 'fire_extinguisher',
+  'Furniture': 'chair',
+  'Kitchen Equipment': 'kitchen',
+  'Pool / Gym': 'pool',
+  'IT Equipment': 'computer',
+  'Signage': 'signpost',
+  'Vehicle': 'directions_car',
+  'Other': 'category',
+}
+
+const STATUS_CLASSES: Record<string, string> = {
+  active:            'bg-primary-container/90 text-on-primary-container',
+  under_maintenance: 'bg-secondary-container/90 text-on-secondary-container',
+  retired:           'bg-surface-container-high text-on-surface-variant',
+}
 
 export default function AssetsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,6 +38,7 @@ export default function AssetsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -37,13 +60,7 @@ export default function AssetsPage() {
     fetchAssets()
   }
 
-  function toggleSelect(id: string) {
-    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  function toggleSelectAll() {
-    setSelected(prev => prev.length === filtered.length ? [] : filtered.map(a => a.id))
-  }
+  function toggleSelect(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
 
   async function fetchAssets() {
     setLoading(true)
@@ -55,6 +72,13 @@ export default function AssetsPage() {
     setLoading(false)
   }
 
+  const isWarrantyExpiringSoon = (date: string) => {
+    if (!date) return false
+    const days = Math.ceil((new Date(date).getTime() - Date.now()) / 86400000)
+    return days <= 30 && days >= 0
+  }
+  const isWarrantyExpired = (date: string) => !!date && new Date(date) < new Date()
+
   const filtered = assets.filter(a =>
     a.name?.toLowerCase().includes(search.toLowerCase()) ||
     a.serial_number?.toLowerCase().includes(search.toLowerCase()) ||
@@ -62,155 +86,258 @@ export default function AssetsPage() {
     a.site?.name?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    active:            { bg: '#DCFCE7', color: C.success, label: t('assets.status.active') },
-    under_maintenance: { bg: '#FEF3C7', color: C.warning, label: t('assets.status.under_maintenance') },
-    retired:           { bg: '#F1F5F9', color: C.textMid, label: 'Retired' },
-  }
-
-  const categories = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
-
-  const btnStyle = (active: boolean) => ({
-    padding: '6px 14px', borderRadius: 20,
-    border: `1px solid ${active ? C.navy : C.border}`,
-    background: active ? C.navy : C.white,
-    color: active ? C.white : C.textMid,
-    cursor: 'pointer', fontSize: 13, fontWeight: 500 as const,
-    fontFamily: F.en,
-  })
-
-  const isWarrantyExpiringSoon = (date: string) => {
-    if (!date) return false
-    const days = Math.ceil((new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    return days <= 30 && days >= 0
-  }
-
-  const isWarrantyExpired = (date: string) => {
-    if (!date) return false
-    return new Date(date) < new Date()
-  }
-
   return (
-    <div style={pageStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('assets.title')}</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>{assets.length} total assets registered</p>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto">
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface">{t('assets.title')}</h1>
+            <p className="text-on-surface-variant mt-1 text-sm">{assets.length} total assets registered</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex items-center bg-surface-container rounded-lg p-1">
+              <button onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${viewMode === 'grid' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}>
+                <span className="material-symbols-outlined text-base" style={viewMode === 'grid' ? { fontVariationSettings: "'FILL' 1" } : {}}>grid_view</span>Grid
+              </button>
+              <button onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${viewMode === 'list' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}>
+                <span className="material-symbols-outlined text-base">list</span>List
+              </button>
+            </div>
+            <Link href='/dashboard/assets/import'>
+              <button className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('btn.import')}</button>
+            </Link>
+            <Link href='/dashboard/assets/export'>
+              <button className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('btn.export')}</button>
+            </Link>
+            <Link href='/dashboard/assets/new'>
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">add</span>{t('btn.add_asset')}
+              </button>
+            </Link>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href='/dashboard/assets/import'>
-            <button style={secondaryBtn}>{t('btn.import')}</button>
-          </Link>
-          <Link href='/dashboard/assets/export'>
-            <button style={secondaryBtn}>{t('btn.export')}</button>
-          </Link>
-          <Link href='/dashboard/assets/new'>
-            <button style={primaryBtn}>{t('btn.add_asset')}</button>
-          </Link>
-        </div>
-      </div>
 
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder={t('assets.search')}
-        style={{ ...inputStyle, marginBottom: '1rem' }}
-      />
+        <div className="flex flex-col lg:flex-row gap-6">
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        {['all','active','under_maintenance','retired'].map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)} style={btnStyle(statusFilter === s)}>
-            {s === 'all' ? t('common.all') : s === 'active' ? t('assets.status.active') : s === 'under_maintenance' ? t('assets.status.under_maintenance') : t('assets.status.retired')}
-          </button>
-        ))}
-      </div>
+          {/* Filter Sidebar */}
+          <aside className="w-full lg:w-72 flex flex-col gap-4 flex-shrink-0">
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">Filters</span>
+                <button onClick={() => { setCategoryFilter('all'); setStatusFilter('all'); setSearch('') }} className="text-xs text-primary font-bold hover:underline">Clear All</button>
+              </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <button onClick={() => setCategoryFilter('all')} style={{ ...btnStyle(categoryFilter === 'all'), fontSize: 12, padding: '4px 12px' }}>{t('filter.all_cats')}</button>
-        {categories.map(c => (
-          <button key={c} onClick={() => setCategoryFilter(c)} style={{ ...btnStyle(categoryFilter === c), fontSize: 12, padding: '4px 12px' }}>
-            {c === 'HVAC' ? t('cat.hvac') : c === 'Electrical' ? t('cat.electrical') : c === 'Plumbing' ? t('cat.plumbing') : c === 'Elevator / Lift' ? t('cat.elevator') : c === 'Fire Safety' ? t('cat.fire') : c === 'Furniture' ? t('cat.furniture') : c === 'Kitchen Equipment' ? t('cat.kitchen') : c === 'Pool / Gym' ? t('cat.pool') : c === 'IT Equipment' ? t('cat.it') : c === 'Signage' ? t('cat.signage') : c === 'Vehicle' ? t('cat.vehicle') : t('cat.other')}
-          </button>
-        ))}
-      </div>
+              {/* Search */}
+              <div className="mb-5">
+                <label className="block text-xs text-on-surface-variant mb-2">Search</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant text-lg">search</span>
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('assets.search')}
+                    className="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                </div>
+              </div>
 
-      {selected.length > 0 && (
-        <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.danger, fontFamily: F.en }}>{selected.length} asset(s) selected</span>
-          <button onClick={deleteSelected} disabled={deleting} style={{ ...dangerBtn, padding: '6px 16px', fontSize: 12 }}>
-            {deleting ? 'Deleting...' : t('btn.delete_selected')}
-          </button>
-          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.dangerBorder}`, background: C.white, cursor: 'pointer', fontSize: 12, color: C.textMid, fontFamily: F.en }}>Cancel</button>
-        </div>
-      )}
+              {/* Category */}
+              <div className="mb-5">
+                <label className="block text-xs text-on-surface-variant mb-2">Category</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setCategoryFilter('all')}
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${categoryFilter === 'all' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-surface-container-low text-on-surface-variant border-transparent hover:border-outline-variant'}`}>
+                    All
+                  </button>
+                  {CATEGORIES.map(c => (
+                    <button key={c} onClick={() => setCategoryFilter(c)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${categoryFilter === c ? 'bg-primary/10 text-primary border-primary/30' : 'bg-surface-container-low text-on-surface-variant border-transparent hover:border-outline-variant'}`}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-      {loading ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>Loading...</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: C.textLight, fontFamily: F.en }}>
-          <p style={{ fontSize: 18, marginBottom: 8 }}>No assets found</p>
-          <p style={{ fontSize: 14 }}>Add your first asset to get started</p>
-        </div>
-      ) : (
-        <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                <th style={{ padding: '10px 16px', width: 40 }}>
-                  <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
-                </th>
-                {[t('assets.col.name'),t('assets.col.cat'),t('common.site'),t('assets.col.serial'),t('common.status'),t('assets.col.warranty'),t('assets.col.added'),t('common.actions')].map(h => (
-                  <th key={h} style={tableHeaderCell}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((asset) => {
-                const sCfg = statusConfig[asset.status] ?? statusConfig.active
-                const warningSoon = isWarrantyExpiringSoon(asset.warranty_expiry)
-                const expired = isWarrantyExpired(asset.warranty_expiry)
-                return (
-                  <tr key={asset.id} style={{ background: selected.includes(asset.id) ? '#EEF2FF' : C.white }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <input type='checkbox' checked={selected.includes(asset.id)} onChange={() => toggleSelect(asset.id)} />
-                    </td>
-                    <td style={tableCell}>
-                      <Link href={'/dashboard/assets/' + asset.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 14, fontFamily: F.en }}>
-                        {asset.name}
-                      </Link>
-                      {asset.manufacturer && <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{asset.manufacturer} {asset.model}</p>}
-                    </td>
-                    <td style={tableCell}>{asset.category ?? '—'}</td>
-                    <td style={tableCell}>{asset.site?.name ?? '—'}</td>
-                    <td style={{ ...tableCell, fontFamily: 'monospace' }}>{asset.serial_number ?? '—'}</td>
-                    <td style={tableCell}>
-                      <span style={{ background: sCfg.bg, color: sCfg.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{sCfg.label}</span>
-                    </td>
-                    <td style={tableCell}>
-                      {asset.warranty_expiry ? (
-                        <span style={{ color: expired ? C.danger : warningSoon ? C.warning : C.textMid, fontFamily: F.en }}>
-                          {format(new Date(asset.warranty_expiry), 'dd MMM yyyy')}
-                          {expired && ' (Expired)'}
-                          {warningSoon && !expired && ' (Expiring soon)'}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td style={tableCell}>{format(new Date(asset.created_at), 'dd MMM yyyy')}</td>
-                    <td style={tableCell}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <a href={'/dashboard/assets/' + asset.id + '/edit'}>
-                          <button style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.edit')}</button>
-                        </a>
-                        <button onClick={() => deleteOne(asset.id)} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
+              {/* Status */}
+              <div>
+                <label className="block text-xs text-on-surface-variant mb-2">Asset Status</label>
+                <div className="space-y-2">
+                  {[
+                    { val: 'all', label: 'All' },
+                    { val: 'active', label: t('assets.status.active') },
+                    { val: 'under_maintenance', label: t('assets.status.under_maintenance') },
+                    { val: 'retired', label: 'Retired/Decommissioned' },
+                  ].map(opt => (
+                    <label key={opt.val} className="flex items-center gap-3 cursor-pointer group">
+                      <input type="radio" checked={statusFilter === opt.val} onChange={() => setStatusFilter(opt.val)}
+                        className="w-4 h-4 border-outline-variant text-primary focus:ring-primary/30" />
+                      <span className="text-sm text-on-surface group-hover:text-primary transition-colors">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* IoT promo card */}
+            <div className="bg-secondary text-on-secondary p-4 rounded-xl shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <h5 className="font-bold mb-1 relative z-10">Smart Monitoring</h5>
+              <p className="text-xs opacity-90 mb-4 relative z-10">Connect IoT sensors to automate maintenance logs.</p>
+              <button className="w-full py-2 bg-secondary-fixed text-on-secondary-fixed rounded-lg text-xs font-bold hover:bg-white transition-all relative z-10">Enable Now</button>
+            </div>
+          </aside>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Bulk delete bar */}
+            {selected.length > 0 && (
+              <div className="bg-error/5 border border-error/20 rounded-xl p-3 flex items-center gap-3 mb-4 flex-wrap">
+                <span className="text-sm font-semibold text-error">{selected.length} asset(s) selected</span>
+                <button onClick={deleteSelected} disabled={deleting}
+                  className="px-4 py-1.5 rounded-xl bg-error text-on-error text-sm font-semibold disabled:opacity-50 hover:bg-error/90 transition-colors">
+                  {deleting ? 'Deleting...' : t('btn.delete_selected')}
+                </button>
+                <button onClick={() => setSelected([])} className="px-4 py-1.5 rounded-xl border border-outline-variant/40 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors">Cancel</button>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="text-on-surface-variant py-8 text-center">Loading...</div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
+                <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">inventory_2</span>
+                <p className="text-lg font-semibold mb-1">No assets found</p>
+                <p className="text-sm">Add your first asset to get started</p>
+              </div>
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map(asset => {
+                  const icon = CATEGORY_ICONS[asset.category] ?? 'category'
+                  const statusCls = STATUS_CLASSES[asset.status] ?? STATUS_CLASSES.active
+                  const warningSoon = isWarrantyExpiringSoon(asset.warranty_expiry)
+                  const expired = isWarrantyExpired(asset.warranty_expiry)
+                  const isSelected = selected.includes(asset.id)
+                  return (
+                    <div key={asset.id}
+                      className={`bg-surface-container-lowest rounded-xl border overflow-hidden group hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 flex flex-col ${isSelected ? 'border-primary' : 'border-outline-variant'}`}
+                    >
+                      {/* Card image / icon area */}
+                      <div className="relative h-36 bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center overflow-hidden">
+                        <span className="material-symbols-outlined text-7xl text-outline-variant/30 group-hover:scale-110 transition-transform duration-500" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
+                        <div className={`absolute top-3 left-3 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${statusCls}`}>
+                          {asset.status?.replace('_', ' ') ?? 'active'}
+                        </div>
+                        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link href={`/dashboard/assets/${asset.id}/edit`}>
+                            <button className="p-2 bg-white/90 rounded-full text-primary shadow-sm hover:bg-primary hover:text-white transition-colors" onClick={e => e.stopPropagation()}>
+                              <span className="material-symbols-outlined text-xl">edit</span>
+                            </button>
+                          </Link>
+                        </div>
+                        <label className="absolute bottom-2 left-2 cursor-pointer" onClick={e => { e.stopPropagation() }}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(asset.id)} className="w-4 h-4 rounded border-outline-variant text-primary" />
+                        </label>
                       </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+
+                      {/* Card body */}
+                      <div className="p-4 flex-1 flex flex-col">
+                        <div className="mb-3">
+                          <span className="text-[10px] font-bold uppercase tracking-tighter text-primary">
+                            {asset.category ?? 'Asset'}{asset.site?.name ? ` · ${asset.site.name}` : ''}
+                          </span>
+                          <h4 className="font-bold text-on-surface text-base leading-tight mt-1">{asset.name}</h4>
+                          {asset.serial_number && <p className="text-on-surface-variant text-xs mt-0.5 font-mono">SN: {asset.serial_number}</p>}
+                        </div>
+
+                        <div className="mt-auto flex items-center justify-between pt-3 border-t border-outline-variant/30">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+                              <span className="material-symbols-outlined text-lg">
+                                {expired ? 'warning' : warningSoon ? 'schedule' : 'verified'}
+                              </span>
+                            </div>
+                            <div className="text-[10px]">
+                              <p className="text-on-surface-variant font-medium">
+                                {asset.warranty_expiry ? 'Warranty' : 'Added'}
+                              </p>
+                              <p className={`font-bold ${expired ? 'text-error' : warningSoon ? 'text-[#f57f17]' : 'text-on-surface'}`}>
+                                {asset.warranty_expiry ? format(new Date(asset.warranty_expiry), 'dd MMM yyyy') : format(new Date(asset.created_at), 'dd MMM yyyy')}
+                                {expired && ' (Exp)'}
+                                {warningSoon && !expired && ' (Soon)'}
+                              </p>
+                            </div>
+                          </div>
+                          <Link href={`/dashboard/assets/${asset.id}`}>
+                            <button className="px-4 py-2 bg-surface-container-low text-primary rounded-lg text-xs font-bold hover:bg-primary-container/20 hover:text-on-primary-container transition-all">
+                              Details
+                            </button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* List / table view */
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-surface-container border-b border-outline-variant/30">
+                        <th className="p-3 w-10">
+                          <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0}
+                            onChange={() => setSelected(selected.length === filtered.length ? [] : filtered.map(a => a.id))} className="rounded" />
+                        </th>
+                        {[t('assets.col.name'), t('assets.col.cat'), t('common.site'), t('assets.col.serial'), t('common.status'), t('assets.col.warranty'), t('assets.col.added'), t('common.actions')].map(h => (
+                          <th key={h} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/20">
+                      {filtered.map(asset => {
+                        const warningSoon = isWarrantyExpiringSoon(asset.warranty_expiry)
+                        const expired = isWarrantyExpired(asset.warranty_expiry)
+                        const isSelected = selected.includes(asset.id)
+                        return (
+                          <tr key={asset.id} className={`hover:bg-surface-container-low transition-colors ${isSelected ? 'bg-primary/5' : ''}`}>
+                            <td className="p-3"><input type='checkbox' checked={isSelected} onChange={() => toggleSelect(asset.id)} className="rounded" /></td>
+                            <td className="p-3">
+                              <Link href={'/dashboard/assets/' + asset.id} className="text-sm font-semibold text-primary hover:underline">{asset.name}</Link>
+                              {asset.manufacturer && <p className="text-xs text-on-surface-variant mt-0.5">{asset.manufacturer} {asset.model}</p>}
+                            </td>
+                            <td className="p-3 text-sm text-on-surface-variant">{asset.category ?? '—'}</td>
+                            <td className="p-3 text-sm text-on-surface-variant">{asset.site?.name ?? '—'}</td>
+                            <td className="p-3 text-xs font-mono text-on-surface-variant">{asset.serial_number ?? '—'}</td>
+                            <td className="p-3">
+                              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLASSES[asset.status] ?? STATUS_CLASSES.active}`}>
+                                {asset.status?.replace('_', ' ') ?? 'active'}
+                              </span>
+                            </td>
+                            <td className={`p-3 text-sm ${expired ? 'text-error font-semibold' : warningSoon ? 'text-[#f57f17] font-semibold' : 'text-on-surface-variant'}`}>
+                              {asset.warranty_expiry ? `${format(new Date(asset.warranty_expiry), 'dd MMM yyyy')}${expired ? ' (Expired)' : warningSoon ? ' (Soon)' : ''}` : '—'}
+                            </td>
+                            <td className="p-3 text-sm text-on-surface-variant">{format(new Date(asset.created_at), 'dd MMM yyyy')}</td>
+                            <td className="p-3">
+                              <div className="flex gap-2">
+                                <Link href={'/dashboard/assets/' + asset.id + '/edit'}>
+                                  <button className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                                </Link>
+                                <button onClick={() => deleteOne(asset.id)} className="px-3 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">{t('common.delete')}</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

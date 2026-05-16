@@ -1,5 +1,3 @@
-import { NotificationService } from '../NotificationService';
-
 export async function notifyDailySummaryReady(
   userId: string,
   userEmail: string,

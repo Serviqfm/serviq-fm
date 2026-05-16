@@ -1,26 +1,16 @@
 import { type ReactNode } from 'react'
-import { C, F } from '@/lib/brand'
-
-const gradH = 'linear-gradient(90deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%)'
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0, fontFamily: F.en, background: C.pageBg }}>
-        <header style={{
-          background: C.white,
-          borderBottom: `1px solid ${C.border}`,
-          padding: '0 32px',
-          height: 56,
-          display: 'flex',
-          alignItems: 'center',
-        }}>
-          <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: C.navy, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 16, fontWeight: 800, fontFamily: F.en, background: gradH, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>S</span>
+      <body className="m-0 p-0 bg-background">
+        <header className="bg-surface border-b border-outline-variant px-8 h-14 flex items-center">
+          <a href="/" className="inline-flex items-center gap-2.5 no-underline">
+            <div className="w-[34px] h-[34px] rounded-[9px] bg-primary flex items-center justify-center">
+              <span className="text-base font-extrabold text-on-primary">S</span>
             </div>
-            <span style={{ fontSize: 16, fontWeight: 700, color: C.navy, fontFamily: F.en }}>
-              Serviq<span style={{ background: gradH, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>FM</span>
+            <span className="text-base font-bold text-on-surface">
+              Serviq<span className="text-secondary">FM</span>
             </span>
           </a>
         </header>

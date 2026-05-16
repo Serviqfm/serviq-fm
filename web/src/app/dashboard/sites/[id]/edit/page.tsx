@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, primaryBtn, secondaryBtn, inputStyle, labelStyle } from '@/lib/brand'
 
 export default function EditSitePage() {
   const router = useRouter()
@@ -45,61 +44,70 @@ export default function EditSitePage() {
     else router.push('/dashboard/sites')
   }
 
-  const fieldStyle = { ...inputStyle, boxSizing: 'border-box' as const }
-
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading...</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">Loading...</div>
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 560, margin: '0 auto' }}>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <a href='/dashboard/sites' style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>
-          {lang === 'ar' ? 'رجوع للمواقع' : 'Back to Sites'}
-        </a>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0', color: C.navy, fontFamily: F.en }}>
-          {lang === 'ar' ? 'تعديل الموقع' : 'Edit Site'}
-        </h1>
-      </div>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[680px] mx-auto space-y-6">
         <div>
-          <label style={labelStyle}>Site Name (English) *</label>
-          <input name='name' value={form.name} onChange={handleChange} required style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>{lang === 'ar' ? 'اسم الموقع (عربي)' : 'Site Name (Arabic)'}</label>
-          <input name='name_ar' value={form.name_ar} onChange={handleChange} placeholder='اختياري' style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
-        </div>
-        <div>
-          <label style={labelStyle}>{lang === 'ar' ? 'المدينة' : 'City'}</label>
-          <input name='city' value={form.city} onChange={handleChange} style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>{lang === 'ar' ? 'العنوان' : 'Address'}</label>
-          <input name='address' value={form.address} onChange={handleChange} style={fieldStyle} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0' }}>
-          <input
-            type='checkbox'
-            id='invoicing_enabled'
-            checked={form.invoicing_enabled}
-            onChange={e => setForm(prev => ({ ...prev, invoicing_enabled: e.target.checked }))}
-            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: C.navy }}
-          />
-          <label htmlFor='invoicing_enabled' style={{ ...labelStyle, margin: 0, cursor: 'pointer' }}>
-            {lang === 'ar' ? 'تفعيل الفوترة لهذا الموقع' : 'Enable invoicing for this site'}
-          </label>
-        </div>
-        {error && <p style={{ color: C.danger, fontSize: 13, margin: 0, fontFamily: F.en }}>{error}</p>}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button type='submit' disabled={saving} style={{ ...primaryBtn, flex: 1, opacity: saving ? 0.7 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes')}
-          </button>
-          <a href='/dashboard/sites' style={{ flex: 1 }}>
-            <button type='button' style={{ ...secondaryBtn, width: '100%' }}>
-              {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-            </button>
+          <a href='/dashboard/sites' className="text-on-surface-variant text-sm hover:text-primary transition-colors">
+            {lang === 'ar' ? 'رجوع للمواقع' : 'Back to Sites'}
           </a>
+          <h1 className="text-3xl font-bold text-on-surface mt-2">
+            {lang === 'ar' ? 'تعديل الموقع' : 'Edit Site'}
+          </h1>
         </div>
-      </form>
+
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Site Name (English) *</label>
+              <input name='name' value={form.name} onChange={handleChange} required
+                className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">{lang === 'ar' ? 'اسم الموقع (عربي)' : 'Site Name (Arabic)'}</label>
+              <input name='name_ar' value={form.name_ar} onChange={handleChange} placeholder='اختياري'
+                className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-right"
+                dir="rtl" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">{lang === 'ar' ? 'المدينة' : 'City'}</label>
+              <input name='city' value={form.city} onChange={handleChange}
+                className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">{lang === 'ar' ? 'العنوان' : 'Address'}</label>
+              <input name='address' value={form.address} onChange={handleChange}
+                className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+            </div>
+            <div className="flex items-center gap-3 py-2">
+              <input
+                type='checkbox'
+                id='invoicing_enabled'
+                checked={form.invoicing_enabled}
+                onChange={e => setForm(prev => ({ ...prev, invoicing_enabled: e.target.checked }))}
+                className="w-4 h-4 cursor-pointer accent-primary"
+              />
+              <label htmlFor='invoicing_enabled' className="block text-[11px] font-bold uppercase tracking-wider text-secondary cursor-pointer">
+                {lang === 'ar' ? 'تفعيل الفوترة لهذا الموقع' : 'Enable invoicing for this site'}
+              </label>
+            </div>
+            {error && <p className="text-error text-sm">{error}</p>}
+            <div className="flex gap-3">
+              <button type='submit' disabled={saving}
+                className={`flex-1 bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes')}
+              </button>
+              <a href='/dashboard/sites' className="flex-1">
+                <button type='button' className="w-full border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">
+                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }

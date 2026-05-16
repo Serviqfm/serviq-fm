@@ -6,7 +6,6 @@ import { format, isPast } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, primaryBtn, secondaryBtn, dangerBtn } from '@/lib/brand'
 
 function calculateNextDue(frequency: string): string {
   const now = new Date()
@@ -28,13 +27,13 @@ const freqLabel: Record<string, string> = {
   monthly: 'Monthly', quarterly: 'Quarterly', biannual: 'Every 6 Months', annual: 'Annual',
 }
 
-const woStatusConfig: Record<string, { bg: string; color: string }> = {
-  new:         { bg: '#e3f2fd', color: '#1A7FC1' },
-  assigned:    { bg: '#e8eaf6', color: '#1E2D4E' },
-  in_progress: { bg: '#fff8e1', color: '#F57F17' },
-  on_hold:     { bg: '#fce4ec', color: '#C62828' },
-  completed:   { bg: '#e8f5e9', color: '#2E7D32' },
-  closed:      { bg: '#f5f5f5', color: '#4A5568' },
+const woStatusConfig: Record<string, { className: string }> = {
+  new:         { className: 'bg-[#e3f2fd] text-[#1A7FC1]' },
+  assigned:    { className: 'bg-[#e8eaf6] text-[#1E2D4E]' },
+  in_progress: { className: 'bg-[#fff8e1] text-[#F57F17]' },
+  on_hold:     { className: 'bg-[#fce4ec] text-[#C62828]' },
+  completed:   { className: 'bg-primary/10 text-primary' },
+  closed:      { className: 'bg-surface-container-low text-on-surface-variant' },
 }
 
 export default function PMScheduleDetailPage() {
@@ -119,206 +118,226 @@ export default function PMScheduleDetailPage() {
     window.location.href = '/dashboard/pm-schedules'
   }
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading...</div>
-  if (!schedule) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>PM Schedule not found.</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">Loading...</div>
+  if (!schedule) return <div className="p-8 text-on-surface-variant">PM Schedule not found.</div>
 
   const isDue = schedule.next_due_at && isPast(new Date(schedule.next_due_at))
   const complianceRate = schedule.completed_count > 0
     ? Math.round((schedule.on_time_count / schedule.completed_count) * 100)
     : null
 
-  const tabStyle = (active: boolean) => ({
-    padding: '8px 16px', border: 'none',
-    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
-    background: 'transparent', cursor: 'pointer',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fontSize: 13, fontWeight: (active ? 600 : 400) as any,
-    color: active ? C.navy : C.textLight,
-    fontFamily: F.en,
-  })
-
-  const infoCard = { background: C.pageBg, borderRadius: 8, padding: '12px 16px' }
-
   return (
-    <div style={{ ...pageStyle, maxWidth: 900 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <a href='/dashboard/pm-schedules' style={{ color: C.textLight, fontSize: 13, textDecoration: 'none', fontFamily: F.en }}>
-          {lang === 'ar' ? '← رجوع' : '← Back to PM Schedules'}
-        </a>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={toggleActive} style={secondaryBtn}>
-            {schedule.is_active
-              ? (lang === 'ar' ? 'إيقاف' : 'Pause')
-              : (lang === 'ar' ? 'تفعيل' : 'Resume')}
-          </button>
-          <Link href={'/dashboard/pm-schedules/' + id + '/edit'}>
-            <button style={secondaryBtn}>{t('common.edit')}</button>
-          </Link>
-          <button onClick={generateWorkOrder} disabled={generating} style={{ ...primaryBtn, opacity: generating ? 0.7 : 1 }}>
-            {generating
-              ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
-              : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate Work Order')}
-          </button>
-        </div>
-      </div>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[900px] mx-auto space-y-6">
 
-      <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{schedule.title}</h1>
-          <span style={{ background: schedule.is_active ? '#DCFCE7' : C.pageBg, color: schedule.is_active ? C.success : C.textMid, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-            {schedule.is_active
-              ? (lang === 'ar' ? 'نشط' : 'Active')
-              : (lang === 'ar' ? 'موقوف' : 'Paused')}
-          </span>
-          {isDue && schedule.is_active && (
-            <span style={{ background: '#fce4ec', color: C.danger, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-              {lang === 'ar' ? 'متأخر' : 'Overdue'}
-            </span>
-          )}
-        </div>
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, marginTop: 6 }}>
-          {freqLabel[schedule.frequency] ?? schedule.frequency}
-          {schedule.estimated_duration_minutes && ` · ${schedule.estimated_duration_minutes} min`}
-          {schedule.completed_count > 0 && ` · ${schedule.completed_count} ${lang === 'ar' ? 'إتمام' : 'completions'}`}
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
-        {[
-          {
-            label: lang === 'ar' ? 'الموعد القادم' : 'Next Due',
-            value: schedule.next_due_at ? format(new Date(schedule.next_due_at), 'dd MMM yyyy') : '—',
-            alert: isDue,
-          },
-          {
-            label: lang === 'ar' ? 'آخر إنشاء' : 'Last Generated',
-            value: schedule.last_generated_at ? format(new Date(schedule.last_generated_at), 'dd MMM yyyy') : (lang === 'ar' ? 'لم يتم' : 'Never'),
-          },
-          {
-            label: lang === 'ar' ? 'مرات الإتمام' : 'Completions',
-            value: schedule.completed_count ?? 0,
-          },
-          {
-            label: lang === 'ar' ? 'نسبة الالتزام' : 'Compliance Rate',
-            value: complianceRate !== null ? complianceRate + '%' : '—',
-          },
-        ].map(stat => (
-          <div key={stat.label} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px' }}>
-            <p style={{ fontSize: 11, color: C.textLight, fontFamily: F.en, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{stat.label}</p>
-            <p style={{ fontSize: 18, fontWeight: 700, color: stat.alert ? C.danger : C.navy, fontFamily: F.en, margin: 0 }}>{String(stat.value)}</p>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: '1.5rem', display: 'flex' }}>
-        <button style={tabStyle(activeTab === 'details')} onClick={() => setActiveTab('details')}>
-          {lang === 'ar' ? 'التفاصيل' : 'Details'}
-        </button>
-        <button style={tabStyle(activeTab === 'workorders')} onClick={() => setActiveTab('workorders')}>
-          {lang === 'ar' ? `أوامر العمل (${workOrders.length})` : `Generated Work Orders (${workOrders.length})`}
-        </button>
-      </div>
-
-      {activeTab === 'details' && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            {[
-              { label: lang === 'ar' ? 'الأصل' : 'Asset',             value: schedule.asset?.name ?? '—' },
-              { label: lang === 'ar' ? 'الموقع' : 'Site',              value: schedule.site?.name ?? '—' },
-              { label: lang === 'ar' ? 'التكرار' : 'Frequency',        value: freqLabel[schedule.frequency] ?? schedule.frequency },
-              { label: lang === 'ar' ? 'المعين إليه' : 'Assigned To',  value: schedule.assignee?.full_name ?? t('common.unassigned') },
-              { label: lang === 'ar' ? 'المدة التقديرية' : 'Est. Duration',
-                value: schedule.estimated_duration_minutes ? schedule.estimated_duration_minutes + ' min' : '—' },
-              { label: lang === 'ar' ? 'الموعد القادم' : 'Next Due',
-                value: schedule.next_due_at ? format(new Date(schedule.next_due_at), 'dd MMM yyyy HH:mm') : '—' },
-              { label: lang === 'ar' ? 'موسمي' : 'Seasonal',
-                value: schedule.is_seasonal
-                  ? `Month ${schedule.seasonal_start_month} – ${schedule.seasonal_end_month}`
-                  : (lang === 'ar' ? 'لا' : 'No') },
-              { label: lang === 'ar' ? 'آخر إتمام' : 'Last Completed',
-                value: schedule.last_completed_at
-                  ? format(new Date(schedule.last_completed_at), 'dd MMM yyyy')
-                  : (lang === 'ar' ? 'لم يتم' : 'Never') },
-            ].map(({ label, value }) => (
-              <div key={label} style={infoCard}>
-                <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 4px' }}>{label}</p>
-                <p style={{ fontSize: 14, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{value}</p>
-              </div>
-            ))}
-          </div>
-          {schedule.description && (
-            <div style={{ ...infoCard, marginTop: 4 }}>
-              <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 6px' }}>
-                {lang === 'ar' ? 'الوصف' : 'Description'}
-              </p>
-              <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6, color: C.textDark, fontFamily: F.en }}>{schedule.description}</p>
-            </div>
-          )}
-          {schedule.asset && (
-            <div style={{ marginTop: '1rem' }}>
-              <Link href={'/dashboard/assets/' + schedule.asset.id} style={{ color: C.blue, fontSize: 13, fontFamily: F.en, textDecoration: 'none' }}>
-                {lang === 'ar' ? '→ عرض الأصل' : '→ View Asset'}
-              </Link>
-            </div>
-          )}
-          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: `1px solid ${C.border}` }}>
-            <button onClick={deleteSchedule} style={{ ...dangerBtn, fontSize: 13, padding: '8px 18px' }}>
-              {lang === 'ar' ? 'حذف الجدول' : 'Delete Schedule'}
+        <div className="flex justify-between items-center">
+          <a href="/dashboard/pm-schedules" className="text-on-surface-variant text-sm hover:text-primary transition-colors">
+            {lang === 'ar' ? '← رجوع' : '← Back to PM Schedules'}
+          </a>
+          <div className="flex gap-2">
+            <button
+              onClick={toggleActive}
+              className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors"
+            >
+              {schedule.is_active
+                ? (lang === 'ar' ? 'إيقاف' : 'Pause')
+                : (lang === 'ar' ? 'تفعيل' : 'Resume')}
+            </button>
+            <Link href={'/dashboard/pm-schedules/' + id + '/edit'}>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">
+                {t('common.edit')}
+              </button>
+            </Link>
+            <button
+              onClick={generateWorkOrder}
+              disabled={generating}
+              className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${generating ? ' opacity-70' : ''}`}
+            >
+              {generating
+                ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
+                : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate Work Order')}
             </button>
           </div>
         </div>
-      )}
 
-      {activeTab === 'workorders' && (
         <div>
-          {workOrders.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: C.textLight, fontFamily: F.en }}>
-              <p style={{ fontSize: 14, marginBottom: 12 }}>
-                {lang === 'ar' ? 'لم يتم إنشاء أوامر عمل من هذا الجدول بعد.' : 'No work orders generated from this schedule yet.'}
-              </p>
-              <button onClick={generateWorkOrder} disabled={generating} style={{ ...primaryBtn, opacity: generating ? 0.7 : 1 }}>
-                {generating
-                  ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
-                  : (lang === 'ar' ? 'إنشاء أول أمر عمل' : 'Generate First Work Order')}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-[22px] font-bold text-on-surface">{schedule.title}</h1>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${schedule.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
+              {schedule.is_active
+                ? (lang === 'ar' ? 'نشط' : 'Active')
+                : (lang === 'ar' ? 'موقوف' : 'Paused')}
+            </span>
+            {isDue && schedule.is_active && (
+              <span className="bg-error/10 text-error px-2.5 py-0.5 rounded-full text-xs font-medium">
+                {lang === 'ar' ? 'متأخر' : 'Overdue'}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-on-surface-variant mt-1.5">
+            {freqLabel[schedule.frequency] ?? schedule.frequency}
+            {schedule.estimated_duration_minutes && ` · ${schedule.estimated_duration_minutes} min`}
+            {schedule.completed_count > 0 && ` · ${schedule.completed_count} ${lang === 'ar' ? 'إتمام' : 'completions'}`}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            {
+              label: lang === 'ar' ? 'الموعد القادم' : 'Next Due',
+              value: schedule.next_due_at ? format(new Date(schedule.next_due_at), 'dd MMM yyyy') : '—',
+              alert: isDue,
+            },
+            {
+              label: lang === 'ar' ? 'آخر إنشاء' : 'Last Generated',
+              value: schedule.last_generated_at ? format(new Date(schedule.last_generated_at), 'dd MMM yyyy') : (lang === 'ar' ? 'لم يتم' : 'Never'),
+            },
+            {
+              label: lang === 'ar' ? 'مرات الإتمام' : 'Completions',
+              value: schedule.completed_count ?? 0,
+            },
+            {
+              label: lang === 'ar' ? 'نسبة الالتزام' : 'Compliance Rate',
+              value: complianceRate !== null ? complianceRate + '%' : '—',
+            },
+          ].map(stat => (
+            <div key={stat.label} className="bg-surface-container-lowest border border-outline-variant rounded-[12px] px-4 py-3.5">
+              <p className="text-[11px] text-on-surface-variant font-semibold uppercase tracking-wider mb-1.5">{stat.label}</p>
+              <p className={`text-lg font-bold ${stat.alert ? 'text-error' : 'text-on-surface'}`}>{String(stat.value)}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-b border-outline-variant flex">
+          <button
+            className={activeTab === 'details'
+              ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-primary text-primary'
+              : 'px-4 py-2.5 text-sm text-on-surface-variant border-b-2 border-transparent hover:text-on-surface transition-colors'}
+            onClick={() => setActiveTab('details')}
+          >
+            {lang === 'ar' ? 'التفاصيل' : 'Details'}
+          </button>
+          <button
+            className={activeTab === 'workorders'
+              ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-primary text-primary'
+              : 'px-4 py-2.5 text-sm text-on-surface-variant border-b-2 border-transparent hover:text-on-surface transition-colors'}
+            onClick={() => setActiveTab('workorders')}
+          >
+            {lang === 'ar' ? `أوامر العمل (${workOrders.length})` : `Generated Work Orders (${workOrders.length})`}
+          </button>
+        </div>
+
+        {activeTab === 'details' && (
+          <div>
+            <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+              {[
+                { label: lang === 'ar' ? 'الأصل' : 'Asset',              value: schedule.asset?.name ?? '—' },
+                { label: lang === 'ar' ? 'الموقع' : 'Site',               value: schedule.site?.name ?? '—' },
+                { label: lang === 'ar' ? 'التكرار' : 'Frequency',         value: freqLabel[schedule.frequency] ?? schedule.frequency },
+                { label: lang === 'ar' ? 'المعين إليه' : 'Assigned To',   value: schedule.assignee?.full_name ?? t('common.unassigned') },
+                { label: lang === 'ar' ? 'المدة التقديرية' : 'Est. Duration',
+                  value: schedule.estimated_duration_minutes ? schedule.estimated_duration_minutes + ' min' : '—' },
+                { label: lang === 'ar' ? 'الموعد القادم' : 'Next Due',
+                  value: schedule.next_due_at ? format(new Date(schedule.next_due_at), 'dd MMM yyyy HH:mm') : '—' },
+                { label: lang === 'ar' ? 'موسمي' : 'Seasonal',
+                  value: schedule.is_seasonal
+                    ? `Month ${schedule.seasonal_start_month} – ${schedule.seasonal_end_month}`
+                    : (lang === 'ar' ? 'لا' : 'No') },
+                { label: lang === 'ar' ? 'آخر إتمام' : 'Last Completed',
+                  value: schedule.last_completed_at
+                    ? format(new Date(schedule.last_completed_at), 'dd MMM yyyy')
+                    : (lang === 'ar' ? 'لم يتم' : 'Never') },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-surface-container-low rounded-lg px-4 py-3">
+                  <p className="text-xs text-on-surface-variant mb-1">{label}</p>
+                  <p className="text-sm font-medium text-on-surface">{value}</p>
+                </div>
+              ))}
+            </div>
+            {schedule.description && (
+              <div className="bg-surface-container-low rounded-lg px-4 py-3 mt-1">
+                <p className="text-xs text-on-surface-variant mb-1.5">
+                  {lang === 'ar' ? 'الوصف' : 'Description'}
+                </p>
+                <p className="text-sm leading-relaxed text-on-surface">{schedule.description}</p>
+              </div>
+            )}
+            {schedule.asset && (
+              <div className="mt-4">
+                <Link href={'/dashboard/assets/' + schedule.asset.id} className="text-secondary text-sm hover:text-primary transition-colors">
+                  {lang === 'ar' ? '→ عرض الأصل' : '→ View Asset'}
+                </Link>
+              </div>
+            )}
+            <div className="mt-6 pt-4 border-t border-outline-variant">
+              <button
+                onClick={deleteSchedule}
+                className="bg-error/10 text-error border border-error/20 px-4 py-2 rounded-xl font-semibold text-sm hover:bg-error/20 transition-colors"
+              >
+                {lang === 'ar' ? 'حذف الجدول' : 'Delete Schedule'}
               </button>
             </div>
-          ) : (
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                    {['Title', 'Priority', 'Status', 'Assigned To', 'Created'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: F.en }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {workOrders.map(wo => {
-                    const woCfg = woStatusConfig[wo.status] ?? woStatusConfig.new
-                    return (
-                      <tr key={wo.id} style={{ background: C.white }}>
-                        <td style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}` }}>
-                          <Link href={'/dashboard/work-orders/' + wo.id} style={{ color: C.navy, fontWeight: 500, textDecoration: 'none', fontSize: 13, fontFamily: F.en }}>{wo.title}</Link>
-                        </td>
-                        <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 500, fontFamily: F.en, borderBottom: `1px solid ${C.border}`, color: wo.priority === 'critical' ? C.danger : wo.priority === 'high' ? C.warning : C.textMid }}>
-                          {wo.priority.charAt(0).toUpperCase() + wo.priority.slice(1)}
-                        </td>
-                        <td style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}` }}>
-                          <span style={{ background: woCfg.bg, color: woCfg.color, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-                            {wo.status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 16px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{wo.assignee?.full_name ?? t('common.unassigned')}</td>
-                        <td style={{ padding: '10px 16px', fontSize: 13, color: C.textMid, fontFamily: F.en, borderBottom: `1px solid ${C.border}` }}>{format(new Date(wo.created_at), 'dd MMM yyyy')}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+
+        {activeTab === 'workorders' && (
+          <div>
+            {workOrders.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-sm text-on-surface-variant mb-3">
+                  {lang === 'ar' ? 'لم يتم إنشاء أوامر عمل من هذا الجدول بعد.' : 'No work orders generated from this schedule yet.'}
+                </p>
+                <button
+                  onClick={generateWorkOrder}
+                  disabled={generating}
+                  className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${generating ? ' opacity-70' : ''}`}
+                >
+                  {generating
+                    ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
+                    : (lang === 'ar' ? 'إنشاء أول أمر عمل' : 'Generate First Work Order')}
+                </button>
+              </div>
+            ) : (
+              <div className="border border-outline-variant rounded-[12px] overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container-low border-b border-outline-variant">
+                      {['Title', 'Priority', 'Status', 'Assigned To', 'Created'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workOrders.map(wo => {
+                      const woCfg = woStatusConfig[wo.status] ?? woStatusConfig.new
+                      return (
+                        <tr key={wo.id} className="bg-surface-container-lowest border-b border-outline-variant">
+                          <td className="px-4 py-2.5">
+                            <Link href={'/dashboard/work-orders/' + wo.id} className="text-on-surface font-medium text-sm hover:text-primary transition-colors">
+                              {wo.title}
+                            </Link>
+                          </td>
+                          <td className={`px-4 py-2.5 text-xs font-medium ${wo.priority === 'critical' ? 'text-error' : wo.priority === 'high' ? 'text-[#f57f17]' : 'text-on-surface-variant'}`}>
+                            {wo.priority.charAt(0).toUpperCase() + wo.priority.slice(1)}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span className={`${woCfg.className} px-2 py-0.5 rounded-full text-xs font-medium`}>
+                              {wo.status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-on-surface-variant">{wo.assignee?.full_name ?? t('common.unassigned')}</td>
+                          <td className="px-4 py-2.5 text-sm text-on-surface-variant">{format(new Date(wo.created_at), 'dd MMM yyyy')}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
     </div>
   )
 }

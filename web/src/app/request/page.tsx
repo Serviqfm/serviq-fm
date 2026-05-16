@@ -3,8 +3,26 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
+const STEPS = [
+  { num: 1, label: 'Info' },
+  { num: 2, label: 'Issue' },
+  { num: 3, label: 'Location' },
+  { num: 4, label: 'Evidence' },
+]
+
+const PRIORITY_OPTIONS = [
+  { value: 'low',      label: 'Low',      sub: 'Not urgent',         active: 'border-primary text-primary bg-primary/5' },
+  { value: 'medium',   label: 'Medium',   sub: 'Needs attention',    active: 'border-[#f57f17] text-[#f57f17] bg-[#f57f17]/5' },
+  { value: 'high',     label: 'High',     sub: 'Affects operations', active: 'border-error text-error bg-error/5' },
+  { value: 'critical', label: 'Critical', sub: 'Safety issue',       active: 'border-error bg-error text-on-error' },
+]
+
+const inputCls = 'w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all placeholder:text-on-surface-variant/40'
+const labelCls = 'text-[11px] font-bold uppercase tracking-wider text-secondary'
+
 export default function RequesterPortalPage() {
   const supabase = createClient()
+  const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -15,13 +33,14 @@ export default function RequesterPortalPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
   const [form, setForm] = useState({
+    requester_name: '',
+    requester_email: '',
+    requester_phone: '',
     title: '',
     description: '',
+    priority: 'medium',
     location: '',
     site_id: '',
-    priority: 'medium',
-    requester_name: '',
-    requester_phone: '',
   })
   const [photos, setPhotos] = useState<File[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
@@ -36,7 +55,7 @@ export default function RequesterPortalPage() {
     const { data: profile } = await supabase.from('users').select('*, organisation_id').eq('id', user.id).single()
     if (profile) {
       setProfile(profile)
-      setForm(prev => ({ ...prev, requester_name: profile.full_name ?? '' }))
+      setForm(prev => ({ ...prev, requester_name: profile.full_name ?? '', requester_email: user.email ?? '' }))
       const { data: siteData } = await supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true)
       if (siteData) setSites(siteData)
     }
@@ -49,8 +68,7 @@ export default function RequesterPortalPage() {
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     if (files.length === 0) return
-    const combined = [...photos, ...files].slice(0, 5)
-    setPhotos(combined)
+    setPhotos(prev => [...prev, ...files].slice(0, 5))
   }
 
   function removePhoto(index: number) {
@@ -74,15 +92,11 @@ export default function RequesterPortalPage() {
     return urls
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSubmit() {
     setLoading(true)
     setError('')
-
     if (!profile) { setError('Please log in to submit a request'); setLoading(false); return }
-
     const uploadedUrls = await uploadPhotos()
-
     const { error: insertError } = await supabase.from('work_orders').insert({
       title: form.title,
       description: form.description,
@@ -97,49 +111,37 @@ export default function RequesterPortalPage() {
       requester_phone: form.requester_phone || null,
       photo_urls: uploadedUrls.length > 0 ? uploadedUrls : null,
     })
-
-    if (insertError) {
-      setError(insertError.message)
-      setLoading(false)
-      return
-    }
-
+    if (insertError) { setError(insertError.message); setLoading(false); return }
     setSuccess(true)
     setLoading(false)
   }
 
-  const fieldStyle = {
-    width: '100%', padding: '10px 14px', border: '1px solid #ddd',
-    borderRadius: 10, fontSize: 14, boxSizing: 'border-box' as const,
-    background: 'white', outline: 'none',
-  }
-  const labelStyle = {
-    display: 'block' as const, marginBottom: 6,
-    fontSize: 13, fontWeight: 500 as const, color: '#444'
+  function reset() {
+    setSuccess(false)
+    setStep(1)
+    setError('')
+    setPhotos([])
+    setForm(prev => ({ ...prev, title: '', description: '', priority: 'medium', location: '', site_id: '', requester_phone: '' }))
   }
 
-  const priorityOptions = [
-    { value: 'low',      label: 'Low — not urgent',           color: '#2e7d32' },
-    { value: 'medium',   label: 'Medium — needs attention',   color: '#f57f17' },
-    { value: 'high',     label: 'High — affects operations',  color: '#e65100' },
-    { value: 'critical', label: 'Critical — safety issue',    color: '#b71c1c' },
-  ]
+  function nextStep() {
+    if (step === 1 && !form.requester_name.trim()) return
+    if (step === 2 && (!form.title.trim() || !form.description.trim())) return
+    setStep(s => s + 1)
+  }
+
+  const progressPct = ((step - 1) / (STEPS.length - 1)) * 100
 
   if (success) return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: '2.5rem', maxWidth: 480, width: '100%', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
-        <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: 28 }}>
-          ✓
+    <div className="star-pattern bg-background min-h-screen flex items-center justify-center p-6">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-10 max-w-md w-full text-center shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+          <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
         </div>
-        <h2 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 10px', color: '#1a1a2e' }}>Request Submitted</h2>
-        <p style={{ fontSize: 14, color: '#666', margin: '0 0 8px' }}>
-          Your maintenance request has been received and will be reviewed by the facilities team.
-        </p>
-        <p style={{ fontSize: 13, color: '#999', margin: '0 0 2rem' }}>You will be notified when your request is assigned and updated.</p>
-        <button
-          onClick={() => { setSuccess(false); setForm({ title: '', description: '', location: '', site_id: '', priority: 'medium', requester_name: profile?.full_name ?? '', requester_phone: '' }); setPhotos([]) }}
-          style={{ background: '#1a1a2e', color: 'white', padding: '10px 28px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
-        >
+        <h2 className="text-2xl font-bold text-on-surface mb-2">Request Submitted</h2>
+        <p className="text-sm text-on-surface-variant mb-2">Your maintenance request has been received and will be reviewed by the facilities team.</p>
+        <p className="text-xs text-on-surface-variant/70 mb-8">You will be notified when your request is assigned and updated.</p>
+        <button onClick={reset} className="bg-primary text-on-primary px-6 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors w-full">
           Submit Another Request
         </button>
       </div>
@@ -147,161 +149,232 @@ export default function RequesterPortalPage() {
   )
 
   if (!user) return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: '2.5rem', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px', color: '#1a1a2e' }}>Maintenance Request Portal</h2>
-        <p style={{ fontSize: 14, color: '#666', margin: '0 0 1.5rem' }}>Please log in to submit a maintenance request.</p>
-        <a href='/login'>
-          <button style={{ background: '#1a1a2e', color: 'white', padding: '10px 28px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, width: '100%' }}>
-            Log In
-          </button>
-        </a>
+    <div className="star-pattern bg-background min-h-screen flex items-center justify-center p-6">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-10 max-w-sm w-full text-center shadow-sm">
+        <span className="material-symbols-outlined text-primary text-4xl mb-4 block">assignment_late</span>
+        <h2 className="text-xl font-bold text-on-surface mb-2">Maintenance Request Portal</h2>
+        <p className="text-sm text-on-surface-variant mb-6">Please log in to submit a maintenance request.</p>
+        <a href="/login" className="block w-full bg-primary text-on-primary py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors text-center">Log In</a>
       </div>
     </div>
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: 560, margin: '0 auto' }}>
+    <div className="star-pattern bg-background text-on-surface min-h-screen flex flex-col">
 
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 6px', color: '#1a1a2e' }}>Submit a Maintenance Request</h1>
-          <p style={{ fontSize: 14, color: '#999', margin: 0 }}>Describe the issue and our team will take care of it</p>
+      {/* Header */}
+      <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30 shadow-sm">
+        <div className="flex justify-between items-center w-full px-8 max-w-[1440px] mx-auto h-16 md:h-20">
+          <span className="text-xl font-bold text-primary">Serviq Lumina</span>
+          <a href="/dashboard" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Manager Login</a>
         </div>
+      </header>
 
-        <div style={{ background: 'white', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <main className="flex-grow flex flex-col items-center justify-center px-6 py-10 gap-8">
 
+        {/* Form card */}
+        <div className="w-full max-w-2xl bg-surface-container-lowest border border-outline-variant/30 rounded-xl shadow-sm overflow-hidden">
+
+          {/* Banner */}
+          <div className="bg-secondary p-6 text-on-secondary flex justify-between items-center">
             <div>
-              <label style={labelStyle}>Your Name *</label>
-              <input name='requester_name' value={form.requester_name} onChange={handleChange} required placeholder='Full name' style={fieldStyle} />
+              <h1 className="text-2xl font-bold leading-tight">Submit Request</h1>
+              <p className="text-sm opacity-90 mt-0.5" style={{ fontFamily: 'Readex Pro, sans-serif' }}>تقديم طلب جديد</p>
             </div>
-
-            <div>
-              <label style={labelStyle}>Phone Number</label>
-              <input name='requester_phone' value={form.requester_phone} onChange={handleChange} placeholder='+966 5x xxx xxxx' style={fieldStyle} />
+            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg border border-white/20">
+              <span className="material-symbols-outlined text-on-secondary text-lg">assignment_late</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Public Portal</span>
             </div>
+          </div>
 
-            <div>
-              <label style={labelStyle}>Issue Title *</label>
-              <input name='title' value={form.title} onChange={handleChange} required placeholder='e.g. AC not working in Room 204' style={fieldStyle} />
+          {/* Step progress */}
+          <div className="px-8 pt-8 pb-4">
+            <div className="flex justify-between relative">
+              <div className="absolute top-5 left-0 w-full h-0.5 bg-surface-container-high z-0" />
+              <div className="absolute top-5 left-0 h-0.5 bg-primary/40 z-0 transition-all duration-500" style={{ width: `${progressPct}%` }} />
+              {STEPS.map(s => (
+                <div key={s.num} className="relative z-10 flex flex-col items-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm text-sm transition-all ${step > s.num ? 'bg-primary text-on-primary' : step === s.num ? 'bg-primary/15 text-primary ring-2 ring-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                    {step > s.num
+                      ? <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                      : s.num}
+                  </div>
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${step === s.num ? 'text-primary' : 'text-outline-variant'}`}>{s.label}</span>
+                </div>
+              ))}
             </div>
+          </div>
 
-            <div>
-              <label style={labelStyle}>Description *</label>
-              <textarea
-                name='description'
-                value={form.description}
-                onChange={handleChange}
-                required
-                placeholder='Describe the issue in as much detail as possible...'
-                rows={4}
-                style={{ ...fieldStyle, resize: 'vertical' }}
-              />
-            </div>
+          <div className="p-8 space-y-6">
 
-            <div>
-              <label style={labelStyle}>Location</label>
-              <input name='location' value={form.location} onChange={handleChange} placeholder='e.g. Floor 2, Room 204, near east wall' style={fieldStyle} />
-            </div>
-
-            {sites.length > 0 && (
-              <div>
-                <label style={labelStyle}>Building / Site</label>
-                <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
-                  <option value=''>Select site</option>
-                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+            {/* Step 1 — Info */}
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-baseline">
+                    <label className={labelCls}>Full Name / الاسم الكامل</label>
+                    <span className="text-error text-[10px] font-bold">Required</span>
+                  </div>
+                  <input name="requester_name" value={form.requester_name} onChange={handleChange} placeholder="e.g. Abdullah Ahmed" className={inputCls} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className={labelCls}>Email / البريد الإلكتروني</label>
+                    <input name="requester_email" value={form.requester_email} onChange={handleChange} placeholder="name@company.com" type="email" className={inputCls} />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className={labelCls}>Phone / رقم الهاتف</label>
+                    <input name="requester_phone" value={form.requester_phone} onChange={handleChange} placeholder="+966 5X XXX XXXX" type="tel" className={inputCls} />
+                  </div>
+                </div>
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex gap-3 items-start">
+                  <span className="material-symbols-outlined text-primary flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Privacy Notice</p>
+                    <p className="text-xs text-on-surface-variant mt-1">Your details will only be used to update you on this request status. / سيتم استخدام بياناتك فقط لموافاتك بحالة الطلب.</p>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div>
-              <label style={labelStyle}>Priority *</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {priorityOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    type='button'
-                    onClick={() => setForm(prev => ({ ...prev, priority: opt.value }))}
-                    style={{
-                      padding: '10px 12px',
-                      borderRadius: 10,
-                      border: '2px solid ' + (form.priority === opt.value ? opt.color : '#eee'),
-                      background: form.priority === opt.value ? opt.color + '15' : 'white',
-                      color: form.priority === opt.value ? opt.color : '#666',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: form.priority === opt.value ? 600 : 400,
-                      textAlign: 'left' as const,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={labelStyle}>Photos (optional — max 5)</label>
-              <div style={{ border: '2px dashed #ddd', borderRadius: 10, padding: '1rem', textAlign: 'center' as const }}>
-                <input
-                  type='file'
-                  accept='image/*'
-                  multiple
-                  onChange={handlePhotoChange}
-                  style={{ display: 'none' }}
-                  id='photo-upload'
-                />
-                <label htmlFor='photo-upload' style={{ cursor: 'pointer', fontSize: 13, color: '#666' }}>
-                  <span style={{ fontSize: 24, display: 'block', marginBottom: 4 }}>📷</span>
-                  Tap to add photos of the issue
-                  <span style={{ display: 'block', fontSize: 12, color: '#bbb', marginTop: 2 }}>Up to 5 images</span>
-                </label>
-              </div>
-              {photos.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                  {photos.map((photo, i) => (
-                    <div key={i} style={{ position: 'relative' as const }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={URL.createObjectURL(photo)}
-                        alt={'Photo ' + (i + 1)}
-                        style={{ width: 80, height: 80, objectFit: 'cover' as const, borderRadius: 8, border: '1px solid #ddd' }}
-                      />
-                      <button
-                        type='button'
-                        onClick={() => removePhoto(i)}
-                        style={{ position: 'absolute' as const, top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#c62828', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+            {/* Step 2 — Issue */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-baseline">
+                    <label className={labelCls}>Issue Title / عنوان المشكلة</label>
+                    <span className="text-error text-[10px] font-bold">Required</span>
+                  </div>
+                  <input name="title" value={form.title} onChange={handleChange} placeholder="e.g. AC not working in Room 204" className={inputCls} />
                 </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-baseline">
+                    <label className={labelCls}>Description / الوصف</label>
+                    <span className="text-error text-[10px] font-bold">Required</span>
+                  </div>
+                  <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe the issue in as much detail as possible..." rows={4} className={inputCls + ' resize-none'} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className={labelCls}>Priority / الأولوية</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PRIORITY_OPTIONS.map(opt => (
+                      <button key={opt.value} type="button" onClick={() => setForm(prev => ({ ...prev, priority: opt.value }))}
+                        className={`p-3 rounded-xl border-2 text-left transition-all ${form.priority === opt.value ? opt.active : 'border-outline-variant/40 text-on-surface-variant bg-surface-container-low'}`}>
+                        <span className="block text-sm font-bold">{opt.label}</span>
+                        <span className="block text-xs opacity-80 mt-0.5">{opt.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3 — Location */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className={labelCls}>Location Notes / ملاحظات الموقع</label>
+                  <input name="location" value={form.location} onChange={handleChange} placeholder="e.g. Floor 2, Room 204, near east wall" className={inputCls} />
+                </div>
+                {sites.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <label className={labelCls}>Building / Site / المبنى</label>
+                    <select name="site_id" value={form.site_id} onChange={handleChange} className={inputCls}>
+                      <option value="">Select site</option>
+                      {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 4 — Evidence */}
+            {step === 4 && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className={labelCls}>Photos / الصور (optional — max 5)</label>
+                  <label htmlFor="photo-upload" className="border-2 border-dashed border-outline-variant/40 rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
+                    <span className="material-symbols-outlined text-outline-variant text-4xl">photo_camera</span>
+                    <p className="text-sm font-semibold text-on-surface-variant">Tap to add photos of the issue</p>
+                    <p className="text-xs text-on-surface-variant/60">Up to 5 images · JPG, PNG, HEIC</p>
+                    <input id="photo-upload" type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
+                  </label>
+                  {photos.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {photos.map((photo, i) => (
+                        <div key={i} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={URL.createObjectURL(photo)} alt={'Photo ' + (i + 1)} className="w-20 h-20 object-cover rounded-xl border border-outline-variant" />
+                          <button type="button" onClick={() => removePhoto(i)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-on-error flex items-center justify-center text-xs font-bold leading-none">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {error && (
+                  <div className="bg-error/5 border border-error/30 rounded-xl p-3 text-sm text-error">{error}</div>
+                )}
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex flex-col md:flex-row gap-3 pt-6 border-t border-outline-variant/20">
+              {step > 1 && (
+                <button type="button" onClick={() => setStep(s => s - 1)}
+                  className="flex-1 border border-outline-variant/40 text-on-surface-variant py-4 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-all flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-base">arrow_back</span>
+                  Back
+                </button>
+              )}
+              {step < 4 ? (
+                <button type="button" onClick={nextStep}
+                  className="flex-1 bg-primary text-on-primary py-4 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-sm">
+                  Next Step / الخطوة التالية
+                  <span className="material-symbols-outlined text-base">arrow_forward</span>
+                </button>
+              ) : (
+                <button type="button" onClick={handleSubmit} disabled={loading}
+                  className="flex-1 bg-primary text-on-primary py-4 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-60">
+                  {loading ? (uploadingPhotos ? 'Uploading...' : 'Submitting...') : 'Submit Request'}
+                  {!loading && <span className="material-symbols-outlined text-base">send</span>}
+                </button>
               )}
             </div>
 
-            {error && (
-              <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#b71c1c' }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              type='submit'
-              disabled={loading}
-              style={{ background: '#1a1a2e', color: 'white', padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 15, opacity: loading ? 0.7 : 1, marginTop: 4 }}
-            >
-              {loading ? (uploadingPhotos ? 'Uploading photos...' : 'Submitting...') : 'Submit Request'}
-            </button>
-
-          </form>
+          </div>
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: '1.5rem' }}>
-          Powered by Serviq-FM · <a href='/dashboard' style={{ color: '#bbb' }}>Manager Login</a>
-        </p>
-      </div>
+        {/* Trust badges */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl w-full">
+          {[
+            { icon: 'timer',    title: '2-Hour Response', desc: 'Our team initiates work within 2 hours of submission.' },
+            { icon: 'security', title: 'Secure Portal',   desc: 'Encrypted submission via Saudi PDPL regulations.' },
+            { icon: 'verified', title: 'Certified Techs', desc: 'All requests are handled by certified FM professionals.' },
+          ].map(b => (
+            <div key={b.icon} className="p-6 bg-surface-container-lowest/80 backdrop-blur-sm border border-outline-variant/40 rounded-xl text-center space-y-2">
+              <span className="material-symbols-outlined text-primary text-3xl block">{b.icon}</span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-secondary">{b.title}</h3>
+              <p className="text-xs text-on-surface-variant">{b.desc}</p>
+            </div>
+          ))}
+        </div>
+
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-surface-container-low border-t border-outline-variant/30 mt-auto">
+        <div className="w-full px-8 py-6 max-w-[1440px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <span className="font-bold text-primary">Serviq Lumina</span>
+            <p className="text-on-surface-variant text-xs mt-1">© 2024 Serviq FM. Saudi-made Facility Management.</p>
+          </div>
+          <div className="flex gap-6">
+            <a href="#" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">ZATCA Compliance</a>
+            <a href="#" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Privacy Policy</a>
+          </div>
+        </div>
+      </footer>
+
     </div>
   )
 }

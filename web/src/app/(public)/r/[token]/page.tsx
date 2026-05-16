@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase'
-import { C, F } from '@/lib/brand'
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator/Lift','Fire Safety','Furniture','Kitchen Equipment','Pool/Gym','IT Equipment','Signage','Vehicle','Other']
 
@@ -91,35 +90,30 @@ export default function PublicRequestPage({ params }: { params: { token: string 
     setLoading(false)
   }
 
-  const inp: React.CSSProperties = {
-    width: '100%', padding: '10px 12px',
-    border: `1px solid ${C.border}`, borderRadius: 8,
-    fontSize: 14, fontFamily: F.en, color: C.textDark,
-    background: C.white, boxSizing: 'border-box', outline: 'none',
-  }
+  const inputCls = "w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all box-border"
 
   if (notFound) return (
-    <div style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-      <div style={{ textAlign: 'center', maxWidth: 480 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 12px' }}>QR Code Not Active</h2>
-        <p style={{ color: C.textLight, fontFamily: F.en, lineHeight: 1.6 }}>This QR code is no longer active. Please contact the building management team.</p>
+    <div className="min-h-[calc(100vh-56px)] flex items-center justify-center p-8">
+      <div className="text-center max-w-[480px]">
+        <div className="text-5xl mb-4">🚫</div>
+        <h2 className="text-[22px] font-bold text-on-surface mb-3">QR Code Not Active</h2>
+        <p className="text-on-surface-variant leading-relaxed">This QR code is no longer active. Please contact the building management team.</p>
       </div>
     </div>
   )
 
   if (!space) return (
-    <div style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: C.textLight, fontFamily: F.en }}>Loading...</p>
+    <div className="min-h-[calc(100vh-56px)] flex items-center justify-center">
+      <p className="text-on-surface-variant">Loading...</p>
     </div>
   )
 
   if (submitted) return (
-    <div style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: 40, maxWidth: 480, textAlign: 'center' }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 24 }}>✓</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 12px' }}>Request Submitted</h2>
-        <p style={{ color: C.textMid, fontFamily: F.en, lineHeight: 1.6, margin: 0 }}>
+    <div className="min-h-[calc(100vh-56px)] flex items-center justify-center p-8">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[16px] shadow-sm p-10 max-w-[480px] text-center">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-5 text-2xl text-primary">✓</div>
+        <h2 className="text-[22px] font-bold text-on-surface mb-3">Request Submitted</h2>
+        <p className="text-on-surface-variant leading-relaxed">
           Thank you, {submitterName}. We&apos;ve received your request and sent a confirmation to <strong>{submitterEmail}</strong>. You can track your request status using the link in that email.
         </p>
       </div>
@@ -127,49 +121,49 @@ export default function PublicRequestPage({ params }: { params: { token: string 
   )
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 6px' }}>Submit a Maintenance Request</h1>
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: 0 }}>All requests are sent directly to the facility management team.</p>
+    <div className="px-6 py-8 max-w-[1100px] mx-auto">
+      <div className="mb-7">
+        <h1 className="text-2xl font-bold text-on-surface mb-1.5">Submit a Maintenance Request</h1>
+        <p className="text-sm text-on-surface-variant">All requests are sent directly to the facility management team.</p>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginBottom: 20 }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-5 mb-5">
 
           {/* Panel 1: Requester Info */}
-          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textMid, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px', fontFamily: F.en }}>Your Info</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+            <h3 className="text-[13px] font-bold text-on-surface-variant uppercase tracking-[0.06em] mb-4">Your Info</h3>
+            <div className="flex flex-col gap-3">
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Full Name *</label>
-                <input style={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required placeholder="Your full name" />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Full Name *</label>
+                <input className={inputCls} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required placeholder="Your full name" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Phone</label>
-                <input style={inp} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+966 5x xxx xxxx" />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Phone</label>
+                <input className={inputCls} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+966 5x xxx xxxx" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Email *</label>
-                <input style={inp} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required placeholder="you@example.com" />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Email *</label>
+                <input className={inputCls} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required placeholder="you@example.com" />
               </div>
             </div>
           </div>
 
           {/* Panel 2: Request Details */}
-          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textMid, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px', fontFamily: F.en }}>Request Details</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+            <h3 className="text-[13px] font-bold text-on-surface-variant uppercase tracking-[0.06em] mb-4">Request Details</h3>
+            <div className="flex flex-col gap-3">
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Title *</label>
-                <input style={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="Brief description of the issue" />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Title *</label>
+                <input className={inputCls} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="Brief description of the issue" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Description *</label>
-                <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required placeholder="Describe the issue in detail..." />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Description *</label>
+                <textarea className={`${inputCls} min-h-[80px] resize-y`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required placeholder="Describe the issue in detail..." />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Category *</label>
-                <select style={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Category *</label>
+                <select className={inputCls} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required>
                   <option value="">Select category...</option>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -178,38 +172,38 @@ export default function PublicRequestPage({ params }: { params: { token: string 
           </div>
 
           {/* Panel 3: Attachments */}
-          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textMid, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px', fontFamily: F.en }}>Attachments</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+            <h3 className="text-[13px] font-bold text-on-surface-variant uppercase tracking-[0.06em] mb-4">Attachments</h3>
+            <div className="flex flex-col gap-3">
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>Photos (up to 3)</label>
-                <input type="file" accept="image/*" multiple style={{ fontSize: 13, fontFamily: F.en, color: C.textMid }} onChange={e => {
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Photos (up to 3)</label>
+                <input type="file" accept="image/*" multiple className="text-sm text-on-surface-variant" onChange={e => {
                   const files = Array.from(e.target.files || []).slice(0, 3)
                   setPhotos(files)
                 }} />
-                {photos.length > 0 && <p style={{ fontSize: 11, color: C.textLight, margin: '4px 0 0', fontFamily: F.en }}>{photos.length} photo(s) selected</p>}
+                {photos.length > 0 && <p className="text-[11px] text-on-surface-variant mt-1">{photos.length} photo(s) selected</p>}
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 5, fontFamily: F.en }}>File Attachment (1)</label>
-                <input type="file" style={{ fontSize: 13, fontFamily: F.en, color: C.textMid }} onChange={e => setFile(e.target.files?.[0] || null)} />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">File Attachment (1)</label>
+                <input type="file" className="text-sm text-on-surface-variant" onChange={e => setFile(e.target.files?.[0] || null)} />
               </div>
             </div>
           </div>
 
           {/* Panel 4: Location (read-only) */}
-          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textMid, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px', fontFamily: F.en }}>Location</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+            <h3 className="text-[13px] font-bold text-on-surface-variant uppercase tracking-[0.06em] mb-4">Location</h3>
+            <div className="flex flex-col gap-2.5">
               {([['Site', space.site.name], ['Space', space.name], ['Floor', space.floor]] as [string,string][]).map(([label, val]) => (
                 <div key={label}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2, fontFamily: F.en }}>{label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: C.navy, fontFamily: F.en }}>{val}</div>
+                  <div className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-[0.05em] mb-0.5">{label}</div>
+                  <div className="text-sm font-medium text-on-surface">{val}</div>
                 </div>
               ))}
               {space.name_ar && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2, fontFamily: F.en }}>Arabic Name</div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: C.navy, fontFamily: F.ar, direction: 'rtl' }}>{space.name_ar}</div>
+                  <div className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-[0.05em] mb-0.5">Arabic Name</div>
+                  <div className="text-sm font-medium text-on-surface text-right" dir="rtl">{space.name_ar}</div>
                 </div>
               )}
             </div>
@@ -217,7 +211,7 @@ export default function PublicRequestPage({ params }: { params: { token: string 
         </div>
 
         {error && (
-          <div style={{ color: C.danger, marginBottom: 16, fontSize: 13, background: '#FEE2E2', padding: '10px 14px', borderRadius: 8, border: '1px solid #FECACA', fontFamily: F.en }}>
+          <div className="text-error mb-4 text-sm bg-error/10 px-3.5 py-2.5 rounded-xl border border-error/20">
             {error}
           </div>
         )}
@@ -225,7 +219,7 @@ export default function PublicRequestPage({ params }: { params: { token: string 
         <button
           type="submit"
           disabled={loading}
-          style={{ width: '100%', padding: '13px', background: C.navy, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15, fontFamily: F.en, opacity: loading ? 0.7 : 1 }}>
+          className={`w-full py-3.5 bg-primary text-on-primary border-none rounded-[10px] cursor-pointer font-bold text-[15px] hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}>
           {loading ? 'Submitting...' : 'Submit Request'}
         </button>
       </form>

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import Link from 'next/link'
-import { C, F, pageStyle, cardStyle, tableHeaderCell, tableCell, inputStyle } from '@/lib/brand'
 import { formatSAR } from '@/lib/zatca'
 
 export default function InvoicesPage() {
@@ -60,83 +59,85 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div style={{ ...pageStyle, fontFamily: isAr ? F.ar : F.en, direction: isAr ? 'rtl' : 'ltr' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, margin: 0 }}>
-          {isAr ? 'الفواتير' : 'Invoices'}
-        </h1>
-      </div>
-
-      <div style={{ ...cardStyle, marginBottom: 20 }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder={isAr ? 'بحث...' : 'Search by invoice number, work order or technician...'}
-          style={{ ...inputStyle, maxWidth: 360 }}
-        />
-      </div>
-
-      {loading ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>Loading...</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ ...cardStyle, textAlign: 'center', padding: 40 }}>
-          <p style={{ color: C.textLight, fontFamily: F.en, margin: 0 }}>
-            {isAr
-              ? 'لا توجد فواتير. انتقل إلى أمر عمل مكتمل وانقر "إنشاء فاتورة".'
-              : 'No invoices yet. Go to a completed work order and click "Generate Invoice".'}
-          </p>
+    <div
+      className="star-pattern bg-surface min-h-screen p-8"
+      style={{ fontFamily: isAr ? 'Cairo, sans-serif' : 'Inter, sans-serif', direction: isAr ? 'rtl' : 'ltr' }}
+    >
+      <div className="max-w-[1440px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-on-surface m-0">
+            {isAr ? 'الفواتير' : 'Invoices'}
+          </h1>
         </div>
-      ) : (
-        <div style={cardStyle}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCell}>{isAr ? 'رقم الفاتورة' : 'Invoice #'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'أمر العمل' : 'Work Order'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'الفني' : 'Technician'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'الأصل' : 'Asset'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'المبلغ (بدون ضريبة)' : 'Subtotal'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'ضريبة القيمة المضافة' : 'VAT (15%)'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'الإجمالي' : 'Total'}</th>
-                <th style={tableHeaderCell}>{isAr ? 'الإجراءات' : 'Actions'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((inv, i) => (
-                <tr key={inv.id} style={{ background: i % 2 === 0 ? '#fff' : '#F8FAFC' }}>
-                  <td style={tableCell}>
-                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: C.navy, fontWeight: 600 }}>
-                      {inv.invoice_number}
-                    </span>
-                  </td>
-                  <td style={tableCell}>
-                    <Link href={`/dashboard/work-orders/${inv.work_order?.id}`} style={{ color: C.blue, textDecoration: 'none', fontWeight: 500 }}>
-                      {inv.work_order?.title ?? '—'}
-                    </Link>
-                  </td>
-                  <td style={tableCell}>{inv.work_order?.assignee?.full_name ?? '—'}</td>
-                  <td style={tableCell}>{inv.work_order?.asset?.name ?? '—'}</td>
-                  <td style={tableCell}><span style={{ color: C.textMid }}>{formatSAR(inv.subtotal)}</span></td>
-                  <td style={tableCell}><span style={{ color: C.textMid }}>{formatSAR(inv.vat_amount)}</span></td>
-                  <td style={tableCell}><span style={{ fontWeight: 600, color: C.navy }}>{formatSAR(inv.total)}</span></td>
-                  <td style={tableCell}>
-                    <button
-                      onClick={() => downloadInvoice(inv)}
-                      style={{
-                        background: 'none', border: `1px solid ${C.teal}`, color: C.teal,
-                        borderRadius: 6, padding: '4px 12px', cursor: 'pointer',
-                        fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
-                      }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                      {isAr ? 'تحميل' : 'Download'}
-                    </button>
-                  </td>
+
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-4">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={isAr ? 'بحث...' : 'Search by invoice number, work order or technician...'}
+            className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all max-w-[360px]"
+          />
+        </div>
+
+        {loading ? (
+          <p className="text-on-surface-variant text-sm">Loading...</p>
+        ) : filtered.length === 0 ? (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm text-center p-10">
+            <p className="text-on-surface-variant text-sm m-0">
+              {isAr
+                ? 'لا توجد فواتير. انتقل إلى أمر عمل مكتمل وانقر "إنشاء فاتورة".'
+                : 'No invoices yet. Go to a completed work order and click "Generate Invoice".'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-outline-variant/30">
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'رقم الفاتورة' : 'Invoice #'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'أمر العمل' : 'Work Order'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'الفني' : 'Technician'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'الأصل' : 'Asset'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'المبلغ (بدون ضريبة)' : 'Subtotal'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'ضريبة القيمة المضافة' : 'VAT (15%)'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'الإجمالي' : 'Total'}</th>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap text-left">{isAr ? 'الإجراءات' : 'Actions'}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-y divide-outline-variant/20">
+                {filtered.map((inv) => (
+                  <tr key={inv.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="px-4 py-3 text-sm text-on-surface">
+                      <span className="font-mono text-xs text-on-surface font-semibold">
+                        {inv.invoice_number}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-on-surface">
+                      <Link href={`/dashboard/work-orders/${inv.work_order?.id}`} className="text-secondary font-medium hover:underline">
+                        {inv.work_order?.title ?? '—'}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant">{inv.work_order?.assignee?.full_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant">{inv.work_order?.asset?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant">{formatSAR(inv.subtotal)}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant">{formatSAR(inv.vat_amount)}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-on-surface">{formatSAR(inv.total)}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface">
+                      <button
+                        onClick={() => downloadInvoice(inv)}
+                        className="flex items-center gap-1 border border-secondary text-secondary rounded-md px-3 py-1 text-xs font-semibold hover:bg-secondary/10 transition-colors cursor-pointer bg-transparent"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        {isAr ? 'تحميل' : 'Download'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
