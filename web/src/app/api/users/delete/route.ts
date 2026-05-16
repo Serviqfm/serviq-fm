@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Check for linked work orders
+    // Check for active (assigned) work orders — block deletion if any exist
     const { data: linkedWOs } = await supabaseAdmin
       .from('work_orders')
       .select('id, wo_number')
@@ -36,14 +36,34 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Unassign work orders and null out audit_log references to avoid FK violations
+    // Step 1: Delete owned rows that cannot be nulled (user_devices, user_notification_preferences)
     await Promise.all([
-      supabaseAdmin.from('work_orders').update({ assigned_to: null }).eq('assigned_to', userId),
-      supabaseAdmin.from('audit_logs').update({ user_id: null }).eq('user_id', userId),
+      supabaseAdmin.from('user_devices').delete().eq('user_id', userId),
+      supabaseAdmin.from('user_notification_preferences').delete().eq('user_id', userId),
     ])
 
-    // Delete user profile
-    console.log(`[UserDelete] Attempting to delete user profile for ${userId}`)
+    // Step 2: Null out all FK references in other tables before deleting the profile.
+    // This covers every column that points to users.id discovered in the schema.
+    await Promise.all([
+      // work_orders — two columns reference users.id
+      supabaseAdmin.from('work_orders').update({ assigned_to: null }).eq('assigned_to', userId),
+      supabaseAdmin.from('work_orders').update({ created_by: null }).eq('created_by', userId),
+      // pm_schedules
+      supabaseAdmin.from('pm_schedules').update({ assigned_to: null }).eq('assigned_to', userId),
+      // audit_logs
+      supabaseAdmin.from('audit_logs').update({ user_id: null }).eq('user_id', userId),
+      // work_order_comments
+      supabaseAdmin.from('work_order_comments').update({ user_id: null }).eq('user_id', userId),
+      // invoices
+      supabaseAdmin.from('invoices').update({ created_by: null }).eq('created_by', userId),
+      // inspection_results
+      supabaseAdmin.from('inspection_results').update({ conducted_by: null }).eq('conducted_by', userId),
+      // notification_log
+      supabaseAdmin.from('notification_log').update({ user_id: null }).eq('user_id', userId),
+    ])
+
+    // Step 3: Delete user profile row
+    console.log(`[UserDelete] Deleting user profile for ${userId}`)
     const { error: profileError } = await supabaseAdmin
       .from('users')
       .delete()
@@ -52,18 +72,10 @@ export async function POST(req: NextRequest) {
     if (profileError) {
       console.error(`[UserDelete] Profile deletion failed: ${JSON.stringify(profileError)}`)
       const errorMsg = profileError.message || JSON.stringify(profileError)
-
-      // Check if it's a FK constraint error
-      if (errorMsg.includes('foreign key') || errorMsg.includes('FK') || errorMsg.includes('constraint')) {
-        return NextResponse.json(
-          { error: `Cannot delete user: linked records exist. Details: ${errorMsg}` },
-          { status: 400 }
-        )
-      }
-      return NextResponse.json({ error: `Failed to delete user: ${errorMsg}` }, { status: 400 })
+      return NextResponse.json({ error: `Failed to delete user profile: ${errorMsg}` }, { status: 400 })
     }
 
-    // Delete auth user
+    // Step 4: Delete auth user
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (authError) {
