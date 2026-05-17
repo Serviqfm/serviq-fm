@@ -90,7 +90,7 @@ export const FIELD_CATALOG: Record<FieldPage, FieldMeta[]> = {
   ],
   assets_new: [
     { key: 'name',                    label_en: 'Name',                    label_ar: 'الاسم',                 type: 'text',     default_visibility: 'required', is_system_required: true  },
-    { key: 'category',                label_en: 'Category',                label_ar: 'الفئة',                 type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'category',                label_en: 'Category',                label_ar: 'الفئة',                 type: 'select',   default_visibility: 'optional', is_system_required: false },
     { key: 'site_id',                 label_en: 'Site',                    label_ar: 'الموقع',                type: 'select',   default_visibility: 'optional', is_system_required: false },
     { key: 'sub_location',            label_en: 'Sub-location',            label_ar: 'الموقع الفرعي',         type: 'text',     default_visibility: 'optional', is_system_required: false },
     { key: 'serial_number',           label_en: 'Serial number',           label_ar: 'الرقم التسلسلي',        type: 'text',     default_visibility: 'optional', is_system_required: false },
