@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS field_configs (
   visibility VARCHAR(10) NOT NULL
     CHECK (visibility IN ('required', 'optional', 'hidden')),
   updated_at TIMESTAMP DEFAULT now(),
-  updated_by UUID REFERENCES users(id),
+  updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   PRIMARY KEY (organisation_id, page, field_key)
 );
 
