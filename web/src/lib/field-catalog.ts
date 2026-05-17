@@ -52,7 +52,7 @@ export const PAGE_LABELS: Record<FieldPage, { en: string; ar: string }> = {
   sites_new:         { en: 'Create Site',         ar: 'إنشاء موقع' },
   sites_edit:        { en: 'Edit Site',           ar: 'تعديل الموقع' },
   spaces_new:        { en: 'Create Space',        ar: 'إنشاء مساحة' },
-  spaces_edit:       { en: 'Edit Space',          ar: 'تعديل الموقع' },
+  spaces_edit:       { en: 'Edit Space',          ar: 'تعديل المساحة' },
   users_new:         { en: 'Create User',         ar: 'إنشاء مستخدم' },
   users_edit:        { en: 'Edit User',           ar: 'تعديل المستخدم' },
 }
@@ -77,7 +77,7 @@ export const FIELD_CATALOG: Record<FieldPage, FieldMeta[]> = {
     { key: 'description',      label_en: 'Description',      label_ar: 'الوصف',             type: 'textarea', default_visibility: 'optional', is_system_required: false },
     { key: 'priority',         label_en: 'Priority',         label_ar: 'الأولوية',          type: 'select',   default_visibility: 'required', is_system_required: false },
     { key: 'category',         label_en: 'Category',         label_ar: 'الفئة',             type: 'select',   default_visibility: 'optional', is_system_required: false },
-    { key: 'site_id',          label_en: 'Site',             label_ar: 'الموقع',            type: 'select',   default_visibility: 'optional', is_system_required: true  },
+    { key: 'site_id',          label_en: 'Site',             label_ar: 'الموقع',            type: 'select',   default_visibility: 'required', is_system_required: true  },
     { key: 'asset_id',         label_en: 'Asset',            label_ar: 'الأصل',             type: 'select',   default_visibility: 'optional', is_system_required: false },
     { key: 'assigned_to',      label_en: 'Assigned to',      label_ar: 'مسند إلى',          type: 'select',   default_visibility: 'optional', is_system_required: false },
     { key: 'sla_hours',        label_en: 'SLA hours',        label_ar: 'ساعات SLA',         type: 'number',   default_visibility: 'optional', is_system_required: false },
