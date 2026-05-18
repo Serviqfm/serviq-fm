@@ -4,6 +4,8 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useFieldConfig } from '@/lib/useFieldConfig'
+import { isSystemRequired } from '@/lib/field-catalog'
 
 export default function EditSpacePage({ params }: { params: { id: string; sid: string } }) {
   const [name, setName] = useState('')
@@ -15,6 +17,8 @@ export default function EditSpacePage({ params }: { params: { id: string; sid: s
   const [error, setError] = useState('')
   const supabase = createClient()
   const router = useRouter()
+  const { isHidden, isRequired, loading: configLoading } = useFieldConfig('spaces_edit')
+  const isReq = (key: string) => isRequired(key) || isSystemRequired('spaces_edit', key)
 
   useEffect(() => {
     async function load() {
@@ -31,14 +35,28 @@ export default function EditSpacePage({ params }: { params: { id: string; sid: s
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error: err } = await supabase.from('spaces').update({
-      name, name_ar: nameAr || null, floor, description: description || null,
-    }).eq('id', params.sid)
-    if (err) { setError(err.message); setLoading(false); return }
+    const res = await fetch(`/api/spaces/${params.sid}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        name_ar: nameAr,
+        floor,
+        description,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setError(data?.error ?? 'Failed to update space')
+      setLoading(false)
+      return
+    }
     router.push(`/dashboard/sites/${params.id}/spaces`)
   }
 
   const inputCls = "w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+
+  if (configLoading) return <div className="p-8 text-on-surface-variant">Loading form…</div>
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
@@ -52,23 +70,31 @@ export default function EditSpacePage({ params }: { params: { id: string; sid: s
 
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Name (EN) *</label>
-              <input value={name} onChange={e => setName(e.target.value)} required className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Name (AR)</label>
-              <input value={nameAr} onChange={e => setNameAr(e.target.value)} className={`${inputCls} text-right`} dir="rtl" />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Floor *</label>
-              <input value={floor} onChange={e => setFloor(e.target.value)} required list="floors-list-edit" className={inputCls} />
-              <datalist id="floors-list-edit">{floors.map(f => <option key={f} value={f} />)}</datalist>
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Description</label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} className={`${inputCls} min-h-[80px] resize-y`} />
-            </div>
+            {!isHidden('name') && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Name (EN){isReq('name') && <span className="text-error"> *</span>}</label>
+                <input value={name} onChange={e => setName(e.target.value)} required={isReq('name')} className={inputCls} />
+              </div>
+            )}
+            {!isHidden('name_ar') && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Name (AR){isReq('name_ar') && <span className="text-error"> *</span>}</label>
+                <input value={nameAr} onChange={e => setNameAr(e.target.value)} required={isReq('name_ar')} className={`${inputCls} text-right`} dir="rtl" />
+              </div>
+            )}
+            {!isHidden('floor') && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Floor{isReq('floor') && <span className="text-error"> *</span>}</label>
+                <input value={floor} onChange={e => setFloor(e.target.value)} required={isReq('floor')} list="floors-list-edit" className={inputCls} />
+                <datalist id="floors-list-edit">{floors.map(f => <option key={f} value={f} />)}</datalist>
+              </div>
+            )}
+            {!isHidden('description') && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Description{isReq('description') && <span className="text-error"> *</span>}</label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} required={isReq('description')} className={`${inputCls} min-h-[80px] resize-y`} />
+              </div>
+            )}
             {error && <p className="text-error text-sm">{error}</p>}
             <div className="flex gap-2.5">
               <button type="submit" disabled={loading}
