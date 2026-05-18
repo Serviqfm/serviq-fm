@@ -3,10 +3,14 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { useFieldConfig } from '@/lib/useFieldConfig'
+import { isSystemRequired } from '@/lib/field-catalog'
 
 export default function NewUserPage() {
   const { t, lang } = useLanguage()
   const supabase = createClient()
+  const { isHidden, isRequired, loading: configLoading } = useFieldConfig('users_new')
+  const isReq = (key: string) => isRequired(key) || isSystemRequired('users_new', key)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -111,6 +115,10 @@ export default function NewUserPage() {
     </div>
   )
 
+  if (configLoading) return <div style={{ padding: '2rem' }}>Loading...</div>
+
+  const reqMark = (key: string) => isReq(key) ? <span style={{ color: '#d32f2f' }}> *</span> : null
+
   return (
     <div style={{ padding: '2rem', maxWidth: 560, margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -119,36 +127,46 @@ export default function NewUserPage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div>
-          <label style={labelStyle}>Full Name (English) *</label>
-          <input name='full_name' value={form.full_name} onChange={handleChange} required placeholder='e.g. Ahmed Al-Rashidi' style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>{lang === 'ar' ? 'الاسم بالعربية' : 'Full Name (Arabic)'}</label>
-          <input name='full_name_ar' value={form.full_name_ar} onChange={handleChange} placeholder='الاسم الكامل' style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
-        </div>
-        <div>
-          <label style={labelStyle}>Email Address *</label>
-          <input name='email' type='email' value={form.email} onChange={handleChange} required placeholder='ahmed@company.com' style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}</label>
-          <input name='phone' value={form.phone} onChange={handleChange} placeholder='+966 5x xxx xxxx' style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>Role *</label>
-          <select name='role' value={form.role} onChange={handleChange} style={fieldStyle}>
-            <option value='technician'>{lang === 'ar' ? 'فني' : 'Technician'}</option>
-            <option value='manager'>{lang === 'ar' ? 'مدير' : 'Manager'}</option>
-            <option value='requester'>{lang === 'ar' ? 'مقدم طلب' : 'Requester'}</option>
-            <option value='admin'>{lang === 'ar' ? 'مدير النظام' : 'Admin'}</option>
-          </select>
-          {form.role && (
-            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
-              {roleDescriptions[form.role]}
-            </p>
-          )}
-        </div>
+        {!isHidden('full_name') && (
+          <div>
+            <label style={labelStyle}>Full Name (English){reqMark('full_name')}</label>
+            <input name='full_name' value={form.full_name} onChange={handleChange} required={isReq('full_name')} placeholder='e.g. Ahmed Al-Rashidi' style={fieldStyle} />
+          </div>
+        )}
+        {!isHidden('full_name_ar') && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الاسم بالعربية' : 'Full Name (Arabic)'}{reqMark('full_name_ar')}</label>
+            <input name='full_name_ar' value={form.full_name_ar} onChange={handleChange} required={isReq('full_name_ar')} placeholder='الاسم الكامل' style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
+          </div>
+        )}
+        {!isHidden('email') && (
+          <div>
+            <label style={labelStyle}>Email Address{reqMark('email')}</label>
+            <input name='email' type='email' value={form.email} onChange={handleChange} required={isReq('email')} placeholder='ahmed@company.com' style={fieldStyle} />
+          </div>
+        )}
+        {!isHidden('phone') && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}{reqMark('phone')}</label>
+            <input name='phone' value={form.phone} onChange={handleChange} required={isReq('phone')} placeholder='+966 5x xxx xxxx' style={fieldStyle} />
+          </div>
+        )}
+        {!isHidden('role') && (
+          <div>
+            <label style={labelStyle}>Role{reqMark('role')}</label>
+            <select name='role' value={form.role} onChange={handleChange} required={isReq('role')} style={fieldStyle}>
+              <option value='technician'>{lang === 'ar' ? 'فني' : 'Technician'}</option>
+              <option value='manager'>{lang === 'ar' ? 'مدير' : 'Manager'}</option>
+              <option value='requester'>{lang === 'ar' ? 'مقدم طلب' : 'Requester'}</option>
+              <option value='admin'>{lang === 'ar' ? 'مدير النظام' : 'Admin'}</option>
+            </select>
+            {form.role && (
+              <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
+                {roleDescriptions[form.role]}
+              </p>
+            )}
+          </div>
+        )}
         {error && (
           <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#b71c1c' }}>
             {error}

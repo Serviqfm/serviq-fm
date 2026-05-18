@@ -3,11 +3,16 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { useFieldConfig } from '@/lib/useFieldConfig'
+import { isSystemRequired } from '@/lib/field-catalog'
 
 export default function EditUserPage() {
   const router = useRouter()
-  const { id } = useParams()
+  const params = useParams()
+  const id = typeof params.id === 'string' ? params.id : params.id?.[0] || ''
   const supabase = createClient()
+  const { isHidden, isRequired, loading: configLoading } = useFieldConfig('users_edit')
+  const isReq = (key: string) => isRequired(key) || isSystemRequired('users_edit', key)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -41,15 +46,24 @@ export default function EditUserPage() {
     e.preventDefault()
     setSaving(true)
     setError('')
-    const { error: updateError } = await supabase.from('users').update({
-      full_name: form.full_name,
-      full_name_ar: form.full_name_ar || null,
-      role: form.role,
-      is_active: form.is_active,
-      updated_at: new Date().toISOString(),
-    }).eq('id', id)
-    if (updateError) { setError(updateError.message); setSaving(false) }
-    else router.push('/dashboard/users')
+
+    const res = await fetch(`/api/users/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: form.full_name,
+        full_name_ar: form.full_name_ar,
+        role: form.role,
+        is_active: form.is_active,
+      }),
+    })
+    const result = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setError(result?.error ?? 'Failed to update user')
+      setSaving(false)
+      return
+    }
+    router.push('/dashboard/users')
   }
 
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
@@ -62,7 +76,9 @@ export default function EditUserPage() {
     requester: 'Submit-only access — can raise maintenance requests',
   }
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>
+  if (loading || configLoading) return <div style={{ padding: '2rem' }}>Loading...</div>
+
+  const reqMark = (key: string) => isReq(key) ? <span style={{ color: '#d32f2f' }}> *</span> : null
 
   return (
     <div style={{ padding: '2rem', maxWidth: 500, margin: '0 auto' }}>
@@ -71,34 +87,42 @@ export default function EditUserPage() {
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>Edit User</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div>
-          <label style={labelStyle}>Full Name (English) *</label>
-          <input name='full_name' value={form.full_name} onChange={handleChange} required style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>Full Name (Arabic)</label>
-          <input name='full_name_ar' value={form.full_name_ar} onChange={handleChange} style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
-        </div>
-        <div>
-          <label style={labelStyle}>Role *</label>
-          <select name='role' value={form.role} onChange={handleChange} style={fieldStyle}>
-            <option value='technician'>Technician</option>
-            <option value='manager'>Manager</option>
-            <option value='requester'>Requester</option>
-            <option value='admin'>Admin</option>
-          </select>
-          {form.role && (
-            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
-              {roleDescriptions[form.role]}
-            </p>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', borderRadius: 8, padding: '12px 16px' }}>
-          <input type='checkbox' name='is_active' id='is_active' checked={form.is_active} onChange={handleChange} style={{ width: 16, height: 16 }} />
-          <label htmlFor='is_active' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>
-            User is active — can log in and use the platform
-          </label>
-        </div>
+        {!isHidden('full_name') && (
+          <div>
+            <label style={labelStyle}>Full Name (English){reqMark('full_name')}</label>
+            <input name='full_name' value={form.full_name} onChange={handleChange} required={isReq('full_name')} style={fieldStyle} />
+          </div>
+        )}
+        {!isHidden('full_name_ar') && (
+          <div>
+            <label style={labelStyle}>Full Name (Arabic){reqMark('full_name_ar')}</label>
+            <input name='full_name_ar' value={form.full_name_ar} onChange={handleChange} required={isReq('full_name_ar')} style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
+          </div>
+        )}
+        {!isHidden('role') && (
+          <div>
+            <label style={labelStyle}>Role{reqMark('role')}</label>
+            <select name='role' value={form.role} onChange={handleChange} required={isReq('role')} style={fieldStyle}>
+              <option value='technician'>Technician</option>
+              <option value='manager'>Manager</option>
+              <option value='requester'>Requester</option>
+              <option value='admin'>Admin</option>
+            </select>
+            {form.role && (
+              <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
+                {roleDescriptions[form.role]}
+              </p>
+            )}
+          </div>
+        )}
+        {!isHidden('is_active') && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', borderRadius: 8, padding: '12px 16px' }}>
+            <input type='checkbox' name='is_active' id='is_active' checked={form.is_active} onChange={handleChange} style={{ width: 16, height: 16 }} />
+            <label htmlFor='is_active' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>
+              User is active — can log in and use the platform
+            </label>
+          </div>
+        )}
         {error && (
           <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#b71c1c' }}>
             {error}
