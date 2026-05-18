@@ -17,3 +17,23 @@ CREATE OR REPLACE FUNCTION get_dau_mau() RETURNS TABLE(dau INT, mau INT) AS $$
     (SELECT COUNT(DISTINCT au.id) FROM auth.users au JOIN users u ON u.id = au.id
       WHERE au.last_sign_in_at > now() - INTERVAL '30 days')::INT
 $$ LANGUAGE sql SECURITY DEFINER;
+
+-- get_users_with_login(org_id) — Returns tenant users joined with auth.users to
+-- expose last_sign_in_at, which is otherwise unreadable via PostgREST. Used by
+-- the platform tenant detail API to render the Users tab. Gated on
+-- platform_admins membership inside the route handler.
+
+CREATE OR REPLACE FUNCTION get_users_with_login(org_id UUID) RETURNS TABLE(
+  id UUID,
+  full_name TEXT,
+  email TEXT,
+  role TEXT,
+  is_active BOOLEAN,
+  disabled BOOLEAN,
+  last_sign_in_at TIMESTAMPTZ
+) AS $$
+  SELECT u.id, u.full_name, u.email, u.role, u.is_active, u.disabled, au.last_sign_in_at
+  FROM users u JOIN auth.users au ON au.id = u.id
+  WHERE u.organisation_id = org_id
+  ORDER BY u.full_name
+$$ LANGUAGE sql SECURITY DEFINER;
