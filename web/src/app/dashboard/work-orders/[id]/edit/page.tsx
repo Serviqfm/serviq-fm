@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { useFieldConfig } from '@/lib/useFieldConfig'
+import { isSystemRequired } from '@/lib/field-catalog'
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
   const params = useParams()
   const id = typeof params.id === 'string' ? params.id : params.id?.[0] || ''
   const supabase = createClient()
+  const { isHidden, isRequired, loading: configLoading } = useFieldConfig('work_orders_edit')
+  const isReq = (key: string) => isRequired(key) || isSystemRequired('work_orders_edit', key)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -117,23 +121,30 @@ export default function EditWorkOrderPage() {
     setSaving(true)
     setError('')
 
-    const { error: updateError, data: updatedWO } = await supabase.from('work_orders').update({
-      title: form.title,
-      description: form.description || null,
-      priority: form.priority,
-      category: form.category || null,
-      site_id: form.site_id || null,
-      asset_id: form.asset_id || null,
-      assigned_to: form.assigned_to || null,
-      due_at: form.due_at || null,
-      sla_hours: form.sla_hours ? parseInt(form.sla_hours) : null,
-      completion_notes: form.completion_notes || null,
-      actual_cost: form.actual_cost ? parseFloat(form.actual_cost) : null,
-      updated_at: new Date().toISOString(),
-      status: form.assigned_to ? 'assigned' : 'new',
-    }).eq('id', id).select()
-
-    if (updateError) { setError(updateError.message); setSaving(false); return }
+    const res = await fetch(`/api/work-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: form.title,
+        description: form.description,
+        priority: form.priority,
+        category: form.category,
+        site_id: form.site_id,
+        asset_id: form.asset_id,
+        assigned_to: form.assigned_to,
+        due_at: form.due_at,
+        sla_hours: form.sla_hours,
+        completion_notes: form.completion_notes,
+        actual_cost: form.actual_cost,
+      }),
+    })
+    const result = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setError(result?.error ?? 'Failed to update work order')
+      setSaving(false)
+      return
+    }
+    const updatedWO = result.work_order ? [result.work_order] : []
 
     // Send assignment notification via API (keeps server-side imports server-side)
     if (form.assigned_to && updatedWO && updatedWO.length > 0) {
@@ -168,7 +179,9 @@ export default function EditWorkOrderPage() {
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
   const labelStyle = { display: 'block' as const, marginBottom: 6, fontSize: 13, fontWeight: 500 as const, color: '#444' }
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>
+  if (loading || configLoading) return <div style={{ padding: '2rem' }}>Loading...</div>
+
+  const reqMark = (key: string) => isReq(key) ? <span style={{ color: '#d32f2f' }}> *</span> : null
 
   return (
     <div style={{ padding: '2rem', maxWidth: 680, margin: '0 auto' }}>
@@ -177,91 +190,123 @@ export default function EditWorkOrderPage() {
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0.5rem 0 0' }}>Edit Work Order</h1>
       </div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div>
-          <label style={labelStyle}>Title *</label>
-          <input name='title' value={form.title} onChange={handleChange} required style={fieldStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>Description</label>
-          <textarea name='description' value={form.description} onChange={handleChange} rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
+        {!isHidden('title') && (
+          <div>
+            <label style={labelStyle}>Title{reqMark('title')}</label>
+            <input name='title' value={form.title} onChange={handleChange} required={isReq('title')} style={fieldStyle} />
+          </div>
+        )}
+        {!isHidden('description') && (
+          <div>
+            <label style={labelStyle}>Description{reqMark('description')}</label>
+            <textarea name='description' value={form.description} onChange={handleChange} rows={3}
+              required={isReq('description')}
+              style={{ ...fieldStyle, resize: 'vertical' }} />
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {!isHidden('priority') && (
+            <div>
+              <label style={labelStyle}>Priority{reqMark('priority')}</label>
+              <select name='priority' value={form.priority} onChange={handleChange} required={isReq('priority')} style={fieldStyle}>
+                <option value='low'>Low</option>
+                <option value='medium'>Medium</option>
+                <option value='high'>High</option>
+                <option value='critical'>Critical</option>
+              </select>
+            </div>
+          )}
+          {!isHidden('category') && (
+            <div>
+              <label style={labelStyle}>Category{reqMark('category')}</label>
+              <select name='category' value={form.category} onChange={handleChange} required={isReq('category')} style={fieldStyle}>
+                <option value=''>Select category</option>
+                <option value='HVAC'>HVAC</option>
+                <option value='Electrical'>Electrical</option>
+                <option value='Plumbing'>Plumbing</option>
+                <option value='Elevator / Lift'>Elevator / Lift</option>
+                <option value='Fire Safety'>Fire Safety</option>
+                <option value='Furniture'>Furniture</option>
+                <option value='Kitchen Equipment'>Kitchen Equipment</option>
+                <option value='Pool / Gym'>Pool / Gym</option>
+                <option value='IT Equipment'>IT Equipment</option>
+                <option value='Signage'>Signage</option>
+                <option value='Vehicle'>Vehicle</option>
+                <option value='Other'>Other</option>
+              </select>
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <label style={labelStyle}>Priority *</label>
-            <select name='priority' value={form.priority} onChange={handleChange} style={fieldStyle}>
-              <option value='low'>Low</option>
-              <option value='medium'>Medium</option>
-              <option value='high'>High</option>
-              <option value='critical'>Critical</option>
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Category</label>
-            <select name='category' value={form.category} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Select category</option>
-              <option value='HVAC'>HVAC</option>
-              <option value='Electrical'>Electrical</option>
-              <option value='Plumbing'>Plumbing</option>
-              <option value='Elevator / Lift'>Elevator / Lift</option>
-              <option value='Fire Safety'>Fire Safety</option>
-              <option value='Furniture'>Furniture</option>
-              <option value='Kitchen Equipment'>Kitchen Equipment</option>
-              <option value='Pool / Gym'>Pool / Gym</option>
-              <option value='IT Equipment'>IT Equipment</option>
-              <option value='Signage'>Signage</option>
-              <option value='Vehicle'>Vehicle</option>
-              <option value='Other'>Other</option>
-            </select>
-          </div>
+          {!isHidden('site_id') && (
+            <div>
+              <label style={labelStyle}>Site{reqMark('site_id')}</label>
+              <select name='site_id' value={form.site_id} onChange={handleChange} required={isReq('site_id')} style={fieldStyle}>
+                <option value=''>Select site</option>
+                {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+          {!isHidden('asset_id') && (
+            <div>
+              <label style={labelStyle}>Asset{reqMark('asset_id')}</label>
+              <select name='asset_id' value={form.asset_id} onChange={handleChange} required={isReq('asset_id')} style={fieldStyle}>
+                <option value=''>Select asset</option>
+                {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <label style={labelStyle}>Site</label>
-            <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Select site</option>
-              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Asset</label>
-            <select name='asset_id' value={form.asset_id} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Select asset</option>
-              {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
+          {!isHidden('assigned_to') && (
+            <div>
+              <label style={labelStyle}>Assign To{reqMark('assigned_to')}</label>
+              <select name='assigned_to' value={form.assigned_to} onChange={handleChange} required={isReq('assigned_to')} style={fieldStyle}>
+                <option value=''>Unassigned</option>
+                {technicians.length > 0 && <optgroup label='Internal Technicians'>
+                  {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                </optgroup>}
+                {vendors.length > 0 && <optgroup label='External Vendors'>
+                  {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+                </optgroup>}
+              </select>
+            </div>
+          )}
+          {!isHidden('sla_hours') && (
+            <div>
+              <label style={labelStyle}>SLA (hours){reqMark('sla_hours')}</label>
+              <input name='sla_hours' type='number' value={form.sla_hours} onChange={handleChange}
+                required={isReq('sla_hours')}
+                placeholder='e.g. 24' style={fieldStyle} />
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <label style={labelStyle}>Assign To</label>
-            <select name='assigned_to' value={form.assigned_to} onChange={handleChange} style={fieldStyle}>
-              <option value=''>Unassigned</option>
-              {technicians.length > 0 && <optgroup label='Internal Technicians'>
-                {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-              </optgroup>}
-              {vendors.length > 0 && <optgroup label='External Vendors'>
-                {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-              </optgroup>}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>SLA (hours)</label>
-            <input name='sla_hours' type='number' value={form.sla_hours} onChange={handleChange} placeholder='e.g. 24' style={fieldStyle} />
-          </div>
+          {!isHidden('due_at') && (
+            <div>
+              <label style={labelStyle}>Due Date{reqMark('due_at')}</label>
+              <input name='due_at' type='datetime-local' value={form.due_at} onChange={handleChange}
+                required={isReq('due_at')}
+                style={fieldStyle} />
+            </div>
+          )}
+          {!isHidden('actual_cost') && (
+            <div>
+              <label style={labelStyle}>Actual Cost (SAR){reqMark('actual_cost')}</label>
+              <input name='actual_cost' type='number' value={form.actual_cost} onChange={handleChange}
+                required={isReq('actual_cost')}
+                placeholder='e.g. 500' style={fieldStyle} />
+            </div>
+          )}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {!isHidden('completion_notes') && (
           <div>
-            <label style={labelStyle}>Due Date</label>
-            <input name='due_at' type='datetime-local' value={form.due_at} onChange={handleChange} style={fieldStyle} />
+            <label style={labelStyle}>Completion Notes{reqMark('completion_notes')}</label>
+            <textarea name='completion_notes' value={form.completion_notes} onChange={handleChange} rows={3}
+              required={isReq('completion_notes')}
+              placeholder='Notes on how the issue was resolved...' style={{ ...fieldStyle, resize: 'vertical' }} />
           </div>
-          <div>
-            <label style={labelStyle}>Actual Cost (SAR)</label>
-            <input name='actual_cost' type='number' value={form.actual_cost} onChange={handleChange} placeholder='e.g. 500' style={fieldStyle} />
-          </div>
-        </div>
-        <div>
-          <label style={labelStyle}>Completion Notes</label>
-          <textarea name='completion_notes' value={form.completion_notes} onChange={handleChange} rows={3} placeholder='Notes on how the issue was resolved...' style={{ ...fieldStyle, resize: 'vertical' }} />
-        </div>
+        )}
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button type='submit' disabled={saving} style={{ flex: 1, background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: saving ? 0.7 : 1 }}>

@@ -10,10 +10,14 @@ import { useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
 import { sendPushNotification } from '@/lib/push'
+import { useFieldConfig } from '@/lib/useFieldConfig'
+import { isSystemRequired } from '@/lib/field-catalog'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
   const supabase = createClient()
+  const { isHidden: isCloseHidden, isRequired: isCloseRequired } = useFieldConfig('work_orders_close')
+  const isCloseReq = (key: string) => isCloseRequired(key) || isSystemRequired('work_orders_close', key)
   const [wo, setWo] = useState<WorkOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
@@ -87,7 +91,7 @@ export default function WorkOrderDetailPage() {
       setShowSignoff(true)
       return
     }
-    if (newStatus === 'completed' && closeoutPhotos.length === 0) {
+    if (newStatus === 'completed' && isCloseReq('closeout_photos') && closeoutPhotos.length === 0) {
       alert('Please attach at least one close-out photo before marking as completed.')
       setActiveTab('photos')
       return
@@ -111,28 +115,46 @@ export default function WorkOrderDetailPage() {
       }
     }
 
-    const existingPhotos = wo?.photo_urls ?? []
-    const allPhotos = [...existingPhotos, ...closeoutPhotoUrls]
+    // Close-out transitions (completed/closed) go through the server route so
+    // enforceFieldConfig(orgId, 'work_orders_close', payload) runs. All other
+    // transitions stay client-side for now.
+    if (newStatus === 'completed' || newStatus === 'closed') {
+      const res = await fetch(`/api/work-orders/${id}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          closeout_photo_urls: closeoutPhotoUrls,
+          signoff,
+        }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        alert(errData?.error ?? 'Failed to update status')
+        setUpdating(false)
+        return
+      }
+    } else {
+      const existingPhotos = wo?.photo_urls ?? []
+      const allPhotos = [...existingPhotos, ...closeoutPhotoUrls]
 
-    await supabase.from('work_orders').update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-      ...(newStatus === 'in_progress' ? { started_at: new Date().toISOString() } : {}),
-      ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}),
-      ...(newStatus === 'closed' ? { closed_at: new Date().toISOString() } : {}),
-      ...(closeoutPhotoUrls.length > 0 ? { photo_urls: allPhotos } : {}),
-      ...(signoff ? { completion_notes: `Signed off by: ${signoff}` } : {}),
-    }).eq('id', id)
+      await supabase.from('work_orders').update({
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        ...(newStatus === 'in_progress' ? { started_at: new Date().toISOString() } : {}),
+        ...(closeoutPhotoUrls.length > 0 ? { photo_urls: allPhotos } : {}),
+      }).eq('id', id)
 
-    await supabase.from('audit_logs').insert({
-      entity_type: 'work_order',
-      entity_id: id,
-      action: `Status changed to ${newStatus}${signoff ? ` — signed off by ${signoff}` : ''}`,
-      user_id: user?.id,
-      organisation_id: wo?.organisation_id,
-      new_values: { status: newStatus },
-      old_values: { status: wo?.status },
-    })
+      await supabase.from('audit_logs').insert({
+        entity_type: 'work_order',
+        entity_id: id,
+        action: `Status changed to ${newStatus}`,
+        user_id: user?.id,
+        organisation_id: wo?.organisation_id,
+        new_values: { status: newStatus },
+        old_values: { status: wo?.status },
+      })
+    }
 
     const messages: Record<string, { title: string; body: string }> = {
       assigned:    { title: 'Work Order Assigned',   body: `WO "${wo?.title}" has been assigned to you` },
@@ -625,10 +647,13 @@ export default function WorkOrderDetailPage() {
                 <p className="text-sm text-on-surface-variant">No photos attached yet.</p>
               )}
             </div>
-            {!['completed', 'closed'].includes(wo.status) && (
+            {!['completed', 'closed'].includes(wo.status) && !isCloseHidden('closeout_photos') && (
               <div>
                 <p className="text-sm font-medium text-on-surface-variant mb-2">
-                  Add close-out photos {wo.status === 'in_progress' ? '(required before marking Completed)' : ''}
+                  Add close-out photos
+                  {isCloseReq('closeout_photos') && <span className="text-error"> *</span>}
+                  {' '}
+                  {wo.status === 'in_progress' && isCloseReq('closeout_photos') ? '(required before marking Completed)' : ''}
                 </p>
                 <input type="file" accept="image/*" multiple onChange={handleCloseoutPhoto} className="text-sm text-on-surface-variant" />
                 {closeoutPreviewUrls.length > 0 && (
