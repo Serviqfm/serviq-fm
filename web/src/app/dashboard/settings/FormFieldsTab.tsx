@@ -9,6 +9,12 @@ import {
 
 const visibilities: FieldVisibility[] = ['required', 'optional', 'hidden']
 
+const VIS_LABELS: Record<FieldVisibility, { en: string; ar: string }> = {
+  required: { en: 'Required', ar: 'مطلوب' },
+  optional: { en: 'Optional', ar: 'اختياري' },
+  hidden:   { en: 'Hidden',   ar: 'مخفي' },
+}
+
 export default function FormFieldsTab() {
   const { lang } = useLanguage()
   const [selectedPage, setSelectedPage] = useState<FieldPage>('work_orders_new')
@@ -17,20 +23,25 @@ export default function FormFieldsTab() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
     setError('')
-    fetch(`/api/field-configs?page=${selectedPage}`)
+    fetch(`/api/field-configs?page=${selectedPage}`, { signal: ac.signal })
       .then(r => r.json())
       .then(data => {
         if (data.config) setConfig(new Map(Object.entries(data.config) as [string, FieldVisibility][]))
         setLoading(false)
+        setDirty(false)
       })
-      .catch(() => {
+      .catch(err => {
+        if (err?.name === 'AbortError') return
         setError('Failed to load configuration')
         setLoading(false)
       })
+    return () => ac.abort()
   }, [selectedPage])
 
   function setFieldVis(key: string, vis: FieldVisibility) {
@@ -39,19 +50,21 @@ export default function FormFieldsTab() {
       next.set(key, vis)
       return next
     })
+    setDirty(true)
   }
 
   async function save() {
+    const pageAtSaveStart = selectedPage
     setSaving(true)
     setError('')
     const overrides: Record<string, FieldVisibility> = {}
-    for (const meta of FIELD_CATALOG[selectedPage]) {
+    for (const meta of FIELD_CATALOG[pageAtSaveStart]) {
       if (meta.is_system_required) continue
       const vis = config.get(meta.key) ?? meta.default_visibility
       overrides[meta.key] = vis
     }
     try {
-      const res = await fetch(`/api/field-configs/${selectedPage}`, {
+      const res = await fetch(`/api/field-configs/${pageAtSaveStart}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ overrides }),
@@ -62,9 +75,13 @@ export default function FormFieldsTab() {
         setSaving(false)
         return
       }
-      if (data.config) setConfig(new Map(Object.entries(data.config) as [string, FieldVisibility][]))
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      // Guard: only apply response if user is still on the same page
+      if (pageAtSaveStart === selectedPage) {
+        if (data.config) setConfig(new Map(Object.entries(data.config) as [string, FieldVisibility][]))
+        setDirty(false)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2500)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
     } finally {
@@ -118,7 +135,7 @@ export default function FormFieldsTab() {
                           ? 'px-3 py-1 rounded-full bg-primary text-on-primary text-xs font-semibold'
                           : 'px-3 py-1 rounded-full text-xs text-on-surface-variant disabled:opacity-30 hover:bg-surface-container-lowest transition-colors'}
                       >
-                        {v}
+                        {VIS_LABELS[v][lang === 'ar' ? 'ar' : 'en']}
                       </button>
                     ))}
                   </div>
@@ -142,6 +159,11 @@ export default function FormFieldsTab() {
           >
             {saving ? (lang === 'ar' ? 'جاري الحفظ…' : 'Saving…') : (lang === 'ar' ? 'حفظ' : 'Save')}
           </button>
+          {dirty && !saved && (
+            <span className="text-on-surface-variant text-xs">
+              {lang === 'ar' ? 'تغييرات غير محفوظة' : 'Unsaved changes'}
+            </span>
+          )}
           {saved && (
             <span className="text-primary text-sm font-semibold">
               {lang === 'ar' ? 'تم الحفظ' : 'Saved'}
