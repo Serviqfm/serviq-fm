@@ -2,30 +2,42 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { verifyImpersonationCookie, IMPERSONATION_COOKIE_NAME } from './lib/impersonation'
+
+export const runtime = 'nodejs'
 
 export const config = {
   matcher: ['/platform/:path*', '/dashboard/:path*'],
 }
 
-async function getSessionUser(req: NextRequest) {
-  const accessToken = req.cookies.get('sb-access-token')?.value
-    ?? req.cookies.get(`sb-${process.env.NEXT_PUBLIC_SUPABASE_REF}-auth-token`)?.value
-  if (!accessToken) return null
-  const supabase = createAdminClient(
+async function getUserFromRequest(req: NextRequest) {
+  // We need a mutable cookie set so @supabase/ssr can refresh tokens during the call.
+  // For middleware, we wrap the cookie store: we forward to req.cookies for reads.
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          // If Supabase refreshes the access token mid-middleware, we'd want to write
+          // it back. For now we ignore (the client-side will re-auth on next page load
+          // if refresh is needed). This avoids the complexity of carrying a NextResponse
+          // through the function.
+          for (const { name, value, options } of cookiesToSet) {
+            // no-op
+            void name; void value; void options
+          }
+        },
+      },
+    }
   )
   try {
-    // accessToken may be a JSON-encoded array — handle both formats
-    let token = accessToken
-    if (accessToken.startsWith('[')) {
-      const parsed = JSON.parse(accessToken)
-      token = parsed[0] ?? accessToken
-    }
-    const { data } = await supabase.auth.getUser(token)
-    return data.user
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
   } catch {
     return null
   }
@@ -36,7 +48,7 @@ export async function middleware(req: NextRequest) {
 
   // /platform/* gate
   if (path.startsWith('/platform/')) {
-    const user = await getSessionUser(req)
+    const user = await getUserFromRequest(req)
     if (!user) {
       return NextResponse.redirect(new URL('/login/employee', req.url))
     }
@@ -58,7 +70,7 @@ export async function middleware(req: NextRequest) {
 
   // /dashboard/* gate
   if (path.startsWith('/dashboard/')) {
-    const user = await getSessionUser(req)
+    const user = await getUserFromRequest(req)
     if (!user) {
       return NextResponse.redirect(new URL('/login/client', req.url))
     }
