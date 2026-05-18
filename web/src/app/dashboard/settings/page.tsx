@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import NotificationsTab from './NotificationsTab'
 import PushAuditTab from './PushAuditTab'
+import FormFieldsTab from './FormFieldsTab'
 
 export default function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,7 +15,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit'>('organisation')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'>('organisation')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -91,23 +92,29 @@ export default function SettingsPage() {
           </p>
 
           <div className="flex gap-0 mb-8 border-b border-outline-variant">
-            {([
-              { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
-              { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
-              { key: 'account',      label: lang === 'ar' ? 'الحساب' : 'Account' },
-              { key: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
-              { key: 'push_audit',   label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
-            ] as const).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={activeTab === tab.key
-                  ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-primary text-primary'
-                  : 'px-4 py-2.5 text-sm text-on-surface-variant border-b-2 border-transparent hover:text-on-surface transition-colors'}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {(() => {
+              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'; label: string }[] = [
+                { key: 'organisation',   label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
+                { key: 'storage',        label: lang === 'ar' ? 'التخزين' : 'Storage' },
+                { key: 'account',        label: lang === 'ar' ? 'الحساب' : 'Account' },
+                { key: 'notifications',  label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
+                { key: 'push_audit',     label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
+              ]
+              if (user?.role === 'admin') {
+                tabs.push({ key: 'form_fields', label: lang === 'ar' ? 'حقول النماذج' : 'Form Fields' })
+              }
+              return tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={activeTab === tab.key
+                    ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-primary text-primary'
+                    : 'px-4 py-2.5 text-sm text-on-surface-variant border-b-2 border-transparent hover:text-on-surface transition-colors'}
+                >
+                  {tab.label}
+                </button>
+              ))
+            })()}
           </div>
 
           {saved && (
@@ -387,6 +394,10 @@ export default function SettingsPage() {
 
           {activeTab === 'push_audit' && (
             <PushAuditTab />
+          )}
+
+          {activeTab === 'form_fields' && user?.role === 'admin' && (
+            <FormFieldsTab />
           )}
         </div>
       </div>
