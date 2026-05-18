@@ -1,14 +1,14 @@
 // web/src/app/api/field-configs/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getFieldConfig } from '@/lib/fieldEnforcement'
 import { FieldPage, ALL_PAGES } from '@/lib/field-catalog'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

@@ -1,8 +1,9 @@
 // web/src/app/api/field-configs/[page]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getFieldConfig } from '@/lib/fieldEnforcement'
 import { FIELD_CATALOG, FieldPage, FieldVisibility, ALL_PAGES } from '@/lib/field-catalog'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { page: strin
     return NextResponse.json({ error: 'Invalid page' }, { status: 400 })
   }
 
-  const supabase = createClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -69,12 +70,11 @@ export async function POST(req: NextRequest, { params }: { params: { page: strin
       .upsert(rows, { onConflict: 'organisation_id,page,field_key' })
     if (error) {
       console.error('[field-configs POST] upsert failed', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to save field config' }, { status: 500 })
     }
   }
 
   try {
-    const { getFieldConfig } = await import('@/lib/fieldEnforcement')
     const config = await getFieldConfig(profile.organisation_id, page)
     return NextResponse.json({ config: Object.fromEntries(config) })
   } catch (err) {
