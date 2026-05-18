@@ -145,6 +145,7 @@ export default function WorkOrderDetailPage() {
         ...(closeoutPhotoUrls.length > 0 ? { photo_urls: allPhotos } : {}),
       }).eq('id', id)
 
+      // TODO(sprint-f): move audit log write to server route for impersonation attribution
       await supabase.from('audit_logs').insert({
         entity_type: 'work_order',
         entity_id: id,
@@ -153,6 +154,7 @@ export default function WorkOrderDetailPage() {
         organisation_id: wo?.organisation_id,
         new_values: { status: newStatus },
         old_values: { status: wo?.status },
+        impersonated_by: null,
       })
     }
 

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { getOrgId } from '@/lib/auth-helper'
 import type { WorkOrderStatus } from '@/types/work-order'
 
 export const dynamic = 'force-dynamic'
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   // Audit log (best-effort)
   try {
+    const { impersonating, actorPlatformAdminId } = await getOrgId()
     await admin.from('audit_logs').insert({
       entity_type: 'work_order',
       entity_id: id,
@@ -111,6 +113,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       organisation_id: profile.organisation_id,
       new_values: { status: newStatus },
       old_values: { status: existingWO.status },
+      impersonated_by: impersonating ? actorPlatformAdminId : null,
     })
   } catch (auditErr) {
     console.error('[work-orders close POST] audit log failed', auditErr)
