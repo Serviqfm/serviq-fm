@@ -18,6 +18,7 @@
     "date-fns": "^4.1.0",
     "expo-server-sdk": "^3.8.0",
     "geist": "^1.7.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.7.0",
     "next": "14.2.35",
     "nodemailer": "^8.0.7",
@@ -40,6 +41,7 @@
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.22.1",
     "typescript": "^5"
   }
 }

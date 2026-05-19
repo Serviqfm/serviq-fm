@@ -1,16 +1,84 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
 export default function EmployeeLoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
+  const supabase = createClient()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // Handle login
+    setError('')
+    setLoading(true)
+
+    const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    if (signInError) {
+      setError(signInError.message)
+      setLoading(false)
+      return
+    }
+    const userId = sessionData.user?.id
+    if (!userId) {
+      setError('Unexpected: no user id')
+      setLoading(false)
+      return
+    }
+
+    // Step A: is the user a platform admin?
+    const { data: pa } = await supabase
+      .from('platform_admins')
+      .select('id')
+      .eq('id', userId)
+      .single()
+    if (pa) {
+      // Update last_sign_in_at, then route to /platform/dashboard
+      await fetch('/api/platform/me/sign-in-touch', { method: 'POST' }).catch(() => {})
+      router.push('/platform/dashboard')
+      return
+    }
+
+    // Step B: tenant user — check is_active, disabled, and org.offboarded_at
+    const { data: profile } = await supabase
+      .from('users')
+      .select('is_active, disabled, organisations(offboarded_at)')
+      .eq('id', userId)
+      .single() as {
+        data: {
+          is_active: boolean
+          disabled: boolean
+          organisations: { offboarded_at: string | null } | null
+        } | null
+      }
+
+    if (!profile) {
+      await supabase.auth.signOut()
+      setError('No tenant or platform account found for this email.')
+      setLoading(false)
+      return
+    }
+    if (
+      profile.is_active === false ||
+      profile.disabled === true ||
+      profile.organisations?.offboarded_at
+    ) {
+      await supabase.auth.signOut()
+      setError('Account is disabled or your organisation has been offboarded.')
+      setLoading(false)
+      return
+    }
+
+    router.push('/dashboard')
   }
 
   return (
@@ -113,6 +181,7 @@ export default function EmployeeLoginForm() {
                     <input
                       id="email"
                       type="email"
+                      required
                       placeholder="name@serviq.sa"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -144,6 +213,7 @@ export default function EmployeeLoginForm() {
                     <input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
+                      required
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -178,15 +248,24 @@ export default function EmployeeLoginForm() {
                   </label>
                 </div>
 
+                {error && (
+                  <div className="bg-error/10 border border-error/20 text-error text-sm px-4 py-3 rounded-xl">
+                    {error}
+                  </div>
+                )}
+
                 {/* Login Button */}
                 <button
                   type="submit"
-                  className="w-full py-4 bg-primary text-on-primary font-bold rounded-xl shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group mt-6"
+                  disabled={loading}
+                  className="w-full py-4 bg-primary text-on-primary font-bold rounded-xl shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group mt-6 disabled:opacity-60"
                 >
-                  <span>Login to Dashboard</span>
-                  <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">
-                    arrow_forward
-                  </span>
+                  <span>{loading ? 'Signing in...' : 'Login to Dashboard'}</span>
+                  {!loading && (
+                    <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">
+                      arrow_forward
+                    </span>
+                  )}
                 </button>
 
                 {/* Secondary Option */}

@@ -1,12 +1,33 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, full_name, full_name_ar, role, phone, organisation_id } = await req.json()
+    const body = await req.json()
+    const { email, full_name, full_name_ar, role, phone, organisation_id } = body
 
     if (!email || !full_name || !role || !organisation_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Server-side field config enforcement (defense-in-depth)
+    const enforcement = await enforceFieldConfig(organisation_id, 'users_new', {
+      email,
+      full_name,
+      full_name_ar,
+      role,
+      phone,
+    })
+    if ('error' in enforcement) {
+      return NextResponse.json({ error: enforcement.error }, { status: 400 })
+    }
+    const cleaned = enforcement.cleaned as {
+      email?: string
+      full_name?: string
+      full_name_ar?: string
+      role?: string
+      phone?: string
     }
 
     // Use service role key to create auth user (deferred to runtime)
@@ -20,10 +41,15 @@ export async function POST(req: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
+    // email and role are is_system_required: true — guaranteed present
+    const cleanedEmail = cleaned.email as string
+    const cleanedFullName = cleaned.full_name as string
+    const cleanedRole = cleaned.role as string
+
     // Create auth user with a temporary password
     const tempPassword = 'Serviq' + Math.random().toString(36).slice(2, 10) + '!1'
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: cleanedEmail,
       password: tempPassword,
       email_confirm: true,
     })
@@ -35,11 +61,11 @@ export async function POST(req: NextRequest) {
     // Create user profile record
     const { error: profileError } = await supabaseAdmin.from('users').insert({
       id: authData.user.id,
-      email,
-      full_name,
-      full_name_ar: full_name_ar || null,
-      role,
-      phone: phone || null,
+      email: cleanedEmail,
+      full_name: cleanedFullName,
+      full_name_ar: cleaned.full_name_ar || null,
+      role: cleanedRole,
+      phone: cleaned.phone || null,
       organisation_id,
       is_active: true,
       invited_at: new Date().toISOString(),
@@ -56,8 +82,8 @@ export async function POST(req: NextRequest) {
       const { notifyWelcomeEmail } = await import('@/lib/notifications/workOrderNotifications')
       await notifyWelcomeEmail(
         authData.user.id,
-        email,
-        full_name,
+        cleanedEmail,
+        cleanedFullName,
         `${process.env.NEXT_PUBLIC_APP_URL}/login/employee`,
         tempPassword
       );

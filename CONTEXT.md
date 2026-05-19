@@ -274,24 +274,36 @@
 
 ---
 
-### Sprint E — Settings: Field Visibility *(~2–3 days)*
+### Sprint E — Settings: Field Visibility *(COMPLETE — 2026-05-18)*
 **Goal:** Admins can configure which fields on each form are mandatory, optional, or hidden.
 
-**Design doc:** `docs/superpowers/specs/` *(to be written)*
+**Design doc:** `docs/superpowers/specs/2026-05-17-sprint-e-field-visibility-settings-design.md`
+**Plan:** `docs/superpowers/plans/2026-05-17-sprint-e-field-visibility-settings.md`
 
-- [ ] **E1 — Data model**
+- [x] **E1 — Data model**
   - `field_configs` table: `(organisation_id, page, field_key, visibility: 'required'|'optional'|'hidden')`
-  - Pages covered: `work_orders_new`, `work_orders_close`, `assets_new`, `sites_new`, `users_new`
+  - 11 pages covered: work_orders {new, edit, close}, assets {new, edit}, sites {new, edit}, spaces {new, edit}, users {new, edit}
+  - Catalog at `web/src/lib/field-catalog.ts` (~70 field entries; system-required flag per field)
+  - Server helper `web/src/lib/fieldEnforcement.ts`: `getFieldConfig`, `enforceFieldConfig`, `seedFieldConfigsForOrg`
+  - Client hook `web/src/lib/useFieldConfig.ts`
 
-- [ ] **E2 — Settings UI**
-  - New "Form Fields" section in `/dashboard/settings`
-  - Per page: list of fields with 3-way toggle (Required / Optional / Hidden)
-  - Save → upserts `field_configs`
+- [x] **E2 — Settings UI**
+  - New "Form Fields" tab in `/dashboard/settings` (admin-only)
+  - Component: `web/src/app/dashboard/settings/FormFieldsTab.tsx`
+  - Left rail: 11 page nav buttons (bilingual); right panel: 3-segment toggles per field; system-required locked to Required
+  - Save → `POST /api/field-configs/[page]` with `{ overrides }`
 
-- [ ] **E3 — Forms respect config**
-  - Work Orders new/close pages read `field_configs` — show/hide/enforce required
-  - Assets new/edit — same
-  - Work order close modal — same
+- [x] **E3 — Forms respect config**
+  - All 5 entities wired: work_orders, assets, sites, spaces, users
+  - Each entity has new server route(s) that call `enforceFieldConfig` before insert/update
+  - All forms use `useFieldConfig` to wrap fields with `{!isHidden(key) && ...}` and pass `required={isRequired(key) || isSystemRequired(page, key)}`
+  - Defense in depth: client UI hides + server-side enforcement strips hidden fields and rejects missing required fields
+
+**⚠️ Manual DB steps required (Supabase SQL editor):**
+1. Run `docs/superpowers/sql/sprint-e-01-foundation.sql` to create the `field_configs` table + RLS + index
+
+**⚠️ Backfill required after deploy:**
+2. `cd web && npx tsx scripts/seed-field-configs.ts` — seeds catalog defaults for every existing organisation. Idempotent.
 
 ---
 
