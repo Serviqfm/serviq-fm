@@ -3,19 +3,15 @@
 import { type FormEvent, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { C, F, LUMINA_COLORS, LUMINA_SPACING, LUMINA_RADII } from '@/lib/brand'
 import Link from 'next/link'
-import Button from '@/components/design-system/Button'
-
-const grad = 'linear-gradient(135deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%)'
-const gradH = 'linear-gradient(90deg, #6DCFB0 0%, #3AAECC 50%, #1A7FC1 100%)'
 
 export default function ClientLoginPage() {
-  const [email, setEmail]       = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
-  const router  = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
   const supabase = createClient()
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
@@ -32,154 +28,180 @@ export default function ClientLoginPage() {
   }
 
   return (
-    <div style={{ minHeight:'100vh', display:'flex', fontFamily: F.en }}>
-      {/* Left panel — branding */}
-      <div style={{ flex:'0 0 42%', background: LUMINA_COLORS.primary, display:'flex', flexDirection:'column', justifyContent:'space-between', padding:'48px 52px', position:'relative', overflow:'hidden' }}>
-        {/* Background decoration */}
-        <div style={{ position:'absolute', top:-180, right:-180, width:520, height:520, borderRadius:'50%', background:'radial-gradient(circle, rgba(109,207,176,0.14) 0%, transparent 65%)', pointerEvents:'none' }}/>
-        <div style={{ position:'absolute', bottom:-140, left:-140, width:440, height:440, borderRadius:'50%', background:'radial-gradient(circle, rgba(26,127,193,0.12) 0%, transparent 65%)', pointerEvents:'none' }}/>
-        <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(rgba(109,207,176,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(109,207,176,0.04) 1px, transparent 1px)', backgroundSize:'48px 48px', pointerEvents:'none' }}/>
-
-        {/* Logo */}
-        <div style={{ position:'relative', zIndex:1 }}>
-          <Link href="/" style={{ display:'inline-flex', alignItems:'center', gap:10, textDecoration:'none' }}>
-            <div style={{ width:42, height:42, borderRadius:11, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <span style={{ fontSize:20, fontWeight:800, fontFamily: F.en, background:gradH, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>S</span>
-            </div>
-            <div>
-              <div style={{ fontSize:20, fontWeight:700, fontFamily: F.en, color:'#fff' }}>
-                Serviq<span style={{ background:gradH, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>FM</span>
-              </div>
-              <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Facility Management</div>
-            </div>
+    <div className="bg-background text-on-background min-h-screen flex flex-col star-pattern overflow-x-hidden">
+      {/* Header */}
+      <header className="sticky top-0 z-50 flex items-center justify-between px-8 py-2 w-full bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+        <Link href="/login" className="flex items-center gap-2 no-underline">
+          <span className="text-primary font-bold tracking-tight text-2xl">Serviq Lumina</span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/login/employee" className="text-xs font-semibold text-on-surface-variant hover:text-secondary transition-colors">
+            Employee Portal →
           </Link>
         </div>
+      </header>
 
-        {/* Center copy */}
-        <div style={{ position:'relative', zIndex:1 }}>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(109,207,176,0.12)', border:'1px solid rgba(109,207,176,0.28)', color:'#6DCFB0', fontSize:11, fontWeight:600, letterSpacing:'0.08em', padding:'5px 16px', borderRadius:999, marginBottom:28 }}>
-            🏢 &nbsp; CLIENT PORTAL
-          </div>
-          <div style={{ fontFamily:"'Readex Pro', sans-serif", fontSize:36, fontWeight:700, color:'#fff', direction:'rtl', lineHeight:1.45, marginBottom:12 }}>
-            بوابة العملاء
-          </div>
-          <div style={{ fontSize:18, fontWeight:600, color:'rgba(255,255,255,0.85)', marginBottom:16, lineHeight:1.4 }}>
-            Track your work orders<br/>and facility requests
-          </div>
-          <div style={{ fontSize:14, color:'rgba(255,255,255,0.45)', lineHeight:1.7, maxWidth:320 }}>
-            View live status on your maintenance requests, download ZATCA-compliant invoices, and communicate with your facility team — in Arabic or English.
-          </div>
+      {/* Main */}
+      <main className="flex-grow flex items-center justify-center px-6 py-8 relative">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-full max-h-[600px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Feature list */}
-          <div style={{ marginTop:40, display:'flex', flexDirection:'column', gap:12 }}>
-            {[
-              ['📋', 'View & track work orders'],
-              ['📄', 'Download VAT invoices'],
-              ['💬', 'Communicate with your team'],
-              ['📊', 'Access facility reports'],
-            ].map(([icon, text]) => (
-              <div key={text} style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ width:32, height:32, borderRadius:8, background:'rgba(109,207,176,0.12)', border:'1px solid rgba(109,207,176,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>{icon}</div>
-                <span style={{ fontSize:13, color:'rgba(255,255,255,0.6)' }}>{text}</span>
+        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-hidden rounded-xl shadow-sm border border-outline-variant bg-surface-container-lowest relative z-10">
+          {/* Left: brand panel */}
+          <div className="hidden lg:flex flex-col justify-between p-8 bg-primary relative overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-80 h-80 bg-primary-container/20 rounded-full blur-[100px]" />
+            <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-secondary/30 rounded-full blur-[100px]" />
+
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-on-primary text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full mb-6">
+                <span className="material-symbols-outlined text-sm">business_center</span>
+                CLIENT PORTAL
               </div>
-            ))}
-          </div>
-        </div>
+              <h1 className="text-on-primary text-4xl lg:text-5xl mb-4 leading-tight font-bold">
+                بوابة العملاء<br />
+                <span className="text-3xl font-semibold opacity-90">Client Portal</span>
+              </h1>
+              <p className="text-on-primary/80 text-base max-w-md">
+                View live status on your maintenance requests, download ZATCA-compliant invoices, and communicate with your facility team — in Arabic or English.
+              </p>
+            </div>
 
-        {/* Bottom note */}
-        <div style={{ position:'relative', zIndex:1, fontSize:12, color:'rgba(255,255,255,0.25)' }}>
-          Are you an employee?{' '}
-          <Link href="/login/employee" style={{ color:'#6DCFB0', textDecoration:'underline' }}>
-            Go to Employee Portal →
-          </Link>
-        </div>
-      </div>
-
-      {/* Right panel — form */}
-      <div style={{ flex:1, background: LUMINA_COLORS.background, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px 40px' }}>
-        <div style={{ width:'100%', maxWidth:420 }}>
-          <div style={{ marginBottom:'2.5rem' }}>
-            <h1 style={{ fontSize:26, fontWeight:700, color: LUMINA_COLORS.primary, margin:'0 0 6px', fontFamily: F.en }}>
-              Client Sign In
-            </h1>
-            <p style={{ fontSize:13, color: LUMINA_COLORS.onSurfaceVariant, margin:0, fontFamily: F.en }}>
-              Access your facility management portal &nbsp;·&nbsp;{' '}
-              <span style={{ fontFamily:"'Readex Pro', sans-serif" }}>الدخول إلى بوابتك</span>
-            </p>
-          </div>
-
-          <div style={{ background: LUMINA_COLORS.surfaceContainerLowest, border:`1px solid ${LUMINA_COLORS.outlineVariant}`, borderRadius:LUMINA_RADII.lg, padding:'2rem' }}>
-            <form onSubmit={handleLogin}>
-              <div style={{ marginBottom:'1rem' }}>
-                <label style={{ display:'block', fontSize:12, fontWeight:600, color: LUMINA_COLORS.onSurfaceVariant, marginBottom:6, fontFamily: F.en }}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  placeholder="you@company.com"
-                  style={{ width:'100%', padding:'11px 14px', border:`1px solid ${LUMINA_COLORS.outline}`, borderRadius:LUMINA_RADII.md, fontSize:14, fontFamily: F.en, color: LUMINA_COLORS.onSurface, background: LUMINA_COLORS.surfaceContainerLowest, boxSizing:'border-box', outline:'none', transition:'border 0.15s' }}
-                  onFocus={e => e.target.style.borderColor = LUMINA_COLORS.primary}
-                  onBlur={e => e.target.style.borderColor = LUMINA_COLORS.outline}
-                />
-              </div>
-              <div style={{ marginBottom:'0.5rem' }}>
-                <label style={{ display:'block', fontSize:12, fontWeight:600, color: LUMINA_COLORS.onSurfaceVariant, marginBottom:6, fontFamily: F.en }}>
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  style={{ width:'100%', padding:'11px 14px', border:`1px solid ${LUMINA_COLORS.outline}`, borderRadius:LUMINA_RADII.md, fontSize:14, fontFamily: F.en, color: LUMINA_COLORS.onSurface, background: LUMINA_COLORS.surfaceContainerLowest, boxSizing:'border-box', outline:'none', transition:'border 0.15s' }}
-                  onFocus={e => e.target.style.borderColor = LUMINA_COLORS.primary}
-                  onBlur={e => e.target.style.borderColor = LUMINA_COLORS.outline}
-                />
-              </div>
-              <div style={{ textAlign:'right', marginBottom:'1.5rem' }}>
-                <a href="#" style={{ fontSize:12, color: LUMINA_COLORS.primary, fontFamily: F.en }}>Forgot password?</a>
-              </div>
-              {error && (
-                <div style={{ color: LUMINA_COLORS.error, marginBottom:'1rem', fontSize:13, background: LUMINA_COLORS.errorContainer, padding:'10px 12px', borderRadius:LUMINA_RADII.md, border:`1px solid ${LUMINA_COLORS.error}` }}>
-                  {error}
+            <div className="relative z-10 flex flex-col gap-4">
+              {[
+                { icon: 'receipt_long', text: 'View & track work orders' },
+                { icon: 'description', text: 'Download VAT invoices' },
+                { icon: 'forum', text: 'Communicate with your team' },
+                { icon: 'bar_chart', text: 'Access facility reports' },
+              ].map(({ icon, text }) => (
+                <div key={text} className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-on-primary text-lg">{icon}</span>
+                  </div>
+                  <span className="text-on-primary/70 text-sm">{text}</span>
                 </div>
-              )}
-              <Button
-                variant="primary"
-                fullWidth
-                isLoading={loading}
-                type="submit"
-                disabled={loading}
-              >
-                {loading ? 'Signing in...' : 'Sign In to Client Portal →'}
-              </Button>
-            </form>
+              ))}
+            </div>
           </div>
 
-          {/* Divider */}
-          <div style={{ margin:'28px 0', display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ flex:1, height:1, background: LUMINA_COLORS.outlineVariant }}/>
-            <span style={{ fontSize:11, color: LUMINA_COLORS.onSurfaceVariant, fontWeight:500 }}>PORTAL ACCESS</span>
-            <div style={{ flex:1, height:1, background: LUMINA_COLORS.outlineVariant }}/>
-          </div>
+          {/* Right: form */}
+          <div className="p-8 flex flex-col justify-center bg-surface-container-lowest">
+            <div className="max-w-md w-full mx-auto">
+              <div className="mb-8">
+                <div className="inline-flex items-center justify-center p-3 rounded-xl bg-primary/10 text-primary mb-4">
+                  <span className="material-symbols-outlined text-3xl">business_center</span>
+                </div>
+                <h2 className="text-2xl font-bold text-on-surface mb-1">Client Sign In</h2>
+                <p className="text-on-surface-variant text-sm">
+                  Access your facility management portal &nbsp;·&nbsp;
+                  <span style={{ fontFamily: "'Readex Pro', sans-serif" }}>الدخول إلى بوابتك</span>
+                </p>
+              </div>
 
-          {/* Trust badges */}
-          <div style={{ display:'flex', justifyContent:'center', gap:16, flexWrap:'wrap' }}>
-            {['🔒 Secure login','📄 ZATCA invoices','🌐 Arabic & English'].map(b => (
-              <span key={b} style={{ fontSize:11, color: LUMINA_COLORS.onSurfaceVariant, background: LUMINA_COLORS.surfaceContainerLowest, border:`1px solid ${LUMINA_COLORS.outlineVariant}`, padding:'5px 12px', borderRadius:999 }}>{b}</span>
-            ))}
-          </div>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-primary text-xs font-semibold uppercase tracking-wider block">
+                    Email Address
+                  </label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                      alternate_email
+                    </span>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      placeholder="you@company.com"
+                      className="w-full pl-12 pr-4 py-3.5 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-outline-variant"
+                    />
+                  </div>
+                </div>
 
-          <p style={{ textAlign:'center', marginTop:28, fontSize:12, color: LUMINA_COLORS.onSurfaceVariant, fontFamily: F.en }}>
-            Not a client yet?{' '}
-            <Link href="/#waitlist" style={{ color: LUMINA_COLORS.primary, fontWeight:600 }}>Join the waitlist →</Link>
-          </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label htmlFor="password" className="text-primary text-xs font-semibold uppercase tracking-wider block">
+                      Password
+                    </label>
+                    <a href="#" className="text-xs font-semibold text-on-surface-variant hover:text-primary transition-colors">
+                      Forgot password?
+                    </a>
+                  </div>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                      lock
+                    </span>
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      className="w-full pl-12 pr-12 py-3.5 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-outline-variant"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors"
+                    >
+                      <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="bg-error/10 border border-error/20 text-error text-sm px-4 py-3 rounded-xl">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 bg-primary text-on-primary font-bold rounded-xl shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group mt-2 disabled:opacity-60"
+                >
+                  <span>{loading ? 'Signing in...' : 'Sign In to Client Portal'}</span>
+                  {!loading && (
+                    <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 flex items-center gap-3">
+                <div className="flex-1 h-px bg-outline-variant" />
+                <span className="text-xs text-outline font-semibold uppercase">TRUST & SECURITY</span>
+                <div className="flex-1 h-px bg-outline-variant" />
+              </div>
+
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
+                {['🔒 Secure login', '📄 ZATCA invoices', '🌐 Arabic & English'].map(b => (
+                  <span key={b} className="text-xs text-on-surface-variant bg-surface-container-low border border-outline-variant px-3 py-1.5 rounded-full">{b}</span>
+                ))}
+              </div>
+
+              <footer className="mt-8 text-center">
+                <p className="text-xs text-outline leading-relaxed">
+                  © 2024 Serviq Lumina. ZATCA Compliant FM Solutions.
+                </p>
+              </footer>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
+
+      <footer className="w-full flex flex-col md:flex-row justify-between items-center px-8 py-4 gap-4 border-t border-outline-variant mt-auto">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <span className="text-primary text-lg font-bold">Serviq Lumina</span>
+          <div className="flex gap-4">
+            <a href="#" className="text-on-surface-variant text-sm hover:text-primary transition-colors">Privacy Policy</a>
+            <a href="#" className="text-on-surface-variant text-sm hover:text-primary transition-colors">Support Portal</a>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-outline text-xs font-semibold">
+          <span className="material-symbols-outlined text-sm">shield_lock</span>
+          SECURE PORTAL 256-BIT ENCRYPTION
+        </div>
+      </footer>
     </div>
   )
 }

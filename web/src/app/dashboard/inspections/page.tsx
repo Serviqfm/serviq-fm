@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, tableHeaderCell, tableCell, dangerBtn } from '@/lib/brand'
 
 export default function InspectionsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,152 +74,157 @@ export default function InspectionsPage() {
   }
 
   const resultBadge = (result: string) => {
-    const cfg: Record<string, { bg: string; color: string; label: string }> = {
-      pass:    { bg: '#DCFCE7',  color: C.success, label: lang === 'ar' ? 'ناجح' : 'Pass' },
-      fail:    { bg: C.dangerBg, color: C.danger,  label: lang === 'ar' ? 'فاشل' : 'Fail' },
-      partial: { bg: '#FEF3C7',  color: C.warning, label: lang === 'ar' ? 'جزئي' : 'Partial' },
+    const cfg: Record<string, { className: string; label: string }> = {
+      pass:    { className: 'bg-primary/10 text-primary',          label: lang === 'ar' ? 'ناجح' : 'Pass' },
+      fail:    { className: 'bg-error/10 text-error',              label: lang === 'ar' ? 'فاشل' : 'Fail' },
+      partial: { className: 'bg-[#f57f17]/10 text-[#f57f17]',     label: lang === 'ar' ? 'جزئي' : 'Partial' },
     }
-    const c = cfg[result?.toLowerCase()] ?? { bg: C.pageBg, color: C.textMid, label: result }
-    return <span style={{ background: c.bg, color: c.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{c.label}</span>
+    const c = cfg[result?.toLowerCase()] ?? { className: 'bg-surface-container-low text-on-surface-variant', label: result }
+    return <span className={`${c.className} px-2.5 py-0.5 rounded-full text-xs font-medium`}>{c.label}</span>
   }
 
   const statusBadge = (status: string) => {
-    const cfg: Record<string, { bg: string; color: string; label: string }> = {
-      completed:   { bg: '#DCFCE7',  color: C.success, label: t('wo.status.completed') },
-      in_progress: { bg: '#FEF3C7',  color: C.warning, label: t('wo.status.in_progress') },
-      draft:       { bg: C.pageBg,   color: C.textMid, label: lang === 'ar' ? 'مسودة' : 'Draft' },
+    const cfg: Record<string, { className: string; label: string }> = {
+      completed:   { className: 'bg-primary/10 text-primary',      label: t('wo.status.completed') },
+      in_progress: { className: 'bg-[#f57f17]/10 text-[#f57f17]', label: t('wo.status.in_progress') },
+      draft:       { className: 'bg-surface-container-low text-on-surface-variant', label: lang === 'ar' ? 'مسودة' : 'Draft' },
     }
-    const c = cfg[status?.toLowerCase()] ?? { bg: C.pageBg, color: C.textMid, label: status }
-    return <span style={{ background: c.bg, color: c.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>{c.label}</span>
+    const c = cfg[status?.toLowerCase()] ?? { className: 'bg-surface-container-low text-on-surface-variant', label: status }
+    return <span className={`${c.className} px-2.5 py-0.5 rounded-full text-xs font-medium`}>{c.label}</span>
   }
 
   const verticalBadge = (v: string) => {
-    const colors: Record<string, string> = { school: '#e3f2fd', retail: '#DCFCE7', compound: '#FEF3C7', hotel: C.dangerBg, general: C.pageBg }
-    return <span style={{ background: colors[v] ?? C.pageBg, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontFamily: F.en }}>{v}</span>
+    const colors: Record<string, string> = {
+      school:   'bg-blue-50 text-blue-700',
+      retail:   'bg-primary/10 text-primary',
+      compound: 'bg-[#f57f17]/10 text-[#f57f17]',
+      hotel:    'bg-error/10 text-error',
+      general:  'bg-surface-container-low text-on-surface-variant',
+    }
+    const cls = colors[v] ?? 'bg-surface-container-low text-on-surface-variant'
+    return <span className={`${cls} px-2.5 py-0.5 rounded-full text-xs`}>{v}</span>
   }
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 1100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('nav.inspections')}</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>
-            {inspections.length} {t('insp.tab.inspections').toLowerCase()} &middot; {templates.length} {t('insp.tab.templates').toLowerCase()}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Link href='/dashboard/inspections/templates/new'>
-            <button style={secondaryBtn}>+ {t('insp.tab.templates').slice(0, -1)}</button>
-          </Link>
-          <Link href='/dashboard/inspections/new'>
-            <button style={primaryBtn}>+ {lang === 'ar' ? 'بدء تفتيش' : 'Start Inspection'}</button>
-          </Link>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 0, marginBottom: '1.5rem', borderBottom: `2px solid ${C.border}` }}>
-        {(['inspections', 'templates'] as const).map(tab => (
-          <button key={tab} onClick={() => { setActiveTab(tab); setSelected([]) }}
-            style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontFamily: F.en,
-              fontWeight: activeTab === tab ? 600 : 400,
-              color: activeTab === tab ? C.navy : C.textLight,
-              borderBottom: activeTab === tab ? `2px solid ${C.navy}` : '2px solid transparent',
-              marginBottom: -2 }}>
-            {tab === 'inspections' ? t('insp.tab.inspections') : t('insp.tab.templates')}
-            {tab === 'inspections' && <span style={{ marginLeft: 6, background: C.pageBg, padding: '1px 8px', borderRadius: 12, fontSize: 12 }}>{inspections.length}</span>}
-            {tab === 'templates' && <span style={{ marginLeft: 6, background: C.pageBg, padding: '1px 8px', borderRadius: 12, fontSize: 12 }}>{templates.length}</span>}
-          </button>
-        ))}
-      </div>
-
-      {selected.length > 0 && (
-        <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: 10, padding: '10px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.danger, fontFamily: F.en }}>{selected.length} {t('common.selected')}</span>
-          <button onClick={deleteSelected} disabled={deleting} style={{ ...dangerBtn, padding: '6px 16px', fontSize: 12 }}>
-            {deleting ? t('common.loading') : t('btn.delete_selected')}
-          </button>
-          <button onClick={() => setSelected([])} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.dangerBorder}`, background: C.white, cursor: 'pointer', fontSize: 12, color: C.textMid, fontFamily: F.en }}>{t('common.cancel')}</button>
-        </div>
-      )}
-
-      {loading ? (
-        <p style={{ color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</p>
-      ) : activeTab === 'inspections' ? (
-        inspections.length === 0 ? (
-          <p style={{ color: C.textLight, fontFamily: F.en, textAlign: 'center', padding: '3rem' }}>{lang === 'ar' ? 'لا توجد عمليات تفتيش بعد' : 'No inspections yet'}</p>
-        ) : (
-          <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                  <th style={{ padding: '10px 16px', width: 40 }}><input type='checkbox' onChange={e => setSelected(e.target.checked ? inspections.map(i => i.id) : [])} /></th>
-                  {[t('insp.col.template'), t('insp.col.vertical'), t('insp.col.site'), t('insp.col.asset'), t('insp.col.by'), t('insp.col.date'), t('insp.col.status'), t('insp.col.result'), t('common.actions')].map(h => (
-                    <th key={h} style={tableHeaderCell}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {inspections.map((insp) => (
-                  <tr key={insp.id} style={{ background: selected.includes(insp.id) ? '#EEF2FF' : C.white }}>
-                    <td style={{ padding: '12px 16px' }}><input type='checkbox' checked={selected.includes(insp.id)} onChange={() => toggleSelect(insp.id)} /></td>
-                    <td style={{ ...tableCell, fontWeight: 500, color: C.navy }}>{insp.template?.name ?? '—'}</td>
-                    <td style={tableCell}>{verticalBadge(insp.template?.vertical ?? insp.vertical ?? '')}</td>
-                    <td style={tableCell}>{insp.site?.name ?? '—'}</td>
-                    <td style={tableCell}>{insp.asset?.name ?? '—'}</td>
-                    <td style={tableCell}>{insp.inspector?.full_name ?? '—'}</td>
-                    <td style={tableCell}>{insp.created_at ? format(new Date(insp.created_at), 'dd MMM yyyy') : '—'}</td>
-                    <td style={tableCell}>{statusBadge(insp.status)}</td>
-                    <td style={tableCell}>{resultBadge(insp.overall_result)}</td>
-                    <td style={tableCell}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <Link href={'/dashboard/inspections/' + insp.id}>
-                          <button style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.view')}</button>
-                        </Link>
-                        <button onClick={() => deleteInspection(insp.id)} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface m-0">{t('nav.inspections')}</h1>
+            <p className="text-sm text-on-surface-variant mt-1 mb-0">
+              {inspections.length} {t('insp.tab.inspections').toLowerCase()} &middot; {templates.length} {t('insp.tab.templates').toLowerCase()}
+            </p>
           </div>
-        )
-      ) : (
-        templates.length === 0 ? (
-          <p style={{ color: C.textLight, fontFamily: F.en, textAlign: 'center', padding: '3rem' }}>{lang === 'ar' ? 'لا توجد نماذج بعد' : 'No templates yet'}</p>
-        ) : (
-          <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-                  <th style={{ padding: '10px 16px', width: 40 }}><input type='checkbox' onChange={e => setSelected(e.target.checked ? templates.map(tmpl => tmpl.id) : [])} /></th>
-                  {[t('common.name'), t('insp.col.vertical'), lang === 'ar' ? 'عدد العناصر' : 'Items', t('common.actions')].map(h => (
-                    <th key={h} style={tableHeaderCell}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map((tmpl) => (
-                  <tr key={tmpl.id} style={{ background: selected.includes(tmpl.id) ? '#EEF2FF' : C.white }}>
-                    <td style={{ padding: '12px 16px' }}><input type='checkbox' checked={selected.includes(tmpl.id)} onChange={() => toggleSelect(tmpl.id)} /></td>
-                    <td style={{ ...tableCell, fontWeight: 500, color: C.navy }}>{tmpl.name}</td>
-                    <td style={tableCell}>{verticalBadge(tmpl.vertical ?? 'general')}</td>
-                    <td style={tableCell}>{tmpl.items?.length ?? 0}</td>
-                    <td style={tableCell}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <Link href={'/dashboard/inspections/templates/' + tmpl.id + '/edit'}>
-                          <button style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.edit')}</button>
-                        </Link>
-                        <button onClick={() => deleteTemplate(tmpl.id)} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontSize: 11, fontFamily: F.en }}>{t('common.delete')}</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex gap-2.5">
+            <Link href='/dashboard/inspections/templates/new'>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">+ {t('insp.tab.templates').slice(0, -1)}</button>
+            </Link>
+            <Link href='/dashboard/inspections/new'>
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">+ {lang === 'ar' ? 'بدء تفتيش' : 'Start Inspection'}</button>
+            </Link>
           </div>
-        )
-      )}
+        </div>
+
+        <div className="flex border-b-2 border-outline-variant">
+          {(['inspections', 'templates'] as const).map(tab => (
+            <button key={tab} onClick={() => { setActiveTab(tab); setSelected([]) }}
+              className={`px-5 py-2.5 border-0 bg-transparent cursor-pointer text-sm -mb-0.5 ${activeTab === tab ? 'font-semibold text-primary border-b-2 border-primary' : 'font-normal text-on-surface-variant border-b-2 border-transparent'}`}>
+              {tab === 'inspections' ? t('insp.tab.inspections') : t('insp.tab.templates')}
+              {tab === 'inspections' && <span className="ml-1.5 bg-surface-container-low px-2 py-0.5 rounded-full text-xs">{inspections.length}</span>}
+              {tab === 'templates' && <span className="ml-1.5 bg-surface-container-low px-2 py-0.5 rounded-full text-xs">{templates.length}</span>}
+            </button>
+          ))}
+        </div>
+
+        {selected.length > 0 && (
+          <div className="bg-error/10 border border-error/20 rounded-xl px-4 py-2.5 flex items-center gap-3">
+            <span className="text-sm font-medium text-error">{selected.length} {t('common.selected')}</span>
+            <button onClick={deleteSelected} disabled={deleting} className="bg-error text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-error/90 transition-colors disabled:opacity-50">
+              {deleting ? t('common.loading') : t('btn.delete_selected')}
+            </button>
+            <button onClick={() => setSelected([])} className="px-3 py-1.5 rounded-lg border border-error/20 bg-surface-container-lowest cursor-pointer text-xs text-on-surface-variant">{t('common.cancel')}</button>
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-on-surface-variant">{t('common.loading')}</p>
+        ) : activeTab === 'inspections' ? (
+          inspections.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-12">{lang === 'ar' ? 'لا توجد عمليات تفتيش بعد' : 'No inspections yet'}</p>
+          ) : (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant">
+                    <th className="px-4 py-4 w-10"><input type='checkbox' onChange={e => setSelected(e.target.checked ? inspections.map(i => i.id) : [])} /></th>
+                    {[t('insp.col.template'), t('insp.col.vertical'), t('insp.col.site'), t('insp.col.asset'), t('insp.col.by'), t('insp.col.date'), t('insp.col.status'), t('insp.col.result'), t('common.actions')].map(h => (
+                      <th key={h} className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant text-left">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {inspections.map((insp) => (
+                    <tr key={insp.id} className={`${selected.includes(insp.id) ? 'bg-primary/5' : 'bg-surface-container-lowest'} hover:bg-surface-container-low transition-colors`}>
+                      <td className="px-4 py-3"><input type='checkbox' checked={selected.includes(insp.id)} onChange={() => toggleSelect(insp.id)} /></td>
+                      <td className="px-4 py-3 text-sm font-medium text-primary">{insp.template?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{verticalBadge(insp.template?.vertical ?? insp.vertical ?? '')}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{insp.site?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{insp.asset?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{insp.inspector?.full_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{insp.created_at ? format(new Date(insp.created_at), 'dd MMM yyyy') : '—'}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{statusBadge(insp.status)}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{resultBadge(insp.overall_result)}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        <div className="flex gap-1.5">
+                          <Link href={'/dashboard/inspections/' + insp.id}>
+                            <button className="px-2.5 py-1 rounded-lg border border-outline-variant bg-surface-container-lowest cursor-pointer text-[11px] hover:bg-surface-container-low transition-colors">{t('common.view')}</button>
+                          </Link>
+                          <button onClick={() => deleteInspection(insp.id)} className="px-2.5 py-1 rounded-lg border border-error/20 bg-error/10 text-error cursor-pointer text-[11px] hover:bg-error/20 transition-colors">{t('common.delete')}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
+          templates.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-12">{lang === 'ar' ? 'لا توجد نماذج بعد' : 'No templates yet'}</p>
+          ) : (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant">
+                    <th className="px-4 py-4 w-10"><input type='checkbox' onChange={e => setSelected(e.target.checked ? templates.map(tmpl => tmpl.id) : [])} /></th>
+                    {[t('common.name'), t('insp.col.vertical'), lang === 'ar' ? 'عدد العناصر' : 'Items', t('common.actions')].map(h => (
+                      <th key={h} className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant text-left">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.map((tmpl) => (
+                    <tr key={tmpl.id} className={`${selected.includes(tmpl.id) ? 'bg-primary/5' : 'bg-surface-container-lowest'} hover:bg-surface-container-low transition-colors`}>
+                      <td className="px-4 py-3"><input type='checkbox' checked={selected.includes(tmpl.id)} onChange={() => toggleSelect(tmpl.id)} /></td>
+                      <td className="px-4 py-3 text-sm font-medium text-primary">{tmpl.name}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{verticalBadge(tmpl.vertical ?? 'general')}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{tmpl.items?.length ?? 0}</td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        <div className="flex gap-1.5">
+                          <Link href={'/dashboard/inspections/templates/' + tmpl.id + '/edit'}>
+                            <button className="px-2.5 py-1 rounded-lg border border-outline-variant bg-surface-container-lowest cursor-pointer text-[11px] hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                          </Link>
+                          <button onClick={() => deleteTemplate(tmpl.id)} className="px-2.5 py-1 rounded-lg border border-error/20 bg-error/10 text-error cursor-pointer text-[11px] hover:bg-error/20 transition-colors">{t('common.delete')}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+      </div>
     </div>
   )
 }

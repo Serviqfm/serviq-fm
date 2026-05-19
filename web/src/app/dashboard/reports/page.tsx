@@ -3,11 +3,37 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, LUMINA_COLORS } from '@/lib/brand'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
   PieChart, Pie, Legend,
 } from 'recharts'
+
+const STATUS_COLORS: Record<string, string> = {
+  new:         '#4f5e82',
+  assigned:    '#006b54',
+  in_progress: '#00677d',
+  on_hold:     '#bdc9c3',
+  completed:   '#76d8b9',
+  closed:      '#3e4944',
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  low:      '#006b54',
+  medium:   '#f57f17',
+  high:     '#e65100',
+  critical: '#ba1a1a',
+}
+
+const CHART_COLORS = ['#006b54', '#00677d', '#4f5e82', '#76d8b9', '#68d4f3', '#f57f17', '#ba1a1a', '#bdc9c3']
+
+const TOOLTIP_STYLE = { fontFamily: 'DM Sans, sans-serif', fontSize: 12, borderRadius: 8, border: '1px solid #bdc9c3' }
+const TICK_STYLE = { fontSize: 11, fontFamily: 'DM Sans, sans-serif', fill: '#3e4944' }
+
+const STANDARD_REPORTS = [
+  { icon: 'monitoring',    title: 'Monthly Asset Health',      desc: 'Detailed breakdown of equipment lifecycle, downtime patterns, and predicted failures.', tags: ['Asset Management', 'Monthly'],  iconCls: 'bg-primary/10 text-primary' },
+  { icon: 'engineering',   title: 'Technician Performance',    desc: 'Efficiency metrics, job completion rates, and feedback scores by technician.',          tags: ['HR & Operations', 'Weekly'],    iconCls: 'bg-secondary/10 text-secondary' },
+  { icon: 'checklist_rtl', title: 'PM Compliance',             desc: 'Audit of preventive maintenance tasks vs scheduled dates for warranty compliance.',      tags: ['Compliance', 'Critical'],       iconCls: 'bg-tertiary/10 text-tertiary' },
+]
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
@@ -67,135 +93,216 @@ export default function ReportsPage() {
     setLoading(false)
   }
 
-  const STATUS_COLORS: Record<string, string> = {
-    new:         C.blue,
-    assigned:    C.mid,
-    in_progress: C.warning,
-    on_hold:     C.textLight,
-    completed:   C.success,
-    closed:      C.textMid,
-  }
-
-  const PRIORITY_COLORS: Record<string, string> = {
-    low:      C.success,
-    medium:   C.blue,
-    high:     C.warning,
-    critical: C.danger,
-  }
-
-  const CHART_COLORS = [C.navy, C.blue, C.mid, C.teal, C.warning, C.success, C.textMid, C.textLight]
-
   const statusLabel: Record<string, string> = {
-    new:         lang === 'ar' ? 'جديد' : 'New',
-    assigned:    lang === 'ar' ? 'مُسند' : 'Assigned',
+    new:         lang === 'ar' ? 'جديد'      : 'New',
+    assigned:    lang === 'ar' ? 'مُسند'     : 'Assigned',
     in_progress: lang === 'ar' ? 'قيد التنفيذ' : 'In Progress',
-    on_hold:     lang === 'ar' ? 'معلق' : 'On Hold',
-    completed:   lang === 'ar' ? 'مكتمل' : 'Completed',
-    closed:      lang === 'ar' ? 'مغلق' : 'Closed',
+    on_hold:     lang === 'ar' ? 'معلق'      : 'On Hold',
+    completed:   lang === 'ar' ? 'مكتمل'     : 'Completed',
+    closed:      lang === 'ar' ? 'مغلق'      : 'Closed',
   }
 
   const priorityLabel: Record<string, string> = {
     low:      lang === 'ar' ? 'منخفض' : 'Low',
     medium:   lang === 'ar' ? 'متوسط' : 'Medium',
-    high:     lang === 'ar' ? 'عالي' : 'High',
-    critical: lang === 'ar' ? 'حرج' : 'Critical',
+    high:     lang === 'ar' ? 'عالي'  : 'High',
+    critical: lang === 'ar' ? 'حرج'   : 'Critical',
   }
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading reports...'}</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">{lang === 'ar' ? 'جاري التحميل...' : 'Loading reports...'}</div>
 
   return (
-    <div style={pageStyle}>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{lang === 'ar' ? 'التقارير' : 'Reports'}</h1>
-        <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>{lang === 'ar' ? 'نظرة عامة على أداء العمليات' : 'Operational performance overview'}</p>
-      </div>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto space-y-6">
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
-        {[
-          { label: lang === 'ar' ? 'إجمالي أوامر العمل' : 'Total Work Orders',   value: kpis.totalWO,    color: C.navy },
-          { label: lang === 'ar' ? 'أوامر مفتوحة' : 'Open Work Orders',          value: kpis.openWO,     color: C.warning },
-          { label: lang === 'ar' ? 'إجمالي الأصول' : 'Total Assets',              value: kpis.totalAssets, color: C.blue },
-          { label: lang === 'ar' ? 'جداول صيانة نشطة' : 'Active PM Schedules',   value: kpis.totalPM,    color: C.success },
-        ].map(card => (
-          <div key={card.label} style={cardStyle}>
-            <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 8px', fontWeight: 500 }}>{card.label}</p>
-            <p style={{ fontSize: 32, fontWeight: 700, margin: 0, color: card.color, fontFamily: F.en }}>{card.value}</p>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface">{lang === 'ar' ? 'التقارير والتحليلات' : 'Reports & Analytics'}</h1>
+            <p className="text-on-surface-variant mt-1 text-sm">{lang === 'ar' ? 'نظرة عامة على أداء العمليات' : 'Deep dive into operational efficiency and asset longevity.'}</p>
           </div>
-        ))}
-      </div>
-
-      {/* Charts row 1 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-
-        {/* WO by Status */}
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-            {lang === 'ar' ? 'أوامر العمل حسب الحالة' : 'Work Orders by Status'}
-          </h3>
-          {woByStatus.length === 0 ? (
-            <p style={{ color: C.textLight, fontFamily: F.en, fontSize: 13 }}>{lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={woByStatus.map(d => ({ ...d, name: statusLabel[d.name] ?? d.name }))} barSize={28}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fontFamily: F.en, fill: C.textMid }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fontFamily: F.en, fill: C.textMid }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={{ fontFamily: F.en, fontSize: 12, borderRadius: 8, border: `1px solid ${C.border}` }} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {woByStatus.map((entry) => (
-                    <Cell key={entry.name} fill={STATUS_COLORS[entry.name] ?? C.blue} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+          <button className="bg-secondary text-on-secondary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/90 transition-colors shadow-sm self-start sm:self-auto">
+            <span className="material-symbols-outlined text-lg">cloud_download</span>
+            Quick Export
+          </button>
         </div>
 
-        {/* WO by Priority */}
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-            {lang === 'ar' ? 'أوامر العمل حسب الأولوية' : 'Work Orders by Priority'}
-          </h3>
-          {woByPriority.length === 0 ? (
-            <p style={{ color: C.textLight, fontFamily: F.en, fontSize: 13 }}>{lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={woByPriority.map(d => ({ ...d, name: priorityLabel[d.name] ?? d.name }))}
-                  dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
-                  {woByPriority.map((entry) => (
-                    <Cell key={entry.name} fill={PRIORITY_COLORS[entry.name] ?? C.blue} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ fontFamily: F.en, fontSize: 12, borderRadius: 8, border: `1px solid ${C.border}` }} />
-                <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontFamily: F.en, fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+        {/* KPI bento row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { label: lang === 'ar' ? 'إجمالي أوامر العمل' : 'Total Work Orders',  value: kpis.totalWO,    icon: 'assignment',    color: 'text-primary',    decor: 'bg-primary/5'   },
+            { label: lang === 'ar' ? 'أوامر مفتوحة'        : 'Open Work Orders',   value: kpis.openWO,     icon: 'pending_actions', color: 'text-[#f57f17]', decor: 'bg-[#f57f17]/5' },
+            { label: lang === 'ar' ? 'إجمالي الأصول'        : 'Total Assets',       value: kpis.totalAssets, icon: 'inventory_2',   color: 'text-secondary',  decor: 'bg-secondary/5' },
+          ].map(c => (
+            <div key={c.label} className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 relative overflow-hidden group shadow-sm">
+              <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-[64px] leading-none ${c.decor}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: 64 }}>{c.icon}</span>
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2">{c.label}</p>
+              <p className={`text-5xl font-bold ${c.color}`}>{c.value}</p>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* Assets by Category */}
-      <div style={cardStyle}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-          {lang === 'ar' ? 'الأصول حسب الفئة' : 'Assets by Category'}
-        </h3>
-        {assetsByCategory.length === 0 ? (
-          <p style={{ color: C.textLight, fontFamily: F.en, fontSize: 13 }}>{lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={assetsByCategory} layout="vertical" barSize={20}>
-              <XAxis type="number" tick={{ fontSize: 11, fontFamily: F.en, fill: C.textMid }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fontFamily: F.en, fill: C.textMid }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ fontFamily: F.en, fontSize: 12, borderRadius: 8, border: `1px solid ${C.border}` }} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {assetsByCategory.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+        {/* System health gradient card + PM stat */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 bg-gradient-to-br from-primary to-secondary rounded-xl p-6 text-on-primary flex flex-col justify-between shadow-lg min-h-[120px]">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-bold uppercase tracking-wider text-on-primary/80">System Health</span>
+              <span className="material-symbols-outlined">analytics</span>
+            </div>
+            <div>
+              <div className="h-2 w-full bg-on-primary/20 rounded-full mb-2 overflow-hidden">
+                <div className="h-full bg-on-primary rounded-full" style={{ width: `${kpis.totalPM > 0 ? Math.min(95, 80 + kpis.totalPM) : 80}%` }} />
+              </div>
+              <p className="font-bold text-sm">{kpis.totalPM} active PM schedules keeping assets healthy</p>
+            </div>
+          </div>
+          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 relative overflow-hidden group shadow-sm">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: 64 }}>event_repeat</span>
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2">{lang === 'ar' ? 'جداول صيانة نشطة' : 'Active PM Schedules'}</p>
+            <p className="text-5xl font-bold text-primary">{kpis.totalPM}</p>
+          </div>
+        </div>
+
+        {/* Main 2-col layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left: Report Builder */}
+          <div className="lg:col-span-4">
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 shadow-sm sticky top-24 space-y-5">
+              <h2 className="text-xl font-bold text-on-surface">Report Builder</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-primary block mb-1.5">Date Range</label>
+                  <select className="w-full bg-surface-container-low border-2 border-transparent focus:border-secondary transition-all rounded-xl px-4 py-3 text-sm outline-none">
+                    <option>Last 30 Days</option>
+                    <option>Current Quarter</option>
+                    <option>Fiscal Year 2024</option>
+                    <option>Custom Range</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-primary block mb-1.5">Category</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Assets', 'HVAC', 'Plumbing', 'Security'].map(cat => (
+                      <label key={cat} className="flex items-center gap-2 p-2 border border-outline-variant/30 rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
+                        <input type="checkbox" defaultChecked={cat === 'Assets' || cat === 'Plumbing'} className="rounded text-primary" />
+                        <span className="text-sm">{cat}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <button className="w-full py-3 bg-secondary text-on-secondary font-bold rounded-xl shadow-sm hover:bg-secondary/90 transition-colors">
+                    Build Custom Report
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Charts + Standard Reports */}
+          <div className="lg:col-span-8 space-y-6">
+
+            {/* WO charts row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 shadow-sm">
+                <h3 className="text-sm font-bold text-on-surface mb-4">{lang === 'ar' ? 'أوامر العمل حسب الحالة' : 'Work Orders by Status'}</h3>
+                {woByStatus.length === 0 ? (
+                  <p className="text-on-surface-variant text-sm">{lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={woByStatus.map(d => ({ ...d, name: statusLabel[d.name] ?? d.name }))} barSize={24}>
+                      <XAxis dataKey="name" tick={TICK_STYLE} axisLine={false} tickLine={false} />
+                      <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {woByStatus.map(entry => <Cell key={entry.name} fill={STATUS_COLORS[entry.name] ?? '#006b54'} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 shadow-sm">
+                <h3 className="text-sm font-bold text-on-surface mb-4">{lang === 'ar' ? 'أوامر العمل حسب الأولوية' : 'Work Orders by Priority'}</h3>
+                {woByPriority.length === 0 ? (
+                  <p className="text-on-surface-variant text-sm">{lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={woByPriority.map(d => ({ ...d, name: priorityLabel[d.name] ?? d.name }))}
+                        dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} innerRadius={35}>
+                        {woByPriority.map(entry => <Cell key={entry.name} fill={PRIORITY_COLORS[entry.name] ?? '#006b54'} />)}
+                      </Pie>
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Assets by category */}
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 shadow-sm">
+              <h3 className="text-sm font-bold text-on-surface mb-4">{lang === 'ar' ? 'الأصول حسب الفئة' : 'Assets by Category'}</h3>
+              {assetsByCategory.length === 0 ? (
+                <p className="text-on-surface-variant text-sm">{lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={assetsByCategory} layout="vertical" barSize={16}>
+                    <XAxis type="number" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" width={130} tick={TICK_STYLE} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {assetsByCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Standard Reports */}
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-outline-variant/20 bg-surface-container-low/30 flex justify-between items-center">
+                <h3 className="text-base font-bold text-on-surface">Standard Reports</h3>
+              </div>
+              <div className="divide-y divide-outline-variant/10">
+                {STANDARD_REPORTS.map(r => (
+                  <div key={r.title} className="p-5 hover:bg-surface-container-low/40 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${r.iconCls}`}>
+                        <span className="material-symbols-outlined text-2xl">{r.icon}</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-on-surface text-sm">{r.title}</h4>
+                        <p className="text-on-surface-variant text-xs mt-0.5 max-w-md">{r.desc}</p>
+                        <div className="flex gap-2 mt-2">
+                          {r.tags.map(tag => (
+                            <span key={tag} className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
+                      <button className="px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded-lg font-semibold text-xs hover:bg-surface-container-highest transition-colors flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">calendar_today</span> Schedule
+                      </button>
+                      <button className="px-3 py-1.5 bg-primary text-on-primary rounded-lg font-semibold text-xs hover:bg-primary/90 transition-colors flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">download</span> Generate
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   )

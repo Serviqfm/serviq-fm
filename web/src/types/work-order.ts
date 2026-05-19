@@ -30,5 +30,5 @@ export interface WorkOrder {
   updated_at: string
   assignee?: { full_name: string; email?: string } | null
   asset?: { name: string } | null
-  site?: { name: string } | null
+  site?: { name: string; invoicing_enabled?: boolean } | null
 }

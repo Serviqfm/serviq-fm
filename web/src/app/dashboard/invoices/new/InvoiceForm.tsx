@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, primaryBtn, secondaryBtn, inputStyle, labelStyle, cardStyle, pageStyle, sectionCard } from '@/lib/brand'
 import { formatSAR } from '@/lib/zatca'
 
 type SparePart = { name: string; qty: number; unit_cost: number; total: number }
@@ -127,143 +126,164 @@ export default function InvoiceForm() {
     }
   }
 
-  const numInput = { ...inputStyle, textAlign: 'right' as const, maxWidth: 160 }
-  const row      = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 } as const
-
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading...</div>
-  if (!wo)     return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Work order not found.</div>
+  if (loading) return (
+    <div className="p-8 text-on-surface-variant text-sm">Loading...</div>
+  )
+  if (!wo) return (
+    <div className="p-8 text-on-surface-variant text-sm">Work order not found.</div>
+  )
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 720, fontFamily: isAr ? F.ar : F.en, direction: isAr ? 'rtl' : 'ltr' }}>
-      <div style={{ marginBottom: 24 }}>
-        <a href='/dashboard/invoices' style={{ color: C.textLight, fontSize: 13, textDecoration: 'none' }}>
+    <div
+      className="star-pattern bg-surface min-h-screen p-8"
+      style={{ maxWidth: 720, margin: '0 auto', fontFamily: isAr ? 'Cairo, sans-serif' : 'Inter, sans-serif', direction: isAr ? 'rtl' : 'ltr' }}
+    >
+      {/* Header */}
+      <div className="mb-6">
+        <a href='/dashboard/invoices' className="text-outline text-[13px] no-underline hover:text-on-surface-variant transition-colors">
           {isAr ? '← الفواتير' : '← Invoices'}
         </a>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: C.navy, margin: '8px 0 4px' }}>
+        <h1 className="text-2xl font-bold text-on-surface mt-2 mb-1">
           {isAr ? 'إنشاء فاتورة' : 'Generate Invoice'}
         </h1>
-        <p style={{ fontSize: 13, color: C.textMid, margin: 0 }}>
+        <p className="text-[13px] text-on-surface-variant m-0">
           {wo.title} {wo.site?.name ? `· ${wo.site.name}` : ''}
         </p>
       </div>
 
       {/* Service Charges */}
-      <div style={{ ...sectionCard }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px' }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5 mb-4">
+        <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-4 m-0">
           {isAr ? 'رسوم الخدمة' : 'Service Charges'}
         </p>
-        <div style={row}>
-          <label style={labelStyle}>{isAr ? 'رسوم الخدمة (ريال)' : 'Service Charges (SAR)'}</label>
+        <div className="flex justify-between items-center mb-3">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-0">
+            {isAr ? 'رسوم الخدمة (ريال)' : 'Service Charges (SAR)'}
+          </label>
           <input
             type='number' min='0' step='0.01'
             value={serviceCharges}
             onChange={e => setServiceCharges(e.target.value)}
-            style={numInput}
+            className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-right w-[160px]"
           />
         </div>
       </div>
 
       {/* Labour Charges */}
-      <div style={{ ...sectionCard }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px' }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5 mb-4">
+        <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-4 m-0">
           {isAr ? 'رسوم العمالة' : 'Labour Charges'}
         </p>
-        <div style={row}>
-          <label style={labelStyle}>{isAr ? 'ساعات العمل' : 'Hours Worked'}</label>
+        <div className="flex justify-between items-center mb-3">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-0">
+            {isAr ? 'ساعات العمل' : 'Hours Worked'}
+          </label>
           <input
             type='number' min='0' step='0.25'
             value={laborHours}
             onChange={e => setLaborHours(e.target.value)}
-            style={numInput}
+            className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-right w-[160px]"
           />
         </div>
-        <div style={row}>
-          <label style={labelStyle}>{isAr ? 'معدل الساعة (ريال/ساعة)' : 'Hourly Rate (SAR/hr)'}</label>
+        <div className="flex justify-between items-center mb-3">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-0">
+            {isAr ? 'معدل الساعة (ريال/ساعة)' : 'Hourly Rate (SAR/hr)'}
+          </label>
           <input
             type='number' min='0' step='0.01'
             value={laborRate}
             onChange={e => setLaborRate(e.target.value)}
-            style={numInput}
+            className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-right w-[160px]"
           />
         </div>
-        <div style={{ ...row, borderTop: `1px solid ${C.border}`, paddingTop: 12, marginTop: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.textDark }}>{isAr ? 'إجمالي العمالة' : 'Labour Total'}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{formatSAR(lc)}</span>
+        <div className="flex justify-between items-center border-t border-outline-variant/30 pt-3 mt-1">
+          <span className="text-[13px] font-semibold text-on-surface">{isAr ? 'إجمالي العمالة' : 'Labour Total'}</span>
+          <span className="text-[13px] font-bold text-on-surface">{formatSAR(lc)}</span>
         </div>
       </div>
 
       {/* Spare Parts */}
-      <div style={{ ...sectionCard }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px' }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5 mb-4">
+        <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-4 m-0">
           {isAr ? 'قطع الغيار' : 'Spare Parts'}
         </p>
         {spareParts.length === 0 ? (
-          <p style={{ fontSize: 13, color: C.textLight, margin: 0 }}>
+          <p className="text-[13px] text-on-surface-variant m-0">
             {isAr ? 'لم يتم تسجيل قطع غيار لهذا الأمر.' : 'No spare parts recorded for this work order.'}
           </p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: C.textLight, fontWeight: 600, fontSize: 11, textTransform: 'uppercase' }}>{isAr ? 'الاسم' : 'Name'}</th>
-                <th style={{ textAlign: 'right', padding: '4px 8px', color: C.textLight, fontWeight: 600, fontSize: 11, textTransform: 'uppercase' }}>{isAr ? 'الكمية' : 'Qty'}</th>
-                <th style={{ textAlign: 'right', padding: '4px 8px', color: C.textLight, fontWeight: 600, fontSize: 11, textTransform: 'uppercase' }}>{isAr ? 'سعر الوحدة' : 'Unit Cost'}</th>
-                <th style={{ textAlign: 'right', padding: '4px 8px', color: C.textLight, fontWeight: 600, fontSize: 11, textTransform: 'uppercase' }}>{isAr ? 'الإجمالي' : 'Total'}</th>
+              <tr className="border-b border-outline-variant/30">
+                <th className="text-left px-2 py-1 text-on-surface-variant font-semibold text-[11px] uppercase">{isAr ? 'الاسم' : 'Name'}</th>
+                <th className="text-right px-2 py-1 text-on-surface-variant font-semibold text-[11px] uppercase">{isAr ? 'الكمية' : 'Qty'}</th>
+                <th className="text-right px-2 py-1 text-on-surface-variant font-semibold text-[11px] uppercase">{isAr ? 'سعر الوحدة' : 'Unit Cost'}</th>
+                <th className="text-right px-2 py-1 text-on-surface-variant font-semibold text-[11px] uppercase">{isAr ? 'الإجمالي' : 'Total'}</th>
               </tr>
             </thead>
             <tbody>
               {spareParts.map((p, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: '6px 8px', color: C.textDark }}>{p.name}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: C.textMid }}>{p.qty}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: C.textMid }}>{formatSAR(p.unit_cost)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: C.navy }}>{formatSAR(p.total)}</td>
+                <tr key={i} className="border-b border-outline-variant/20">
+                  <td className="px-2 py-1.5 text-on-surface">{p.name}</td>
+                  <td className="px-2 py-1.5 text-right text-on-surface-variant">{p.qty}</td>
+                  <td className="px-2 py-1.5 text-right text-on-surface-variant">{formatSAR(p.unit_cost)}</td>
+                  <td className="px-2 py-1.5 text-right font-semibold text-on-surface">{formatSAR(p.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.textDark, marginRight: 16 }}>{isAr ? 'إجمالي قطع الغيار' : 'Parts Total'}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{formatSAR(spTotal)}</span>
+        <div className="flex justify-end mt-3 border-t border-outline-variant/30 pt-3">
+          <span className="text-[13px] font-semibold text-on-surface mr-4">{isAr ? 'إجمالي قطع الغيار' : 'Parts Total'}</span>
+          <span className="text-[13px] font-bold text-on-surface">{formatSAR(spTotal)}</span>
         </div>
       </div>
 
       {/* Surcharges */}
-      <div style={{ ...sectionCard }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5 mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider m-0">
             {isAr ? 'رسوم إضافية' : 'Additional Surcharges'}
           </p>
-          <button type='button' onClick={addSurcharge} style={{ ...secondaryBtn, padding: '4px 12px', fontSize: 12 }}>
+          <button
+            type='button'
+            onClick={addSurcharge}
+            className="border border-outline-variant text-on-surface-variant px-3 py-1 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors"
+          >
             + {isAr ? 'إضافة' : 'Add'}
           </button>
         </div>
         {surcharges.length === 0 ? (
-          <p style={{ fontSize: 13, color: C.textLight, margin: 0 }}>{isAr ? 'لا توجد رسوم إضافية.' : 'No surcharges.'}</p>
+          <p className="text-[13px] text-on-surface-variant m-0">{isAr ? 'لا توجد رسوم إضافية.' : 'No surcharges.'}</p>
         ) : surcharges.map((s, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <div key={i} className="flex gap-2 mb-2">
             <input
               placeholder={isAr ? 'الوصف' : 'Description'}
               value={s.label}
               onChange={e => updateSurcharge(i, 'label', e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
+              className="flex-1 bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
             />
             <input
               type='number' min='0' step='0.01'
               placeholder='0.00'
               value={s.amount || ''}
               onChange={e => updateSurcharge(i, 'amount', e.target.value)}
-              style={{ ...inputStyle, width: 120, textAlign: 'right' }}
+              className="w-[120px] bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-right"
             />
-            <button type='button' onClick={() => removeSurcharge(i)} style={{ background: 'none', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 18, padding: '0 4px' }}>×</button>
+            <button
+              type='button'
+              onClick={() => removeSurcharge(i)}
+              className="text-error bg-transparent border-none cursor-pointer text-lg px-1 py-0 hover:text-error/80 transition-colors"
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
 
       {/* Invoice Summary */}
-      <div style={{ ...cardStyle, padding: 24, marginBottom: 24 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px' }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 mb-6">
+        <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-4 m-0">
           {isAr ? 'ملخص الفاتورة' : 'Invoice Summary'}
         </p>
         {[
@@ -272,39 +292,44 @@ export default function InvoiceForm() {
           { label: isAr ? 'قطع الغيار'   : 'Spare Parts',     value: spTotal },
           ...(surTotal > 0 ? [{ label: isAr ? 'رسوم إضافية' : 'Surcharges', value: surTotal }] : []),
         ].map((line, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, color: C.textMid }}>{line.label}</span>
-            <span style={{ fontSize: 13, color: C.textDark }}>{formatSAR(line.value)}</span>
+          <div key={i} className="flex justify-between mb-2">
+            <span className="text-[13px] text-on-surface-variant">{line.label}</span>
+            <span className="text-[13px] text-on-surface">{formatSAR(line.value)}</span>
           </div>
         ))}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 4 }}>
-          <span style={{ fontSize: 13, color: C.textMid }}>{isAr ? 'المجموع (بدون ضريبة)' : 'Subtotal (excl. VAT)'}</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.textDark }}>{formatSAR(subtotal)}</span>
+        <div className="flex justify-between mb-2 border-t border-outline-variant/30 pt-2.5 mt-1">
+          <span className="text-[13px] text-on-surface-variant">{isAr ? 'المجموع (بدون ضريبة)' : 'Subtotal (excl. VAT)'}</span>
+          <span className="text-[13px] font-semibold text-on-surface">{formatSAR(subtotal)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ fontSize: 13, color: C.textMid }}>{isAr ? 'ضريبة القيمة المضافة (15%)' : 'VAT (15%)'}</span>
-          <span style={{ fontSize: 13, color: C.textMid }}>{formatSAR(vat)}</span>
+        <div className="flex justify-between mb-3">
+          <span className="text-[13px] text-on-surface-variant">{isAr ? 'ضريبة القيمة المضافة (15%)' : 'VAT (15%)'}</span>
+          <span className="text-[13px] text-on-surface-variant">{formatSAR(vat)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `2px solid ${C.navy}`, paddingTop: 12 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>{isAr ? 'الإجمالي (شامل الضريبة)' : 'TOTAL (incl. VAT)'}</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: C.teal }}>{formatSAR(total)}</span>
+        <div className="flex justify-between border-t-2 border-primary/30 pt-3">
+          <span className="text-base font-bold text-on-surface">{isAr ? 'الإجمالي (شامل الضريبة)' : 'TOTAL (incl. VAT)'}</span>
+          <span className="text-base font-bold text-secondary">{formatSAR(total)}</span>
         </div>
       </div>
 
-      {error && <p style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{error}</p>}
+      {error && (
+        <p className="text-error text-[13px] mb-3">{error}</p>
+      )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="flex gap-2.5">
         <button
           disabled={saving || subtotal <= 0}
           onClick={handleSubmit}
-          style={{ ...primaryBtn, flex: 1, opacity: (saving || subtotal <= 0) ? 0.6 : 1, cursor: (saving || subtotal <= 0) ? 'not-allowed' : 'pointer' }}
+          className="flex-1 bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {saving
             ? (isAr ? 'جاري الحفظ...' : 'Saving...')
             : (isAr ? 'تأكيد وحفظ الفاتورة' : 'Confirm & Save Invoice')}
         </button>
-        <a href='/dashboard/invoices' style={{ flex: 1 }}>
-          <button type='button' style={{ ...secondaryBtn, width: '100%' }}>
+        <a href='/dashboard/invoices' className="flex-1">
+          <button
+            type='button'
+            className="w-full border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors"
+          >
             {isAr ? 'إلغاء' : 'Cancel'}
           </button>
         </a>

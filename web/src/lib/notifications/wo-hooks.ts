@@ -8,11 +8,6 @@
 import {
   notifyWOCreatedUpdated,
   notifyWOAssigned,
-  notifyWOAdditionalWorker,
-  notifyWOTeamAssigned,
-  notifyWOFollowedUpdated,
-  notifyUnassignedWO,
-  notifyWOMention,
   notifyWOOverdue,
 } from './workOrderNotifications';
 

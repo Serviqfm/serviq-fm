@@ -6,13 +6,18 @@
 
 ---
 
-## 🔴 IMMEDIATE NEXT STEPS (May 12, 2026)
+## 🔴 IMMEDIATE NEXT STEPS (May 16, 2026)
 
 **Sprint D Email Delivery Fix — PENDING USER ACTION:**
 1. Update Vercel environment variable: `RESEND_FROM_EMAIL` = `noreply@serviqfm.com`
 2. Redeploy to Vercel (auto-deploy from main or manual trigger)
 3. Test: Assign work order to technician → verify email arrives in inbox
 4. **Known issue:** User deletion may fail on technicians linked to work orders (FK constraint) — needs cascade delete or cleanup logic
+
+**Sprint G Lumina Redesign — COMPLETE, merged to main:**
+- All pages converted to Lumina Tailwind design tokens
+- `brand.ts` is now fully unused — can be deleted in a future cleanup PR
+- Next sprints: E (Field Visibility Settings) or F (Employee Super-Admin Portal)
 
 ---
 
@@ -189,6 +194,86 @@
 
 ---
 
+### Sprint G — Lumina UI Redesign *(COMPLETE — 2026-05-16)*
+**Goal:** Rebuild entire Serviq-FM web UI using Lumina design system with Next.js/React/Tailwind.
+
+**Plan:** `docs/superpowers/plans/2026-05-12-serviq-lumina-ui-redesign.md`  
+**Date Completed:** 2026-05-16  
+**Result:** All 50+ routes now use Lumina Tailwind tokens. `brand.ts` fully unused.
+
+#### Phase 1: Foundation & Authentication (Tasks 1-3) ✅ COMPLETE
+- [x] **Task 1 — Tailwind Config + Lumina Tokens** ✅ COMPLETE & APPROVED
+  - Files: `web/src/lib/lumina-tokens.ts`, `web/tailwind.config.ts`, `web/src/app/globals.css`
+  - LUMINA_COLORS: 44 color tokens (primary #006b54, secondary #00677d)
+  - LUMINA_SPACING: 7 tokens (unit 4px → containerMax 1440px)
+  - LUMINA_RADII: 6 tokens (sm/default 0.25rem → xl 0.75rem, fixed from plan mismatch)
+  - Material Symbols Outlined font + star pattern background (4-pointed star #006b54, 0.03 opacity)
+  - Commit: dce73fc
+
+- [x] **Task 2 — Login Portal Selection Page** ✅ COMPLETE & APPROVED
+  - Files: `web/src/components/auth/LoginPortalSelection.tsx`, `web/src/app/login/page.tsx`
+  - 3-section layout (header, 2-column card grid, footer)
+  - Client & Employee portal cards with icons, features, action buttons
+  - Responsive (1 col mobile, 2 col desktop), hover effects with float animation
+  - Commit: dce73fc
+
+- [x] **Task 3 — Employee Login Form Page** ✅ COMPLETE & APPROVED
+  - Files: `web/src/components/auth/EmployeeLoginForm.tsx`, `web/src/app/login/employee/page.tsx`
+  - Split layout: left branded section (primary bg #006b54, hidden mobile), right form section
+  - Form: email, password + visibility toggle, remember checkbox, login button, Azure SSO
+  - Decorative blur circles, glass morphism header
+  - Fixed issues: Typography (text-headline-h1 for 32px), star pattern verified
+  - Commit: 37bb409 (fixes), dc2ebfe (implementation)
+
+#### Phase 2: Dashboard & Layout (Tasks 4-7) ✅ COMPLETE
+- [x] **Task 4 — Sidebar Navigation** ✅ COMPLETE & APPROVED
+  - File: `web/src/components/layout/Sidebar.tsx`
+  - Desktop-only (hidden md:flex), w-64 width, sticky top-0, z-50
+  - Logo + "Serviq Lumina" title, Create Work Order button
+  - 8 nav items with active state styling, user profile section
+  - Commit: fdc2772
+
+- [x] **Task 5 — Top Navigation Bar** ✅ COMPLETE & APPROVED
+  - File: `web/src/components/layout/TopBar.tsx`
+  - Sticky header with glass morphism (backdrop-blur-md)
+  - Mobile menu, desktop nav (3 links), search bar, action buttons
+  - Material Symbols icons, Next.js Link routing
+  - Commit: cb89a9e
+
+- [x] **Task 6 — Mobile Bottom Navigation** ✅ COMPLETE & APPROVED
+  - File: `web/src/components/layout/MobileBottomNav.tsx`
+  - Mobile-only, fixed bottom, glass morphism, FAB button
+  - 4 nav items, active state via usePathname()
+  - Commit: 6e75313
+
+- [x] **Task 7 — Dashboard Layout Wrapper** ✅ COMPLETE & APPROVED
+  - Files: `web/src/components/layout/LayoutWrapper.tsx`, `web/src/app/dashboard/layout.tsx`
+  - Flex layout: Sidebar + Main (TopBar + content) + MobileBottomNav
+  - Responsive padding (pb-20 mobile, pb-0 desktop)
+  - Commit: 20b8232
+
+#### Phase 3 & 4: Pages & Components ✅ COMPLETE
+- [x] All shared components implemented inline per page (KPI cards, status badges, data tables)
+- [x] All dashboard pages converted: work-orders, assets, inventory, pm-schedules, reports, requests, invoices, inspections, sites, users, vendors, settings
+- [x] All form pages converted: work-orders/new, work-orders/[id], assets/[id], pm-schedules/[id], invoices/new
+- [x] Auth pages converted: login (portal selection), login/client, login/employee
+- [x] Public pages converted: request portal (4-step wizard), (public)/layout, track/[token], r/[token]
+- [x] All brand.ts imports removed — zero remaining across entire codebase
+
+---
+
+## ✅ PHASE 1 COMPLETE - Ready for Dashboard Pages
+
+**Design System Reference:**
+- Colors: Primary #006b54 (teal), Secondary #00677d (navy), 40+ semantic colors
+- Typography: Display-lg (48px), Headline-h1 (32px), Body-md (16px), Label-caps (12px)
+- Spacing: unit 4px, stackSm 8px, stackMd 16px, stackLg 32px, gutter 24px, margin 32px
+- Border Radius: 0.25rem, 0.5rem, 0.75rem, 9999px
+- Fonts: DM Sans (English), Readex Pro (Arabic)
+- Icons: Material Symbols Outlined
+
+---
+
 ### Sprint E — Settings: Field Visibility *(~2–3 days)*
 **Goal:** Admins can configure which fields on each form are mandatory, optional, or hidden.
 
@@ -271,7 +356,7 @@
 
 | Layer | Tech |
 |-------|------|
-| Web frontend | Next.js 14, TypeScript, inline styles (no Tailwind) |
+| Web frontend | Next.js 14, TypeScript, Tailwind CSS (Lumina design tokens) |
 | Mobile | Expo SDK 54, React Native 0.81 |
 | Backend/DB | Supabase (auth, postgres, storage, edge functions) |
 | Charts | Recharts |
@@ -328,75 +413,45 @@ All pages are at `web/src/app/dashboard/[section]/page.tsx`:
 
 ---
 
-## Brand System (`web/src/lib/brand.ts`)
+## Design System — Lumina Tailwind Tokens
 
-All pages import from `@/lib/brand`. **Never use hardcoded hex or font strings.**
+`web/src/lib/brand.ts` is **deprecated and unused** as of Sprint G (2026-05-16). All styles use Tailwind with Lumina tokens defined in `web/tailwind.config.ts`.
 
-```ts
-// Colors
-C.navy      = '#1E2D4E'   // Primary — headings, buttons, nav active
-C.teal      = '#6DCFB0'   // Accent
-C.blue      = '#1A7FC1'   // Links, info
-C.mid       = '#3AAECC'   // Secondary accent
-C.pageBg    = '#F8FAFC'   // Page background
-C.white     = '#ffffff'
-C.border    = '#E8ECF0'   // Card/table borders
-C.textDark  = '#1E2D4E'   // Primary text
-C.textMid   = '#4A5568'   // Secondary text
-C.textLight = '#A0B0BF'   // Muted/placeholder
-C.danger    = '#C62828'
-C.warning   = '#F57F17'
-C.success   = '#2E7D32'
-C.dangerBg  = '#FEE2E2'
-C.dangerBorder = '#FECACA'
+**Core tokens:**
+- `primary` = `#006b54` (green) — buttons, active states, primary actions
+- `secondary` = `#00677d` (teal) — labels, secondary actions, links
+- `on-primary` / `on-secondary` = contrast text
+- `surface-container-lowest` = white card background
+- `surface-container-low` = input backgrounds
+- `outline-variant` = borders, dividers
+- `on-surface` = primary text; `on-surface-variant` = secondary text; `outline` = muted text
+- `error` = red danger color
 
-// Fonts
-F.en = 'DM Sans, sans-serif'
-F.ar = 'Readex Pro, sans-serif'
-
-// Style helpers (spread into style props)
-cardStyle          // white card with border + borderRadius 12
-pageStyle          // padding 2rem, maxWidth 1200, margin auto
-primaryBtn         // navy background button
-secondaryBtn       // white button with border
-dangerBtn          // red tint button
-tableHeaderCell    // uppercase 11px column header
-tableCell          // 14px 16px padding body cell
-inputStyle         // full-width input with brand border
-labelStyle         // 12px semibold label above inputs
-sectionCard        // cardStyle + 1.5rem padding + marginBottom
-pageTitle          // 22px 700 navy heading
-pageSubtitle       // 13px light subtitle
-```
-
-**Table pattern:**
+**Lumina patterns (use these everywhere):**
 ```tsx
-<div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-    <thead>
-      <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-        <th style={tableHeaderCell}>Column</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style={{ background: C.white }}>
-        <td style={tableCell}>Value</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-```
+// Page wrapper
+<div className="star-pattern bg-surface min-h-screen p-8">
 
-**Badge pattern:**
-```tsx
-// Active
-{ background: '#DCFCE7', color: C.success }
-// Warning / low
-{ background: '#FEF3C7', color: C.warning }
-// Danger / out
-{ background: C.dangerBg, color: C.danger }
-// Inactive / muted
-{ background: C.pageBg, color: C.textMid }
+// Card
+<div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm">
+
+// Input
+<input className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+
+// Label
+<label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5" />
+
+// Primary button
+<button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20" />
+
+// Secondary button
+<button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" />
+
+// Danger badge
+<span className="bg-error/10 text-error border border-error/20 px-2.5 py-0.5 rounded-full text-xs font-semibold" />
+
+// Warning (use hex, not Tailwind class)
+<span className="bg-[#f57f17]/10 text-[#f57f17] border border-[#f57f17]/20" />
 ```
 
 ---
@@ -414,7 +469,7 @@ pageSubtitle       // 13px light subtitle
 
 ## Conventions
 
-- **No Tailwind** — all styles are inline React style objects
+- **Tailwind CSS** — Lumina design tokens via `tailwind.config.ts`. No inline styles except dynamic values (percentages, RTL direction)
 - **No comments** except for non-obvious WHY
 - **Working branch:** `main` (solo dev, commit directly)
 - **TypeScript:** `npx tsc --noEmit` must pass clean before committing

@@ -5,7 +5,13 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, cardStyle, primaryBtn, secondaryBtn, tableHeaderCell, tableCell } from '@/lib/brand'
+
+const ROLE_BADGE: Record<string, string> = {
+  admin:      'bg-primary text-on-primary',
+  manager:    'bg-primary/10 text-primary',
+  technician: 'bg-primary/20 text-primary',
+  requester:  'bg-surface-container text-on-surface-variant',
+}
 
 export default function UsersPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,11 +29,7 @@ export default function UsersPage() {
     setLoading(true)
     const timeout = setTimeout(() => setLoading(false), 8000)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      if (typeof window !== 'undefined') window.location.href = '/login'
-      return
-    }
+    if (!user) { setLoading(false); if (typeof window !== 'undefined') window.location.href = '/login'; return }
     const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single()
     if (!profile) { setLoading(false); return }
     setCurrentUser(profile)
@@ -46,127 +48,132 @@ export default function UsersPage() {
   async function deleteUser(id: string, email: string) {
     if (!confirm(`Are you sure you want to delete ${email}? This cannot be undone.`)) return
     try {
-      const response = await fetch('/api/users/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: id })
-      })
+      const response = await fetch('/api/users/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: id }) })
       const result = await response.json()
-      if (response.ok) {
-        fetchUsers()
-      } else {
-        alert(result.error || 'Failed to delete user')
-      }
-    } catch (error) {
-      console.error('Delete error:', error)
-      alert('Network error while deleting user')
-    }
-  }
-
-  const roleColors: Record<string, { bg: string; color: string }> = {
-    admin:      { bg: C.navy,     color: C.white },
-    manager:    { bg: '#e8eaf6',  color: C.navy },
-    technician: { bg: '#DCFCE7',  color: C.success },
-    requester:  { bg: '#fff8e1',  color: C.warning },
+      if (response.ok) { fetchUsers() } else { alert(result.error || 'Failed to delete user') }
+    } catch { alert('Network error while deleting user') }
   }
 
   const roleCount = (role: string) => users.filter(u => u.role === role).length
+  const activeCount = users.filter(u => u.is_active !== false).length
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>{t('common.loading')}</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 1000 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>{t('users.title')}</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>{users.length} {t('users.in_org')}</p>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto space-y-6">
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface">{t('users.title')}</h1>
+            <p className="text-on-surface-variant mt-1 text-sm">{users.length} {t('users.in_org')}</p>
+          </div>
+          {currentUser?.role === 'admin' && (
+            <Link href='/dashboard/users/new'>
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">person_add</span>{t('btn.add_user')}
+              </button>
+            </Link>
+          )}
         </div>
-        {currentUser?.role === 'admin' && (
-          <Link href='/dashboard/users/new'>
-            <button style={primaryBtn}>{t('btn.add_user')}</button>
-          </Link>
-        )}
-      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
-        {['admin', 'manager', 'technician', 'requester'].map(role => {
-          const cfg = roleColors[role]
-          return (
-            <div key={role} style={cardStyle}>
-              <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 6px', fontWeight: 500 }}>
-                {role === 'admin' ? (lang === 'ar' ? 'المشرف' : 'Admin') : role === 'manager' ? (lang === 'ar' ? 'المدير' : 'Manager') : role === 'technician' ? (lang === 'ar' ? 'الفني' : 'Technician') : (lang === 'ar' ? 'مقدم الطلب' : 'Requester')}s
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 26, fontWeight: 700, color: C.navy, fontFamily: F.en }}>{roleCount(role)}</span>
-                <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500, fontFamily: F.en }}>{role}</span>
+        {/* Stats — glass cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { role: 'admin',      icon: 'admin_panel_settings', label: lang === 'ar' ? 'المشرفون' : 'Admins',      color: 'text-primary',           bg: 'bg-primary/10',      decor: 'bg-primary/5'      },
+            { role: 'manager',    icon: 'manage_accounts',      label: lang === 'ar' ? 'المديرون' : 'Managers',    color: 'text-secondary',         bg: 'bg-secondary/10',    decor: 'bg-secondary/5'    },
+            { role: 'technician', icon: 'engineering',          label: lang === 'ar' ? 'الفنيون' : 'Technicians', color: 'text-primary',           bg: 'bg-primary/10',      decor: 'bg-primary/5'      },
+            { role: 'requester',  icon: 'assignment_ind',       label: lang === 'ar' ? 'الطالبون' : 'Requesters', color: 'text-on-surface-variant', bg: 'bg-surface-container', decor: 'bg-surface-container-high' },
+          ].map(s => (
+            <div key={s.role} className="bg-surface-container-lowest border border-outline-variant p-5 rounded-[12px] shadow-sm relative overflow-hidden group backdrop-blur-sm">
+              <div className={`absolute top-0 right-0 w-20 h-20 -mr-6 -mt-6 rounded-full group-hover:scale-110 transition-transform duration-500 ${s.decor}`} />
+              <div className={`p-2 rounded-lg w-fit mb-3 ${s.bg}`}>
+                <span className={`material-symbols-outlined ${s.color}`}>{s.icon}</span>
               </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1">{s.label}</p>
+              <p className={`text-4xl font-bold ${s.color}`}>{roleCount(s.role)}</p>
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
 
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-              {[t('users.col.name'), t('users.col.email'), t('users.col.role'), t('common.status'), t('users.col.active'), t('common.actions')].map(h => (
-                <th key={h} style={tableHeaderCell}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => {
-              const roleCfg = roleColors[u.role] ?? { bg: C.pageBg, color: C.textMid }
-              const isMe = u.id === currentUser?.id
-              return (
-                <tr key={u.id} style={{ background: isMe ? '#EEF2FF' : C.white }}>
-                  <td style={tableCell}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: C.navy, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0, fontFamily: F.en }}>
-                        {(u.full_name ?? u.email ?? '?')[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: C.textDark, fontFamily: F.en }}>{u.full_name ?? '—'} {isMe && <span style={{ fontSize: 11, color: C.textLight }}>(you)</span>}</p>
-                        {u.full_name_ar && <p style={{ fontSize: 11, color: C.textLight, margin: '2px 0 0', direction: 'rtl', fontFamily: F.ar }}>{u.full_name_ar}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td style={tableCell}>{u.email}</td>
-                  <td style={tableCell}>
-                    <span style={{ background: roleCfg.bg, color: roleCfg.color, padding: '3px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-                      {u.role === 'admin' ? (lang === 'ar' ? 'مشرف' : 'Admin') : u.role === 'manager' ? (lang === 'ar' ? 'مدير' : 'Manager') : u.role === 'technician' ? (lang === 'ar' ? 'فني' : 'Technician') : (lang === 'ar' ? 'مقدم طلب' : 'Requester')}
-                    </span>
-                  </td>
-                  <td style={tableCell}>
-                    <span style={{ background: u.is_active !== false ? '#DCFCE7' : C.pageBg, color: u.is_active !== false ? C.success : C.textMid, padding: '3px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500, fontFamily: F.en }}>
-                      {u.is_active !== false ? t('common.active') : t('common.inactive')}
-                    </span>
-                  </td>
-                  <td style={tableCell}>
-                    {u.last_sign_in_at ? format(new Date(u.last_sign_in_at), 'dd MMM yyyy') : '—'}
-                  </td>
-                  <td style={tableCell}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {currentUser?.role === 'admin' && !isMe && (
-                        <>
-                          <Link href={'/dashboard/users/' + u.id + '/edit'}>
-                            <button style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11 }}>{t('common.edit')}</button>
-                          </Link>
-                          <button onClick={() => toggleActive(u.id, u.is_active !== false)} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11 }}>
-                            {u.is_active !== false ? t('common.deactivate') : t('common.activate')}
-                          </button>
-                          <button onClick={() => deleteUser(u.id, u.email)} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA' }}>
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+        {/* Active stat strip */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-4 flex items-center justify-between">
+          <span className="text-sm text-on-surface-variant">{activeCount} of {users.length} users are currently active</span>
+          <div className="w-48 bg-surface-container-high h-2 rounded-full overflow-hidden">
+            <div className="bg-primary h-full rounded-full transition-all duration-1000" style={{ width: `${users.length > 0 ? Math.round((activeCount / users.length) * 100) : 0}%` }} />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-surface-container border-b border-outline-variant/30">
+                  {[t('users.col.name'), t('users.col.email'), t('users.col.role'), t('common.status'), t('users.col.active'), t('common.actions')].map(h => (
+                    <th key={h} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/20">
+                {users.map(u => {
+                  const isMe = u.id === currentUser?.id
+                  return (
+                    <tr key={u.id} className={`hover:bg-surface-container-low transition-colors ${isMe ? 'bg-primary/5' : ''}`}>
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
+                            {(u.full_name ?? u.email ?? '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-on-surface">
+                              {u.full_name ?? '—'}
+                              {isMe && <span className="text-xs text-on-surface-variant font-normal ml-1">(you)</span>}
+                            </p>
+                            {u.full_name_ar && <p className="text-xs text-on-surface-variant mt-0.5" dir="rtl" style={{ fontFamily: 'Readex Pro, sans-serif' }}>{u.full_name_ar}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm text-on-surface-variant">{u.email}</td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_BADGE[u.role] ?? ROLE_BADGE.requester}`}>
+                          {u.role === 'admin' ? (lang === 'ar' ? 'مشرف' : 'Admin') : u.role === 'manager' ? (lang === 'ar' ? 'مدير' : 'Manager') : u.role === 'technician' ? (lang === 'ar' ? 'فني' : 'Technician') : (lang === 'ar' ? 'مقدم طلب' : 'Requester')}
+                        </span>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.is_active !== false ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
+                          {u.is_active !== false ? t('common.active') : t('common.inactive')}
+                        </span>
+                      </td>
+                      <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">
+                        {u.last_sign_in_at ? format(new Date(u.last_sign_in_at), 'dd MMM yyyy') : '—'}
+                      </td>
+                      <td className="p-3">
+                        {currentUser?.role === 'admin' && !isMe && (
+                          <div className="flex gap-2">
+                            <Link href={'/dashboard/users/' + u.id + '/edit'}>
+                              <button className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                            </Link>
+                            <button onClick={() => toggleActive(u.id, u.is_active !== false)}
+                              className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                              {u.is_active !== false ? t('common.deactivate') : t('common.activate')}
+                            </button>
+                            <button onClick={() => deleteUser(u.id, u.email)}
+                              className="px-3 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   )

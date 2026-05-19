@@ -4,7 +4,6 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { C, F, pageStyle, primaryBtn, secondaryBtn, inputStyle } from '@/lib/brand'
 
 export default function NewSpacePage({ params }: { params: { id: string } }) {
   const [name, setName] = useState('')
@@ -44,37 +43,49 @@ export default function NewSpacePage({ params }: { params: { id: string } }) {
     router.push(`/dashboard/sites/${params.id}/spaces`)
   }
 
+  const inputCls = "w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+
   return (
-    <div style={{ ...pageStyle, maxWidth: 560 }}>
-      <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 8px' }}>
-        <Link href={`/dashboard/sites/${params.id}/spaces`} style={{ color: C.blue, textDecoration: 'none' }}>← Spaces</Link>
-      </p>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 24px' }}>Add Space</h1>
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: '2rem' }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 6, fontFamily: F.en }}>Name (EN) *</label>
-            <input value={name} onChange={e => setName(e.target.value)} required style={inputStyle} placeholder="e.g. Room 101" />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 6, fontFamily: F.en }}>Name (AR)</label>
-            <input value={nameAr} onChange={e => setNameAr(e.target.value)} style={{ ...inputStyle, direction: 'rtl', fontFamily: F.ar }} placeholder="الاسم بالعربية" />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 6, fontFamily: F.en }}>Floor *</label>
-            <input value={floor} onChange={e => setFloor(e.target.value)} required list="floors-list" style={inputStyle} placeholder="e.g. Ground Floor" />
-            <datalist id="floors-list">{floors.map(f => <option key={f} value={f} />)}</datalist>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 6, fontFamily: F.en }}>Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} placeholder="Optional description..." />
-          </div>
-          {error && <p style={{ color: C.danger, fontSize: 13, fontFamily: F.en, margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button type="submit" disabled={loading} style={primaryBtn}>{loading ? 'Saving...' : 'Add Space'}</button>
-            <Link href={`/dashboard/sites/${params.id}/spaces`}><button type="button" style={secondaryBtn}>Cancel</button></Link>
-          </div>
-        </form>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[680px] mx-auto space-y-6">
+        <div>
+          <p className="mb-2">
+            <Link href={`/dashboard/sites/${params.id}/spaces`} className="text-on-surface-variant text-sm hover:text-primary transition-colors">← Spaces</Link>
+          </p>
+          <h1 className="text-3xl font-bold text-on-surface">Add Space</h1>
+        </div>
+
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-8">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Name (EN) *</label>
+              <input value={name} onChange={e => setName(e.target.value)} required className={inputCls} placeholder="e.g. Room 101" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Name (AR)</label>
+              <input value={nameAr} onChange={e => setNameAr(e.target.value)} className={`${inputCls} text-right`} dir="rtl" placeholder="الاسم بالعربية" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Floor *</label>
+              <input value={floor} onChange={e => setFloor(e.target.value)} required list="floors-list" className={inputCls} placeholder="e.g. Ground Floor" />
+              <datalist id="floors-list">{floors.map(f => <option key={f} value={f} />)}</datalist>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Description</label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} className={`${inputCls} min-h-[80px] resize-y`} placeholder="Optional description..." />
+            </div>
+            {error && <p className="text-error text-sm">{error}</p>}
+            <div className="flex gap-2.5">
+              <button type="submit" disabled={loading}
+                className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 disabled:opacity-70">
+                {loading ? 'Saving...' : 'Add Space'}
+              </button>
+              <Link href={`/dashboard/sites/${params.id}/spaces`}>
+                <button type="button" className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">Cancel</button>
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

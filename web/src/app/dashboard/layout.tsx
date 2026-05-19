@@ -1,13 +1,14 @@
 import Sidebar from '@/components/Sidebar'
 import { LanguageProvider } from '@/context/LanguageContext'
-import { F, LUMINA_COLORS } from '@/lib/brand'
+
+export const dynamic = 'force-dynamic'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
-      <div style={{ display: 'flex', minHeight: '100vh', background: LUMINA_COLORS.background }}>
+      <div className="flex min-h-screen bg-surface">
         <Sidebar />
-        <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', fontFamily: F.en }}>
+        <main className="flex-1 min-w-0 overflow-y-auto">
           {children}
         </main>
       </div>

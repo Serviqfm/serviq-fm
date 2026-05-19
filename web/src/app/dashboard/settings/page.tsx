@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
-import { C, F, pageStyle, inputStyle, labelStyle, sectionCard, primaryBtn, dangerBtn } from '@/lib/brand'
 import NotificationsTab from './NotificationsTab'
 import PushAuditTab from './PushAuditTab'
 
@@ -71,249 +70,326 @@ export default function SettingsPage() {
   }
 
   const plan = org?.plan_tier ?? 'small'
-  const planConfig: Record<string, { label: string; color: string; price: string }> = {
-    small:      { label: lang === 'ar' ? 'صغير' : 'Small',       color: C.navy,    price: 'SAR 2,000-3,000/yr' },
-    medium:     { label: lang === 'ar' ? 'متوسط' : 'Medium',     color: C.navy,    price: 'SAR 5,000-7,000/yr' },
-    enterprise: { label: lang === 'ar' ? 'مؤسسي' : 'Enterprise', color: C.danger,  price: 'SAR 12,000-15,000/yr' },
+  const planConfig: Record<string, { label: string; badgeClass: string; price: string }> = {
+    small:      { label: lang === 'ar' ? 'صغير' : 'Small',       badgeClass: 'bg-primary text-on-primary',   price: 'SAR 2,000-3,000/yr' },
+    medium:     { label: lang === 'ar' ? 'متوسط' : 'Medium',     badgeClass: 'bg-primary text-on-primary',   price: 'SAR 5,000-7,000/yr' },
+    enterprise: { label: lang === 'ar' ? 'مؤسسي' : 'Enterprise', badgeClass: 'bg-error text-white',          price: 'SAR 12,000-15,000/yr' },
   }
   const planInfo = planConfig[plan] ?? planConfig.small
 
-  const tabStyle = (active: boolean) => ({
-    padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
-    fontSize: 14, fontFamily: F.en,
-    fontWeight: active ? 600 : 400,
-    color: active ? C.navy : C.textLight,
-    borderBottom: active ? `2px solid ${C.navy}` : '2px solid transparent',
-    marginBottom: -2,
-  })
-
-  if (loading) return <div style={{ padding: '2rem', color: C.textLight, fontFamily: F.en }}>{t('common.loading')}</div>
+  if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 800 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: '0 0 0.5rem' }}>
-        {lang === 'ar' ? 'الإعدادات' : 'Settings'}
-      </h1>
-      <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '0 0 2rem' }}>
-        {lang === 'ar' ? 'إدارة إعدادات مؤسستك وحسابك' : 'Manage your organisation and account settings'}
-      </p>
-
-      <div style={{ display: 'flex', gap: 0, marginBottom: '2rem', borderBottom: `2px solid ${C.border}` }}>
-        {([
-          { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
-          { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
-          { key: 'account',      label: lang === 'ar' ? 'الحساب' : 'Account' },
-          { key: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
-          { key: 'push_audit',   label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
-        ] as const).map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={tabStyle(activeTab === tab.key)}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {saved && (
-        <div style={{ background: '#DCFCE7', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px', marginBottom: '1.5rem', color: C.success, fontSize: 14, fontFamily: F.en }}>
-          {lang === 'ar' ? 'تم الحفظ بنجاح' : 'Saved successfully'}
-        </div>
-      )}
-
-      {activeTab === 'organisation' && (
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[800px] mx-auto space-y-6">
         <div>
-          <div style={sectionCard}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1.25rem' }}>
-              {lang === 'ar' ? 'معلومات المؤسسة' : 'Organisation Information'}
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'الاسم (إنجليزي) *' : 'Name (English) *'}</label>
-                <input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder='e.g. Al Noor School' />
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'}</label>
-                <input style={{ ...inputStyle, direction: 'rtl' }} value={form.name_ar} onChange={e => setForm(f => ({ ...f, name_ar: e.target.value }))} placeholder='مثال: مدرسة النور' />
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'الرقم الضريبي' : 'VAT Number'}</label>
-                <input style={inputStyle} value={form.vat_number} onChange={e => setForm(f => ({ ...f, vat_number: e.target.value }))} placeholder='300000000000003' />
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'رقم السجل التجاري' : 'CR Number'}</label>
-                <input style={inputStyle} value={form.cr_number} onChange={e => setForm(f => ({ ...f, cr_number: e.target.value }))} placeholder='1010000000' />
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'الهاتف' : 'Phone'}</label>
-                <input style={inputStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder='+966 50 000 0000' />
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'المدينة' : 'City'}</label>
-                <input style={inputStyle} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder='Riyadh' />
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>{lang === 'ar' ? 'العنوان' : 'Address'}</label>
-                <input style={inputStyle} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder='King Fahd Road, Al Olaya District' />
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'القطاع' : 'Vertical'}</label>
-                <select style={inputStyle} value={form.vertical} onChange={e => setForm(f => ({ ...f, vertical: e.target.value }))}>
-                  <option value=''>{lang === 'ar' ? 'اختر القطاع' : 'Select vertical'}</option>
-                  <option value='school'>{lang === 'ar' ? 'مدرسة' : 'School'}</option>
-                  <option value='retail'>{lang === 'ar' ? 'تجزئة' : 'Retail'}</option>
-                  <option value='compound'>{lang === 'ar' ? 'مجمع سكني' : 'Compound'}</option>
-                  <option value='hotel'>{lang === 'ar' ? 'فندق' : 'Hotel'}</option>
-                  <option value='other'>{lang === 'ar' ? 'أخرى' : 'Other'}</option>
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'}</label>
-                <select style={inputStyle} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}>
-                  <option value='Asia/Riyadh'>Asia/Riyadh (UTC+3)</option>
-                  <option value='Asia/Dubai'>Asia/Dubai (UTC+4)</option>
-                  <option value='Asia/Kuwait'>Asia/Kuwait (UTC+3)</option>
-                  <option value='Asia/Bahrain'>Asia/Bahrain (UTC+3)</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={saveOrg} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.7 : 1 }}>
-                {saving ? t('common.saving') : t('common.save')}
+          <h1 className="text-2xl font-bold text-on-surface mb-2">
+            {lang === 'ar' ? 'الإعدادات' : 'Settings'}
+          </h1>
+          <p className="text-sm text-on-surface-variant mb-8">
+            {lang === 'ar' ? 'إدارة إعدادات مؤسستك وحسابك' : 'Manage your organisation and account settings'}
+          </p>
+
+          <div className="flex gap-0 mb-8 border-b border-outline-variant">
+            {([
+              { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
+              { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
+              { key: 'account',      label: lang === 'ar' ? 'الحساب' : 'Account' },
+              { key: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
+              { key: 'push_audit',   label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={activeTab === tab.key
+                  ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-primary text-primary'
+                  : 'px-4 py-2.5 text-sm text-on-surface-variant border-b-2 border-transparent hover:text-on-surface transition-colors'}
+              >
+                {tab.label}
               </button>
-            </div>
-          </div>
-
-          <div style={sectionCard}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-              {lang === 'ar' ? 'خطة الاشتراك' : 'Subscription Plan'}
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.pageBg, borderRadius: 10, padding: '1rem 1.25rem' }}>
-              <div>
-                <span style={{ background: planInfo.color, color: C.white, padding: '4px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: F.en }}>{planInfo.label}</span>
-                <p style={{ fontSize: 13, color: C.textMid, margin: '8px 0 0', fontFamily: F.en }}>{planInfo.price}</p>
-              </div>
-              <div style={{ textAlign: 'right' as const }}>
-                <p style={{ fontSize: 12, color: C.textLight, margin: '0 0 4px', fontFamily: F.en }}>{lang === 'ar' ? 'للترقية تواصل معنا' : 'To upgrade, contact us'}</p>
-                <a href='mailto:support@serviqfm.com' style={{ fontSize: 13, color: C.navy, fontWeight: 500, fontFamily: F.en }}>support@serviqfm.com</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'storage' && (
-        <div>
-          <div style={sectionCard}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-              {lang === 'ar' ? 'سياسة التخزين' : 'Storage Policy'}
-            </h3>
-            <div style={{ background: '#e3f2fd', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#0d47a1', margin: '0 0 6px', fontFamily: F.en }}>
-                {lang === 'ar' ? 'الاحتفاظ القياسي: 6 أشهر' : 'Standard Retention: 6 Months'}
-              </p>
-              <p style={{ fontSize: 13, color: '#1565c0', margin: 0, fontFamily: F.en }}>
-                {lang === 'ar'
-                  ? 'يتم حذف الصور ومقاطع الفيديو تلقائياً بعد 6 أشهر. البيانات الهيكلية محفوظة بشكل دائم.'
-                  : 'Images and videos are automatically purged after 6 months. Structured data is retained permanently.'}
-              </p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '1.5rem' }}>
-              {[
-                { icon: '✅', title: lang === 'ar' ? 'البيانات الهيكلية' : 'Structured Data', desc: lang === 'ar' ? 'أوامر العمل والأصول وسجلات الصيانة محفوظة دائماً' : 'Work orders, assets and PM logs retained permanently' },
-                { icon: '📷', title: lang === 'ar' ? 'الصور والفيديو' : 'Images & Video', desc: lang === 'ar' ? 'تُحذف بعد 6 أشهر. يمكن التحميل قبل الحذف.' : 'Purged after 6 months. Export before purge date.' },
-                { icon: '🔔', title: lang === 'ar' ? 'إشعار مسبق' : 'Advance Notice', desc: lang === 'ar' ? 'إشعار بريد إلكتروني قبل 30 يوماً من الحذف' : 'Email notification 30 days before any purge' },
-                { icon: '📦', title: lang === 'ar' ? 'تصدير البيانات' : 'Data Export', desc: lang === 'ar' ? 'تحميل جميع الملفات في أي وقت' : 'Download all media files at any time' },
-              ].map(item => (
-                <div key={item.title} style={{ background: C.pageBg, borderRadius: 10, padding: '1rem' }}>
-                  <p style={{ fontSize: 20, margin: '0 0 6px' }}>{item.icon}</p>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: C.textDark, fontFamily: F.en }}>{item.title}</p>
-                  <p style={{ fontSize: 12, color: C.textMid, margin: 0, fontFamily: F.en }}>{item.desc}</p>
-                </div>
-              ))}
-            </div>
-            <h4 style={{ fontSize: 14, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-              {lang === 'ar' ? 'إضافات التخزين الممتد' : 'Extended Storage Add-Ons'}
-            </h4>
-            {[
-              { period: lang === 'ar' ? '12 شهراً' : '12 months', price: 'SAR 600/yr',     best: lang === 'ar' ? 'للمدارس' : 'Best for Schools' },
-              { period: lang === 'ar' ? '24 شهراً' : '24 months', price: 'SAR 1,200/yr',   best: lang === 'ar' ? 'للتجزئة' : 'Best for Retail' },
-              { period: lang === 'ar' ? 'غير محدود' : 'Unlimited', price: 'SAR 2,400/yr',  best: lang === 'ar' ? 'للفنادق والمجمعات' : 'Best for Hotels & Compounds' },
-            ].map(addon => (
-              <div key={addon.price} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8 }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 500, margin: '0 0 2px', color: C.textDark, fontFamily: F.en }}>{addon.period}</p>
-                  <p style={{ fontSize: 12, color: C.textLight, margin: 0, fontFamily: F.en }}>{addon.best}</p>
-                </div>
-                <div style={{ textAlign: 'right' as const }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, margin: '0 0 4px', fontFamily: F.en }}>{addon.price}</p>
-                  <a href='mailto:support@serviqfm.com' style={{ fontSize: 12, color: C.navy, fontFamily: F.en }}>
-                    {lang === 'ar' ? 'تواصل للاشتراك' : 'Contact to subscribe'}
-                  </a>
-                </div>
-              </div>
             ))}
           </div>
-        </div>
-      )}
 
-      {activeTab === 'account' && (
-        <div>
-          <div style={sectionCard}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1.25rem' }}>
-              {lang === 'ar' ? 'تفضيلات اللغة' : 'Language Preference'}
-            </h3>
-            <div style={{ display: 'flex', gap: 12 }}>
-              {(['ar', 'en'] as const).map(l => (
-                <button key={l} onClick={() => setLang(l)}
-                  style={{ padding: '10px 24px', borderRadius: 8,
-                    border: lang === l ? 'none' : `1px solid ${C.border}`,
-                    background: lang === l ? C.navy : C.white,
-                    color: lang === l ? C.white : C.textMid,
-                    cursor: 'pointer', fontSize: 14, fontWeight: lang === l ? 600 : 400, fontFamily: F.en }}>
-                  {l === 'ar' ? 'العربية' : 'English'}
-                </button>
-              ))}
+          {saved && (
+            <div className="bg-primary/10 border border-primary/20 rounded-[10px] px-4 py-3 mb-6 text-primary text-sm">
+              {lang === 'ar' ? 'تم الحفظ بنجاح' : 'Saved successfully'}
             </div>
-          </div>
+          )}
 
-          <div style={sectionCard}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 1rem' }}>
-              {lang === 'ar' ? 'معلومات الحساب' : 'Account Information'}
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                { label: lang === 'ar' ? 'الاسم' : 'Name',               value: user?.full_name ?? '-' },
-                { label: lang === 'ar' ? 'البريد الإلكتروني' : 'Email',   value: user?.email ?? '-' },
-                { label: lang === 'ar' ? 'الدور' : 'Role',               value: user?.role ?? '-' },
-                { label: lang === 'ar' ? 'المؤسسة' : 'Organisation',     value: org?.name ?? '-' },
-              ].map(item => (
-                <div key={item.label} style={{ background: C.pageBg, borderRadius: 8, padding: '12px 14px' }}>
-                  <p style={{ fontSize: 11, color: C.textLight, margin: '0 0 4px', fontWeight: 500, fontFamily: F.en }}>{item.label}</p>
-                  <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: C.textDark, fontFamily: F.en }}>{item.value}</p>
+          {activeTab === 'organisation' && (
+            <div className="space-y-6">
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+                <h3 className="text-base font-semibold text-on-surface mb-5">
+                  {lang === 'ar' ? 'معلومات المؤسسة' : 'Organisation Information'}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'الاسم (إنجليزي) *' : 'Name (English) *'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.name}
+                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="e.g. Al Noor School"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      style={{ direction: 'rtl' }}
+                      value={form.name_ar}
+                      onChange={e => setForm(f => ({ ...f, name_ar: e.target.value }))}
+                      placeholder="مثال: مدرسة النور"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'الرقم الضريبي' : 'VAT Number'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.vat_number}
+                      onChange={e => setForm(f => ({ ...f, vat_number: e.target.value }))}
+                      placeholder="300000000000003"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'رقم السجل التجاري' : 'CR Number'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.cr_number}
+                      onChange={e => setForm(f => ({ ...f, cr_number: e.target.value }))}
+                      placeholder="1010000000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'الهاتف' : 'Phone'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.phone}
+                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="+966 50 000 0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'المدينة' : 'City'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.city}
+                      onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                      placeholder="Riyadh"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'العنوان' : 'Address'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.address}
+                      onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                      placeholder="King Fahd Road, Al Olaya District"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'القطاع' : 'Vertical'}
+                    </label>
+                    <select
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.vertical}
+                      onChange={e => setForm(f => ({ ...f, vertical: e.target.value }))}
+                    >
+                      <option value="">{lang === 'ar' ? 'اختر القطاع' : 'Select vertical'}</option>
+                      <option value="school">{lang === 'ar' ? 'مدرسة' : 'School'}</option>
+                      <option value="retail">{lang === 'ar' ? 'تجزئة' : 'Retail'}</option>
+                      <option value="compound">{lang === 'ar' ? 'مجمع سكني' : 'Compound'}</option>
+                      <option value="hotel">{lang === 'ar' ? 'فندق' : 'Hotel'}</option>
+                      <option value="other">{lang === 'ar' ? 'أخرى' : 'Other'}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'}
+                    </label>
+                    <select
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={form.timezone}
+                      onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
+                    >
+                      <option value="Asia/Riyadh">Asia/Riyadh (UTC+3)</option>
+                      <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+                      <option value="Asia/Kuwait">Asia/Kuwait (UTC+3)</option>
+                      <option value="Asia/Bahrain">Asia/Bahrain (UTC+3)</option>
+                    </select>
+                  </div>
                 </div>
-              ))}
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={saveOrg}
+                    disabled={saving}
+                    className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${saving ? ' opacity-70' : ''}`}
+                  >
+                    {saving ? t('common.saving') : t('common.save')}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+                <h3 className="text-base font-semibold text-on-surface mb-4">
+                  {lang === 'ar' ? 'خطة الاشتراك' : 'Subscription Plan'}
+                </h3>
+                <div className="flex items-center justify-between bg-surface-container-low rounded-[10px] px-5 py-4">
+                  <div>
+                    <span className={`${planInfo.badgeClass} px-4 py-1 rounded-full text-sm font-semibold`}>
+                      {planInfo.label}
+                    </span>
+                    <p className="text-sm text-on-surface-variant mt-2">{planInfo.price}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-on-surface-variant mb-1">
+                      {lang === 'ar' ? 'للترقية تواصل معنا' : 'To upgrade, contact us'}
+                    </p>
+                    <a href="mailto:support@serviqfm.com" className="text-sm text-primary font-medium">
+                      support@serviqfm.com
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div style={sectionCard}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: C.textDark, fontFamily: F.en, margin: '0 0 0.5rem' }}>
-              {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
-            </h3>
-            <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '0 0 1rem' }}>
-              {lang === 'ar' ? 'سيتم تسجيل خروجك من جميع الأجهزة' : 'You will be signed out of all devices'}
-            </p>
-            <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }} style={dangerBtn}>
-              {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
-            </button>
-          </div>
+          {activeTab === 'storage' && (
+            <div className="space-y-6">
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+                <h3 className="text-base font-semibold text-on-surface mb-4">
+                  {lang === 'ar' ? 'سياسة التخزين' : 'Storage Policy'}
+                </h3>
+                <div className="bg-[#e3f2fd] rounded-[10px] px-5 py-4 mb-5">
+                  <p className="text-sm font-semibold text-[#0d47a1] mb-1.5">
+                    {lang === 'ar' ? 'الاحتفاظ القياسي: 6 أشهر' : 'Standard Retention: 6 Months'}
+                  </p>
+                  <p className="text-sm text-[#1565c0]">
+                    {lang === 'ar'
+                      ? 'يتم حذف الصور ومقاطع الفيديو تلقائياً بعد 6 أشهر. البيانات الهيكلية محفوظة بشكل دائم.'
+                      : 'Images and videos are automatically purged after 6 months. Structured data is retained permanently.'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {[
+                    { icon: '✅', title: lang === 'ar' ? 'البيانات الهيكلية' : 'Structured Data', desc: lang === 'ar' ? 'أوامر العمل والأصول وسجلات الصيانة محفوظة دائماً' : 'Work orders, assets and PM logs retained permanently' },
+                    { icon: '📷', title: lang === 'ar' ? 'الصور والفيديو' : 'Images & Video', desc: lang === 'ar' ? 'تُحذف بعد 6 أشهر. يمكن التحميل قبل الحذف.' : 'Purged after 6 months. Export before purge date.' },
+                    { icon: '🔔', title: lang === 'ar' ? 'إشعار مسبق' : 'Advance Notice', desc: lang === 'ar' ? 'إشعار بريد إلكتروني قبل 30 يوماً من الحذف' : 'Email notification 30 days before any purge' },
+                    { icon: '📦', title: lang === 'ar' ? 'تصدير البيانات' : 'Data Export', desc: lang === 'ar' ? 'تحميل جميع الملفات في أي وقت' : 'Download all media files at any time' },
+                  ].map(item => (
+                    <div key={item.title} className="bg-surface-container-low rounded-[10px] p-4">
+                      <p className="text-xl mb-1.5">{item.icon}</p>
+                      <p className="text-sm font-semibold text-on-surface mb-1">{item.title}</p>
+                      <p className="text-xs text-on-surface-variant">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <h4 className="text-sm font-semibold text-on-surface mb-4">
+                  {lang === 'ar' ? 'إضافات التخزين الممتد' : 'Extended Storage Add-Ons'}
+                </h4>
+                {[
+                  { period: lang === 'ar' ? '12 شهراً' : '12 months', price: 'SAR 600/yr',    best: lang === 'ar' ? 'للمدارس' : 'Best for Schools' },
+                  { period: lang === 'ar' ? '24 شهراً' : '24 months', price: 'SAR 1,200/yr',  best: lang === 'ar' ? 'للتجزئة' : 'Best for Retail' },
+                  { period: lang === 'ar' ? 'غير محدود' : 'Unlimited', price: 'SAR 2,400/yr', best: lang === 'ar' ? 'للفنادق والمجمعات' : 'Best for Hotels & Compounds' },
+                ].map(addon => (
+                  <div key={addon.price} className="flex justify-between items-center px-4 py-3 border border-outline-variant rounded-[10px] mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-on-surface mb-0.5">{addon.period}</p>
+                      <p className="text-xs text-on-surface-variant">{addon.best}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-primary mb-1">{addon.price}</p>
+                      <a href="mailto:support@serviqfm.com" className="text-xs text-primary">
+                        {lang === 'ar' ? 'تواصل للاشتراك' : 'Contact to subscribe'}
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'account' && (
+            <div className="space-y-6">
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+                <h3 className="text-base font-semibold text-on-surface mb-5">
+                  {lang === 'ar' ? 'تفضيلات اللغة' : 'Language Preference'}
+                </h3>
+                <div className="flex gap-3">
+                  {(['ar', 'en'] as const).map(l => (
+                    <button
+                      key={l}
+                      onClick={() => setLang(l)}
+                      className={lang === l
+                        ? 'px-6 py-2.5 rounded-lg bg-primary text-on-primary font-semibold text-sm'
+                        : 'px-6 py-2.5 rounded-lg border border-outline-variant text-on-surface-variant text-sm hover:bg-surface-container-low transition-colors'}
+                    >
+                      {l === 'ar' ? 'العربية' : 'English'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+                <h3 className="text-base font-semibold text-on-surface mb-4">
+                  {lang === 'ar' ? 'معلومات الحساب' : 'Account Information'}
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: lang === 'ar' ? 'الاسم' : 'Name',                     value: user?.full_name ?? '-' },
+                    { label: lang === 'ar' ? 'البريد الإلكتروني' : 'Email',         value: user?.email ?? '-' },
+                    { label: lang === 'ar' ? 'الدور' : 'Role',                     value: user?.role ?? '-' },
+                    { label: lang === 'ar' ? 'المؤسسة' : 'Organisation',           value: org?.name ?? '-' },
+                  ].map(item => (
+                    <div key={item.label} className="bg-surface-container-low rounded-lg px-3.5 py-3">
+                      <p className="text-[11px] text-on-surface-variant font-medium mb-1">{item.label}</p>
+                      <p className="text-sm font-medium text-on-surface">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+                <h3 className="text-base font-semibold text-on-surface mb-2">
+                  {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
+                </h3>
+                <p className="text-sm text-on-surface-variant mb-4">
+                  {lang === 'ar' ? 'سيتم تسجيل خروجك من جميع الأجهزة' : 'You will be signed out of all devices'}
+                </p>
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }}
+                  className="bg-error/10 text-error border border-error/20 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-error/20 transition-colors"
+                >
+                  {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <NotificationsTab />
+          )}
+
+          {activeTab === 'push_audit' && (
+            <PushAuditTab />
+          )}
         </div>
-      )}
-
-      {activeTab === 'notifications' && (
-        <NotificationsTab />
-      )}
-
-      {activeTab === 'push_audit' && (
-        <PushAuditTab />
-      )}
+      </div>
     </div>
   )
 }

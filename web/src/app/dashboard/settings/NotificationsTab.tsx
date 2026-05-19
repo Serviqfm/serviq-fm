@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
 import { NOTIFICATION_TYPES, getAllCategories, getDefaultPreferences } from '@/lib/notificationTypes';
-import { C, cardStyle, labelStyle, primaryBtn, sectionCard } from '@/lib/brand';
 
 export default function NotificationsTab() {
-  const { t, isRTL } = useLanguage();
+  const { isRTL } = useLanguage();
   const supabase = createClient();
   const [preferences, setPreferences] = useState<Record<string, boolean>>(getDefaultPreferences());
   const [loading, setLoading] = useState(true);
@@ -16,7 +15,7 @@ export default function NotificationsTab() {
 
   useEffect(() => {
     loadPreferences();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadPreferences() {
     try {
@@ -81,25 +80,22 @@ export default function NotificationsTab() {
   const categories = getAllCategories();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="text-on-surface-variant text-sm">Loading...</div>;
   }
 
   return (
     <div style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
-      <h3 style={{ ...labelStyle, marginBottom: '1.5rem', fontSize: '18px' }}>
+      <h3 className="text-lg font-bold text-on-surface mb-6">
         Notification Preferences
       </h3>
 
       {message && (
         <div
-          style={{
-            ...cardStyle,
-            marginBottom: '1rem',
-            padding: '1rem',
-            background: message.type === 'success' ? '#DCFCE7' : '#FEE2E2',
-            borderColor: message.type === 'success' ? '#86EFAC' : '#FECACA',
-            color: message.type === 'success' ? '#16A34A' : '#DC2626',
-          }}
+          className={`rounded-[12px] border px-4 py-4 mb-4 text-sm ${
+            message.type === 'success'
+              ? 'bg-primary/10 border-primary/20 text-primary'
+              : 'bg-error/10 border-error/20 text-error'
+          }`}
         >
           {message.text}
         </div>
@@ -114,42 +110,27 @@ export default function NotificationsTab() {
           .join(' ');
 
         return (
-          <div key={category} style={{ ...sectionCard, marginBottom: '1.5rem' }}>
-            <h4 style={{ ...labelStyle, marginBottom: '1rem', fontSize: '14px', color: C.navy }}>
+          <div key={category} className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 mb-6">
+            <h4 className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-4">
               {categoryLabel}
             </h4>
 
             {categoryTypes.map(type => (
               <div
                 key={type.key}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  marginBottom: '1rem',
-                  gap: '0.75rem',
-                  direction: isRTL ? 'rtl' : 'ltr',
-                }}
+                className="flex items-start mb-4 gap-3"
+                style={{ direction: isRTL ? 'rtl' : 'ltr' }}
               >
                 <input
                   type="checkbox"
                   id={type.key}
                   checked={preferences[type.key] !== false}
                   onChange={() => handleToggle(type.key)}
-                  style={{
-                    marginTop: '2px',
-                    cursor: 'pointer',
-                    accentColor: C.teal,
-                  }}
+                  className="mt-0.5 cursor-pointer accent-primary"
                 />
                 <label
                   htmlFor={type.key}
-                  style={{
-                    flex: 1,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    color: C.textDark,
-                    lineHeight: '1.4',
-                  }}
+                  className="flex-1 cursor-pointer text-sm text-on-surface leading-snug"
                 >
                   {type.label}
                 </label>
@@ -162,11 +143,7 @@ export default function NotificationsTab() {
       <button
         onClick={savePreferences}
         disabled={saving}
-        style={{
-          ...primaryBtn,
-          opacity: saving ? 0.7 : 1,
-          cursor: saving ? 'not-allowed' : 'pointer',
-        }}
+        className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${saving ? ' opacity-70 cursor-not-allowed' : ''}`}
       >
         {saving ? 'Saving...' : 'Save Preferences'}
       </button>

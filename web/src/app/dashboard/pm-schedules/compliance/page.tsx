@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
-import { C, F, pageStyle, cardStyle, secondaryBtn, inputStyle, tableHeaderCell, tableCell } from '@/lib/brand'
 
 export default function PMCompliancePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,85 +47,91 @@ export default function PMCompliancePage() {
   const totalOnTime = filtered.reduce((sum, s) => sum + (s.on_time_count || 0), 0)
   const overallCompliance = totalCompleted > 0 ? Math.round((totalOnTime / totalCompleted) * 100) : 0
 
-  const complianceColor = (pct: number) => pct >= 80 ? C.teal : pct >= 50 ? C.warning : C.danger
+  const complianceColor = (pct: number) =>
+    pct >= 80 ? 'text-secondary' : pct >= 50 ? 'text-[#f57f17]' : 'text-error'
 
-  if (loading) return <div style={{ padding: '2rem', fontFamily: F.en, color: C.textMid }}>Loading compliance data...</div>
+  const complianceBarColor = (pct: number) =>
+    pct >= 80 ? 'bg-secondary' : pct >= 50 ? 'bg-[#f57f17]' : 'bg-error'
+
+  if (loading) return <div className="p-8 text-on-surface-variant">Loading compliance data...</div>
 
   return (
-    <div style={{ ...pageStyle, maxWidth: 1100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: C.navy, fontFamily: F.en, margin: 0 }}>PM Compliance Dashboard</h1>
-          <p style={{ fontSize: 13, color: C.textLight, fontFamily: F.en, margin: '4px 0 0' }}>Track preventive maintenance completion rates</p>
-        </div>
-        <Link href='/dashboard/pm-schedules'>
-          <button style={secondaryBtn}>Back to Schedules</button>
-        </Link>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
-        {[
-          { label: 'Total Schedules',   value: filtered.length,                           color: C.navy },
-          { label: 'Active Schedules',  value: filtered.filter(s => s.is_active).length,  color: C.success },
-          { label: 'Total Completed',   value: totalCompleted,                            color: C.blue },
-          { label: 'Overall Compliance',value: overallCompliance + '%',                   color: complianceColor(overallCompliance) },
-        ].map(card => (
-          <div key={card.label} style={cardStyle}>
-            <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '0 0 8px', fontWeight: 500 }}>{card.label}</p>
-            <p style={{ fontSize: 28, fontWeight: 700, margin: 0, color: card.color, fontFamily: F.en }}>{card.value}</p>
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-[1440px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface m-0">PM Compliance Dashboard</h1>
+            <p className="text-sm text-on-surface-variant mt-1 mb-0">Track preventive maintenance completion rates</p>
           </div>
-        ))}
-      </div>
+          <Link href='/dashboard/pm-schedules'>
+            <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">Back to Schedules</button>
+          </Link>
+        </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <select value={filterSite} onChange={e => setFilterSite(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
-          <option value='all'>All Sites</option>
-          {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select value={filterTech} onChange={e => setFilterTech(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
-          <option value='all'>All Technicians</option>
-          {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-        </select>
-      </div>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: 'Total Schedules',    value: filtered.length,                          colorCls: 'text-on-surface' },
+            { label: 'Active Schedules',   value: filtered.filter(s => s.is_active).length, colorCls: 'text-primary' },
+            { label: 'Total Completed',    value: totalCompleted,                           colorCls: 'text-secondary' },
+            { label: 'Overall Compliance', value: overallCompliance + '%',                  colorCls: complianceColor(overallCompliance) },
+          ].map(card => (
+            <div key={card.label} className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 relative overflow-hidden group shadow-sm">
+              <p className="text-xs text-on-surface-variant mb-2 font-medium">{card.label}</p>
+              <p className={`text-[28px] font-bold m-0 ${card.colorCls}`}>{card.value}</p>
+            </div>
+          ))}
+        </div>
 
-      <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: C.pageBg, borderBottom: `1px solid ${C.border}` }}>
-              {['Schedule','Asset','Site','Assigned To','Completed','On Time','Compliance'].map(h => (
-                <th key={h} style={tableHeaderCell}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((s) => {
-              const compliance = s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) : null
-              return (
-                <tr key={s.id} style={{ background: C.white }}>
-                  <td style={tableCell}>
-                    <p style={{ fontSize: 14, fontWeight: 500, color: C.textDark, fontFamily: F.en, margin: 0 }}>{s.title}</p>
-                    <p style={{ fontSize: 12, color: C.textLight, fontFamily: F.en, margin: '2px 0 0' }}>{s.frequency}</p>
-                  </td>
-                  <td style={tableCell}>{s.asset?.name ?? '—'}</td>
-                  <td style={tableCell}>{s.site?.name ?? '—'}</td>
-                  <td style={tableCell}>{s.assignee?.full_name ?? 'Unassigned'}</td>
-                  <td style={{ ...tableCell, fontSize: 14, fontWeight: 600, color: C.textDark }}>{s.completed_count || 0}</td>
-                  <td style={{ ...tableCell, fontSize: 14, fontWeight: 600, color: C.success }}>{s.on_time_count || 0}</td>
-                  <td style={tableCell}>
-                    {compliance !== null ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, background: C.border, borderRadius: 4, height: 8, minWidth: 60 }}>
-                          <div style={{ background: complianceColor(compliance), borderRadius: 4, height: 8, width: compliance + '%' }} />
+        <div className="flex gap-2.5 flex-wrap">
+          <select value={filterSite} onChange={e => setFilterSite(e.target.value)} className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all w-auto">
+            <option value='all'>All Sites</option>
+            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={filterTech} onChange={e => setFilterTech(e.target.value)} className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all w-auto">
+            <option value='all'>All Technicians</option>
+            {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+          </select>
+        </div>
+
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-surface-container-low border-b border-outline-variant">
+                {['Schedule','Asset','Site','Assigned To','Completed','On Time','Compliance'].map(h => (
+                  <th key={h} className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant text-left">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s) => {
+                const compliance = s.completed_count > 0 ? Math.round((s.on_time_count / s.completed_count) * 100) : null
+                return (
+                  <tr key={s.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="px-4 py-3 text-sm text-on-surface-variant border-b border-outline-variant">
+                      <p className="text-sm font-medium text-on-surface m-0">{s.title}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5 mb-0">{s.frequency}</p>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant border-b border-outline-variant">{s.asset?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant border-b border-outline-variant">{s.site?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant border-b border-outline-variant">{s.assignee?.full_name ?? 'Unassigned'}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-on-surface border-b border-outline-variant">{s.completed_count || 0}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-primary border-b border-outline-variant">{s.on_time_count || 0}</td>
+                    <td className="px-4 py-3 text-sm text-on-surface-variant border-b border-outline-variant">
+                      {compliance !== null ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-outline-variant/30 rounded-full h-2 min-w-[60px]">
+                            <div className={`${complianceBarColor(compliance)} rounded-full h-2`} style={{ width: compliance + '%' }} />
+                          </div>
+                          <span className={`text-sm font-semibold ${complianceColor(compliance)}`}>{compliance}%</span>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: complianceColor(compliance), fontFamily: F.en }}>{compliance}%</span>
-                      </div>
-                    ) : <span style={{ fontSize: 13, color: C.textLight, fontFamily: F.en }}>No data yet</span>}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                      ) : <span className="text-sm text-on-surface-variant">No data yet</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
