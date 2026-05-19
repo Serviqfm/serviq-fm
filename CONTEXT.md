@@ -6,18 +6,28 @@
 
 ---
 
-## 🔴 IMMEDIATE NEXT STEPS (May 16, 2026)
+## 🔴 IMMEDIATE NEXT STEPS (May 19, 2026)
 
-**Sprint D Email Delivery Fix — PENDING USER ACTION:**
-1. Update Vercel environment variable: `RESEND_FROM_EMAIL` = `noreply@serviqfm.com`
-2. Redeploy to Vercel (auto-deploy from main or manual trigger)
-3. Test: Assign work order to technician → verify email arrives in inbox
-4. **Known issue:** User deletion may fail on technicians linked to work orders (FK constraint) — needs cascade delete or cleanup logic
+**Phase Lumina integration branch — `phase-lumina`:**
+Integration branch containing Sprints A–G plus the user-deletion FK fix. Merges `zen-hellman` (Sprint G Lumina + Phase 4 + user-del FK fix) and `beautiful-jones` (Sprint E Field Visibility + Sprint F Platform Super-Admin) on top of `origin/main`. Build + tsc are clean (test-runner type deps for `Button.test.tsx` are the only outstanding tsc errors and are pre-existing — Next ignores them at build via `eslint.ignoreDuringBuilds`).
 
-**Sprint G Lumina Redesign — COMPLETE, merged to main:**
+**Before merging `phase-lumina` to `main`, run these SQL migrations in the Supabase SQL editor in order:**
+1. `docs/superpowers/sql/sprint-e-01-foundation.sql` — `field_configs` table + RLS + index
+2. `docs/superpowers/sql/sprint-f-01-foundation.sql` — platform admin tables, impersonation log, audit log, feature flags
+3. `docs/superpowers/sql/sprint-f-02-metrics.sql` — DAU/MAU function + MRR snapshot table
+
+Then create a platform admin auth user in Supabase Auth and uncomment the `INSERT INTO platform_admins` block at the bottom of `sprint-f-01-foundation.sql` with that auth UID.
+
+**`RESEND_FROM_EMAIL=noreply@serviqfm.com`** is already set in Vercel — do not re-do.
+
+**Sprint F caveat (intentional, do not "fix"):**
+- Feature-flag toggles at `web/src/app/platform/tenants/[id]/flags/FlagsForm.tsx` are **scaffolding by design**. They persist values to `tenant_feature_flags` and write audit entries, but do not yet gate any product features. UI surfaces a note explaining this. Real enforcement is follow-up work.
+
+**Out of scope for this PR:** Mobile EAS production build (iOS + Android) — separate workstream.
+
+**Sprint G Lumina Redesign — COMPLETE:**
 - All pages converted to Lumina Tailwind design tokens
-- `brand.ts` is now fully unused — can be deleted in a future cleanup PR
-- Next sprints: E (Field Visibility Settings) or F (Employee Super-Admin Portal)
+- `brand.ts` is **restored** on `phase-lumina` (zen-hellman had deleted it but several `origin/main` pages still import `C`, `F`, `primaryBtn`, `LUMINA_COLORS`). Keep until those imports are migrated.
 
 ---
 
@@ -307,7 +317,7 @@
 
 ---
 
-### Sprint F — Employee Portal: Platform Super-Admin *(~5–7 days)*
+### Sprint F — Employee Portal: Platform Super-Admin *(COMPLETE on `phase-lumina` — 2026-05-19)*
 **Goal:** Transform `/login/employee` into a full ServIQ-FM platform management portal (separate from tenant dashboards).
 
 > `/login/employee` = ServIQ-FM staff portal (platform-level).  
@@ -315,38 +325,39 @@
 
 **Design doc:** `docs/superpowers/specs/` *(to be written)*
 
-- [ ] **F1 — Platform auth separation**
+- [x] **F1 — Platform auth separation**
   - `/platform/` route group with its own layout + sidebar
-  - Auth guard checks `is_platform_admin` flag on user
-  - `/login/employee` redirects to `/platform/dashboard` on success
+  - `web/src/middleware.ts` gates `/platform/*` against `platform_admins` (returns 404 to mask portal) and `/dashboard/*` against disabled/offboarded users
+  - `/login/employee` redirects platform admins to `/platform/dashboard` on success
+  - Runtime pinned to `nodejs` so impersonation-cookie signing (HMAC via `crypto`) works in middleware
 
-- [ ] **F2 — Command Center Dashboard**
-  - MRR / ARR / Churn rate metric cards
-  - DAU / MAU across all tenants
-  - Platform-wide active properties, work orders, staff counts
-  - Health Score per client (login frequency + feature adoption)
+- [x] **F2 — Command Center Dashboard**
+  - `/platform/dashboard` — MRR / ARR / DAU / MAU / health score cards via `/api/platform/metrics`
+  - MRR snapshot cron at `/api/platform/cron/mrr-snapshot` (vercel.json schedule)
 
-- [ ] **F3 — Tenant Management**
-  - Searchable list of all client organisations
-  - Per-tenant: users, WO count, last active, plan, health score
-  - "Login as Admin" — impersonate tenant admin for troubleshooting
+- [x] **F3 — Tenant Management**
+  - `/platform/tenants` list + `/platform/tenants/[id]` detail with tabs (overview, users, billing, flags, audit)
+  - Impersonation enter/exit/status API + signed `sfm_imp` cookie + banner; all audit_logs writes carry `impersonated_by`
 
-- [ ] **F4 — Onboarding & Offboarding**
-  - **Onboard:** Create tenant org, assign Tenant Admin role, show welcome checklist progress
-  - **Offboard:** Export tenant data (CSV/JSON), disable all tenant users
+- [x] **F4 — Onboarding & Offboarding**
+  - Onboarding form at `/platform/tenants/new` + POST handler
+  - Offboard exports tenant data as zip (`jszip`), disables users; reactivate API restores
 
-- [ ] **F5 — Billing & Subscriptions**
-  - View/change plan per tenant (free / starter / pro / enterprise)
-  - Payment status (paid / failed / overdue)
-  - Custom contract notes
+- [x] **F5 — Billing & Subscriptions**
+  - Billing form + API with diff-based audit (plan, payment status, contract notes)
 
-- [ ] **F6 — Feature Flags**
-  - Per-tenant toggles: `advanced_reporting`, `api_access`, `invoicing`, `multi_site`, `custom_branding`
-  - Stored in `tenant_feature_flags` table
+- [x] **F6 — Feature Flags (SCAFFOLDING)**
+  - Per-tenant toggles persist to `tenant_feature_flags` + write audit entries
+  - **No enforcement yet** — `useFeatureFlag` hook stub exists, but no product feature consults it. UI shows a note explaining this. Follow-up work.
 
-- [ ] **F7 — System Health & Audit Log**
-  - Server health (Supabase + Vercel status)
-  - Audit log: timestamp, actor, action, affected resource
+- [x] **F7 — System Health & Audit Log**
+  - `/platform/health` — Supabase + Vercel reachability
+  - `/platform/audit` — unified audit feed across all tenants
+
+**⚠️ Manual DB steps required before deploy (Supabase SQL editor, in order):**
+1. `docs/superpowers/sql/sprint-f-01-foundation.sql` — platform tables + RLS
+2. `docs/superpowers/sql/sprint-f-02-metrics.sql` — DAU/MAU function + MRR snapshot
+3. Create platform admin in Supabase Auth, then uncomment the `INSERT INTO platform_admins` block at the bottom of `sprint-f-01-foundation.sql` with that UID
 
 ---
 
