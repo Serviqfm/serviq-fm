@@ -21,11 +21,11 @@ export default function PublicRequestPage({ params }: { params: { token: string 
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('spaces')
-        .select('*, site:site_id(id, name, organisation_id)')
-        .eq('qr_token', params.token)
-        .single()
+      // Use a server-side endpoint so the lookup goes through the service role and is not
+      // blocked by spaces RLS (the anon client has no org membership).
+      const res = await fetch(`/api/public/space-by-token/${params.token}`)
+      if (!res.ok) { setNotFound(true); return }
+      const { space: data } = await res.json()
       if (!data) { setNotFound(true); return }
       setSpace(data)
     }

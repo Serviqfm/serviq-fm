@@ -21,12 +21,13 @@ export default function NewPMSchedulePage() {
     title: '',
     description: '',
     frequency: 'monthly',
-    asset_id: '',
     site_id: '',
     assigned_to: '',
     next_due_at: '',
     estimated_duration_minutes: '',
   })
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([])
+  const [assetSearch, setAssetSearch] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadFormData() }, [])
@@ -59,20 +60,29 @@ export default function NewPMSchedulePage() {
     if (!user) { setError('Not logged in'); setLoading(false); return }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setError('User profile not found'); setLoading(false); return }
-    const { error: insertError } = await supabase.from('pm_schedules').insert({
+
+    // If multiple assets are selected, insert one schedule per asset; if none, insert a single
+    // unscoped schedule.
+    const assetIds = selectedAssets.length > 0 ? selectedAssets : [null]
+    const rows = assetIds.map(aid => ({
       title: form.title,
       description: form.description || null,
       frequency: form.frequency,
-      asset_id: form.asset_id || null,
+      asset_id: aid,
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
       next_due_at: form.next_due_at || null,
       estimated_duration_minutes: form.estimated_duration_minutes ? parseInt(form.estimated_duration_minutes) : null,
       organisation_id: profile.organisation_id,
       is_active: true,
-    })
+    }))
+    const { error: insertError } = await supabase.from('pm_schedules').insert(rows)
     if (insertError) { setError(insertError.message); setLoading(false) }
     else router.push('/dashboard/pm-schedules')
+  }
+
+  function toggleAsset(id: string) {
+    setSelectedAssets(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
@@ -132,21 +142,41 @@ export default function NewPMSchedulePage() {
             <input name='estimated_duration_minutes' type='number' value={form.estimated_duration_minutes} onChange={handleChange} placeholder='e.g. 60' min='1' style={fieldStyle} />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <label style={labelStyle}>{lang === 'ar' ? 'الأصل' : 'Asset'}</label>
-            <select name='asset_id' value={form.asset_id} onChange={handleChange} style={fieldStyle}>
-              <option value=''>{lang === 'ar' ? 'اختر الأصل' : 'Select asset'}</option>
-              {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+        <div>
+          <label style={labelStyle}>
+            {lang === 'ar' ? 'الأصول' : 'Assets'}
+            {selectedAssets.length > 0 && <span style={{ marginLeft: 8, color: '#006b54', fontWeight: 600 }}>({selectedAssets.length} selected)</span>}
+          </label>
+          <p style={{ fontSize: 12, color: '#666', margin: '0 0 8px' }}>
+            {lang === 'ar' ? 'حدد عدة أصول لإنشاء جدول صيانة لكل منها.' : 'Select multiple assets — one PM schedule will be created for each.'}
+          </p>
+          <input
+            value={assetSearch}
+            onChange={e => setAssetSearch(e.target.value)}
+            placeholder={lang === 'ar' ? 'بحث في الأصول...' : 'Search assets...'}
+            style={{ ...fieldStyle, marginBottom: 8 }}
+          />
+          <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 8, background: 'white' }}>
+            {assets.filter(a => !assetSearch || a.name?.toLowerCase().includes(assetSearch.toLowerCase())).length === 0 ? (
+              <p style={{ padding: '12px', fontSize: 13, color: '#999', margin: 0 }}>
+                {lang === 'ar' ? 'لا توجد أصول' : 'No assets'}
+              </p>
+            ) : (
+              assets.filter(a => !assetSearch || a.name?.toLowerCase().includes(assetSearch.toLowerCase())).map(a => (
+                <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f5f5f5' }}>
+                  <input type='checkbox' checked={selectedAssets.includes(a.id)} onChange={() => toggleAsset(a.id)} />
+                  <span style={{ fontSize: 13 }}>{a.name}</span>
+                </label>
+              ))
+            )}
           </div>
-          <div>
-            <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
-            <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
-              <option value=''>{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
-              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
+        </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
+          <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
+            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>

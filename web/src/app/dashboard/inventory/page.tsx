@@ -12,6 +12,9 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'in' | 'low' | 'out'>('all')
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -56,11 +59,55 @@ export default function InventoryPage() {
     setSelected(prev => prev.length === filtered.length ? [] : filtered.map(i => i.id))
   }
 
-  const filtered = items.filter(i =>
-    i.name?.toLowerCase().includes(search.toLowerCase()) ||
-    i.sku?.toLowerCase().includes(search.toLowerCase()) ||
-    i.category?.toLowerCase().includes(search.toLowerCase())
-  )
+  const categories = Array.from(new Set(items.map(i => i.category).filter(Boolean))).sort() as string[]
+
+  function statusOf(i: { stock_quantity: number; minimum_stock_level: number }): 'in' | 'low' | 'out' {
+    if (i.stock_quantity === 0) return 'out'
+    if (i.stock_quantity <= i.minimum_stock_level && i.minimum_stock_level > 0) return 'low'
+    return 'in'
+  }
+
+  const filtered = items.filter(i => {
+    const matchesSearch = !search ||
+      i.name?.toLowerCase().includes(search.toLowerCase()) ||
+      i.sku?.toLowerCase().includes(search.toLowerCase()) ||
+      i.category?.toLowerCase().includes(search.toLowerCase())
+    const matchesCat = !filterCategory || i.category === filterCategory
+    const matchesStatus = filterStatus === 'all' || statusOf(i) === filterStatus
+    return matchesSearch && matchesCat && matchesStatus
+  })
+
+  function exportCSV() {
+    if (filtered.length === 0) {
+      alert('Nothing to export.')
+      return
+    }
+    const cols = ['name', 'name_ar', 'sku', 'category', 'unit', 'stock_quantity', 'minimum_stock_level', 'unit_cost', 'site']
+    const esc = (v: unknown) => {
+      if (v === null || v === undefined) return ''
+      const s = typeof v === 'string' ? v : String(v)
+      return `"${s.replace(/"/g, '""')}"`
+    }
+    const rows = filtered.map(i => ({
+      name: i.name ?? '',
+      name_ar: i.name_ar ?? '',
+      sku: i.sku ?? '',
+      category: i.category ?? '',
+      unit: i.unit ?? '',
+      stock_quantity: i.stock_quantity ?? 0,
+      minimum_stock_level: i.minimum_stock_level ?? 0,
+      unit_cost: i.unit_cost ?? '',
+      site: i.site?.name ?? '',
+    }))
+    const csv = [cols.join(','), ...rows.map(r => cols.map(c => esc((r as Record<string, unknown>)[c])).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const lowStockItems = items.filter(i => i.stock_quantity <= i.minimum_stock_level && i.minimum_stock_level > 0)
   const outOfStockCount = items.filter(i => i.stock_quantity === 0).length
@@ -160,14 +207,44 @@ export default function InventoryPage() {
                 className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline-variant/40 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-colors text-sm">
-                <span className="material-symbols-outlined text-base">filter_list</span>Filter
+              <button onClick={() => setShowFilters(s => !s)}
+                className={`flex items-center gap-2 px-4 py-2 border rounded-xl transition-colors text-sm ${showFilters ? 'bg-primary/10 text-primary border-primary/40' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low'}`}>
+                <span className="material-symbols-outlined text-base">filter_list</span>Filter{(filterCategory || filterStatus !== 'all') ? ` (${[filterCategory, filterStatus !== 'all' ? filterStatus : null].filter(Boolean).length})` : ''}
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary rounded-xl font-semibold hover:bg-secondary/20 transition-colors text-sm">
+              <button onClick={exportCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary rounded-xl font-semibold hover:bg-secondary/20 transition-colors text-sm">
                 <span className="material-symbols-outlined text-base">download</span>Export
               </button>
             </div>
           </div>
+          {showFilters && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-outline-variant/30">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Category</label>
+                <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-3 py-2 text-sm">
+                  <option value="">All categories</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Stock status</label>
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as 'all' | 'in' | 'low' | 'out')}
+                  className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-3 py-2 text-sm">
+                  <option value="all">All</option>
+                  <option value="in">In stock</option>
+                  <option value="low">Low stock</option>
+                  <option value="out">Out of stock</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button onClick={() => { setFilterCategory(''); setFilterStatus('all') }}
+                  className="px-3 py-2 rounded-xl border border-outline-variant/40 text-on-surface-variant text-sm hover:bg-surface-container-low transition-colors">
+                  Clear filters
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bulk delete */}

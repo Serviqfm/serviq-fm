@@ -54,6 +54,27 @@ export default function AssetsPage() {
     setDeleting(false)
   }
 
+  async function exportSelectedQR(layout: 2 | 4 | 6) {
+    if (selected.length === 0) return
+    const res = await fetch('/api/assets/export-qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assetIds: selected, layout }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert('QR export failed: ' + (err.error ?? res.statusText))
+      return
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `asset-qr-codes-${new Date().toISOString().slice(0, 10)}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function deleteOne(id: string) {
     if (!confirm('Delete this asset?')) return
     await supabase.from('assets').delete().eq('id', id)
@@ -190,10 +211,13 @@ export default function AssetsPage() {
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Bulk delete bar */}
+            {/* Bulk actions bar */}
             {selected.length > 0 && (
-              <div className="bg-error/5 border border-error/20 rounded-xl p-3 flex items-center gap-3 mb-4 flex-wrap">
-                <span className="text-sm font-semibold text-error">{selected.length} asset(s) selected</span>
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center gap-3 mb-4 flex-wrap">
+                <span className="text-sm font-semibold text-primary">{selected.length} asset(s) selected</span>
+                <button onClick={() => exportSelectedQR(2)} className="px-4 py-1.5 rounded-xl bg-secondary/10 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors">QR PDF (2/page)</button>
+                <button onClick={() => exportSelectedQR(4)} className="px-4 py-1.5 rounded-xl bg-secondary/10 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors">QR PDF (4/page)</button>
+                <button onClick={() => exportSelectedQR(6)} className="px-4 py-1.5 rounded-xl bg-secondary/10 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors">QR PDF (6/page)</button>
                 <button onClick={deleteSelected} disabled={deleting}
                   className="px-4 py-1.5 rounded-xl bg-error text-on-error text-sm font-semibold disabled:opacity-50 hover:bg-error/90 transition-colors">
                   {deleting ? 'Deleting...' : t('btn.delete_selected')}
