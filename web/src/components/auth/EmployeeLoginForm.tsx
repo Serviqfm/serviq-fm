@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 export default function EmployeeLoginForm() {
@@ -85,20 +86,20 @@ export default function EmployeeLoginForm() {
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden star-pattern">
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-8 py-2 w-full bg-surface/80 backdrop-blur-md border-b border-outline-variant">
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <span className="text-primary font-bold tracking-tight text-2xl">
             Serviq Lumina
           </span>
-        </div>
+        </Link>
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer active:scale-95">
             <span className="material-symbols-outlined text-sm">language</span>
             <span className="text-xs font-semibold text-on-surface-variant">ARABIC</span>
           </button>
-          <button className="hidden md:flex items-center gap-1 text-on-surface-variant hover:text-primary transition-colors">
+          <a href="mailto:admin@serviqfm.com?subject=Support%20Request" className="hidden md:flex items-center gap-1 text-on-surface-variant hover:text-primary transition-colors">
             <span className="material-symbols-outlined">help</span>
             <span className="text-xs font-semibold">SUPPORT</span>
-          </button>
+          </a>
         </div>
       </header>
 
@@ -310,22 +311,13 @@ export default function EmployeeLoginForm() {
         <div className="flex flex-col md:flex-row items-center gap-6">
           <span className="text-primary text-lg font-bold">Serviq Lumina</span>
           <div className="flex gap-4">
-            <a
-              className="text-on-surface-variant text-sm hover:text-secondary transition-colors"
-              href="#"
-            >
+            <Link className="text-on-surface-variant text-sm hover:text-secondary transition-colors" href="/privacy-policy">
               Privacy Policy
-            </a>
-            <a
-              className="text-on-surface-variant text-sm hover:text-secondary transition-colors"
-              href="#"
-            >
+            </Link>
+            <Link className="text-on-surface-variant text-sm hover:text-secondary transition-colors" href="/terms-of-service">
               Terms of Service
-            </a>
-            <a
-              className="text-on-surface-variant text-sm hover:text-secondary transition-colors"
-              href="#"
-            >
+            </Link>
+            <a className="text-on-surface-variant text-sm hover:text-secondary transition-colors" href="mailto:admin@serviqfm.com?subject=Support%20Request">
               Contact Support
             </a>
           </div>

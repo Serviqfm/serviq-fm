@@ -121,7 +121,7 @@ export default function LandingPage() {
             <button onClick={() => setMenuOpen(false)} style={{ fontSize:28, cursor:'pointer', color:navy, background:'none', border:'none', lineHeight:1 }}>×</button>
           </div>
           <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:4, flex:1 }}>
-            {[['#features','Features','المزايا'],['#verticals','Industries','القطاعات'],['#pricing','Pricing','الأسعار'],['#waitlist','Join Waitlist','قائمة الانتظار']].map(([href,en_,ar_]) => (
+            {[['#features','Features','المزايا'],['#verticals','Industries','القطاعات'],['/about','About','عن الشركة'],['#waitlist','Join Waitlist','قائمة الانتظار']].map(([href,en_,ar_]) => (
               <li key={href}>
                 <a href={href} onClick={() => setMenuOpen(false)} style={{ display:'block', fontSize:18, fontWeight:500, color:navy, padding:'14px 0', borderBottom:`1px solid ${border}` }}>
                   {en_} <span style={{ fontFamily:ar, fontSize:13, color:muted }}>/ {ar_}</span>
@@ -143,13 +143,12 @@ export default function LandingPage() {
         <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', height:68 }}>
             <a href="/" style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ fontSize:21, fontWeight:700, fontFamily:en, color:navy }}>
-                Serviq <span className="grad-text">FM</span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ServiqFM_Logo_v2.jpg" alt="ServIQ-FM" style={{ height:36, width:'auto' }} />
               <span style={{ fontFamily:ar, fontSize:13, fontWeight:600, color:muted }}>سيرفيك</span>
             </a>
             <ul className="nav-links-wrap" style={{ display:'flex', alignItems:'center', gap:4, listStyle:'none' }}>
-              {[['#features','Features'],['#verticals','Industries'],['#pricing','Pricing']].map(([href,label]) => (
+              {[['#features','Features'],['#verticals','Industries'],['/about','About']].map(([href,label]) => (
                 <li key={href}>
                   <a href={href} className="nav-links" style={{ fontSize:14, fontWeight:500, color:text2, padding:'7px 14px', borderRadius:6, transition:'color 0.15s, background 0.15s', display:'block' }}>{label}</a>
                 </li>
@@ -201,7 +200,7 @@ export default function LandingPage() {
               {[
                 [String(daysLeft), 'Days to Launch'],
                 ['1–3',   'Days to Go Live'],
-                ['70%',   'Cheaper than UpKeep'],
+                ['70%',   'Cheaper than other apps'],
                 ['100%',  'Arabic + English'],
               ].map(([num, label]) => (
                 <div key={label} className="hero-stat" style={{ padding:'0 40px', borderRight:'1px solid rgba(255,255,255,0.10)', textAlign:'center' }}>
@@ -230,6 +229,23 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* DASHBOARD PREVIEW */}
+      <section style={{ padding:'88px 0', background:'#fff' }}>
+        <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px' }}>
+          <div className="reveal" style={{ textAlign:'center', marginBottom:48 }}>
+            <span style={{ display:'inline-block', fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:mid, marginBottom:14 }}>Inside ServIQ-FM — داخل المنصة</span>
+            <h2 className="section-title-el" style={{ fontSize:38, fontWeight:700, color:navy, lineHeight:1.2, marginBottom:16 }}>One dashboard for every facility</h2>
+            <p style={{ fontSize:17, color:text2, lineHeight:1.7, maxWidth:640, margin:'0 auto' }}>
+              Live KPIs across work orders, assets, PM compliance and spend. A single screen — built for managers who run the whole operation.
+            </p>
+          </div>
+          <div className="reveal" style={{ borderRadius:18, overflow:'hidden', boxShadow:'0 24px 80px rgba(30,45,78,0.18), 0 0 0 1px rgba(30,45,78,0.04)', border:`1px solid ${border}` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/dashboard-overview.png" alt="ServIQ-FM dashboard overview" style={{ display:'block', width:'100%', height:'auto' }} />
+          </div>
+        </div>
+      </section>
+
       {/* PROBLEM */}
       <section style={{ background:offwhite, padding:'88px 0' }}>
         <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px' }}>
@@ -243,7 +259,7 @@ export default function LandingPage() {
               { icon:'📱', ar:'طلبات مبعثرة على واتساب', en:'Work requests lost in WhatsApp', text:'Maintenance requests arrive across multiple chats with no tracking, no priority, and no accountability. Jobs get forgotten.' },
               { icon:'🔧', ar:'أعطال متكررة بلا صيانة وقائية', en:'Repeated breakdowns, no PM plan', text:'Without preventive maintenance schedules, assets fail unexpectedly — costing far more to fix and disrupting daily operations.' },
               { icon:'📋', ar:'لا توثيق، لا مساءلة', en:'No records, no accountability', text:'No audit trail means disputes with contractors, no proof of completed work, and zero visibility for management or auditors.' },
-              { icon:'💸', ar:'أنظمة دولية بأسعار مبالغ فيها', en:'International tools are overpriced', text:'UpKeep, Facilio, and eMaint cost SAR 40,000–150,000/yr and aren\'t built for Arabic-speaking teams or Saudi compliance.' },
+              { icon:'💸', ar:'أنظمة دولية بأسعار مبالغ فيها', en:'International tools are overpriced', text:'Other apps cost SAR 40,000–150,000/yr and aren\'t built for Arabic-speaking teams or Saudi compliance.' },
             ].map(card => (
               <div key={card.en} className="problem-card reveal" style={{ background:'#fff', border:`1px solid ${border}`, borderRadius:12, padding:'28px 24px', transition:'box-shadow 0.2s, transform 0.2s' }}>
                 <div style={{ width:44, height:44, borderRadius:10, background:'#E8F7F3', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:16, fontSize:20 }}>{card.icon}</div>
@@ -348,7 +364,7 @@ export default function LandingPage() {
           <div className="why-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:24, marginTop:56 }}>
             {[
               { num:'01', title:'Arabic-First Platform', titleAr:'منصة عربية أولاً', text:'Full RTL support, Arabic PDF reports, Arabic push notifications, and Arabic email alerts — not an afterthought, built in from day one.' },
-              { num:'02', title:'70–90% Cheaper', titleAr:'أرخص بـ 70–90%', text:'UpKeep starts at SAR 40,000/yr. Serviq FM starts at SAR 2,000/yr. Same power, a fraction of the cost, no enterprise sales process.' },
+              { num:'02', title:'70–90% Cheaper', titleAr:'أرخص بـ 70–90%', text:'Other apps start at SAR 40,000/yr. Serviq FM starts at SAR 2,000/yr. Same power, a fraction of the cost, no enterprise sales process.' },
               { num:'03', title:'Live in 1–3 Days', titleAr:'جاهز في 1–3 أيام', text:'No 6-month implementation. No consultants. Sign up, add your assets, invite your team, and you\'re live — in days, not months.' },
               { num:'04', title:'Saudi Payment Methods', titleAr:'طرق الدفع السعودية', text:'Pay by MADA, STC Pay, Visa, or Mastercard. ZATCA-compliant VAT invoices issued automatically at 15% for every subscription.' },
               { num:'05', title:'Mobile-First Design', titleAr:'تصميم للجوال أولاً', text:'Designed for technicians working in the field, not office managers at a desk. Works offline. Fast. Simple. No training required.' },
@@ -362,53 +378,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section id="pricing" style={{ padding:'88px 0', background:offwhite }}>
-        <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px' }}>
-          <div className="reveal" style={{ textAlign:'center', marginBottom:56 }}>
-            <span style={{ display:'inline-block', fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:mid, marginBottom:14 }}>Pricing — الأسعار</span>
-            <h2 className="section-title-el" style={{ fontSize:38, fontWeight:700, color:navy, lineHeight:1.2, marginBottom:16 }}>Simple, transparent pricing in SAR</h2>
-            <p style={{ fontSize:17, color:text2, lineHeight:1.7, maxWidth:560, margin:'0 auto' }}>All prices exclude 15% VAT. ZATCA-compliant invoices issued automatically. No setup fees, no hidden costs, no surprises.</p>
-          </div>
-          <div className="pricing-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:24, alignItems:'start' }}>
-            {[
-              { plan:'Small', planAr:'الخطة الصغيرة', price:'2,000', period:'up to 10 technicians', featured:false, features:['Up to 10 technicians','1 site','Up to 500 assets','Work Orders + Assets + PMs','Mobile app (iOS & Android)','Arabic + English interface','6-month media retention','Email support'], btnClass:'outline' },
-              { plan:'Medium', planAr:'الخطة المتوسطة', price:'5,000', period:'up to 50 technicians', featured:true, features:['Up to 50 technicians','Up to 10 sites','Up to 5,000 assets','Everything in Small','Inspections & Checklists','Inventory & Parts Management','Vendor Management','Analytics Dashboard','WhatsApp onboarding support'], btnClass:'grad' },
-              { plan:'Enterprise', planAr:'خطة المؤسسات', price:'12,000', period:'up to 100 technicians', featured:false, features:['Up to 100 technicians','Unlimited sites','Unlimited assets','Everything in Medium','Dedicated account manager','Custom onboarding programme','SLA agreement','Priority support'], btnClass:'outline' },
-            ].map(p => (
-              <div key={p.plan} className={p.featured ? 'pricing-featured' : ''} style={{ background:'#fff', border: p.featured ? `2px solid ${blue}` : `1px solid ${border}`, borderRadius:16, padding:'36px 32px', position:'relative', ...(p.featured ? { boxShadow:`0 0 0 4px rgba(26,127,193,0.08), 0 12px 48px rgba(30,45,78,0.14)`, transform:'scale(1.02)' } : {}) }}>
-                {p.featured && (
-                  <div style={{ position:'absolute', top:-15, left:'50%', transform:'translateX(-50%)', background:grad, color:'#fff', fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', padding:'5px 20px', borderRadius:999, whiteSpace:'nowrap' }}>
-                    Most Popular — الأكثر شيوعاً
-                  </div>
-                )}
-                <div style={{ fontFamily:ar, fontSize:13, color:muted, direction:'rtl', marginBottom:4 }}>{p.planAr}</div>
-                <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:mid, marginBottom:20 }}>{p.plan}</div>
-                <div style={{ fontSize:42, fontWeight:700, color:navy, lineHeight:1, marginBottom:4 }}>
-                  <sup style={{ fontSize:18, verticalAlign:'super', marginRight:2 }}>SAR</sup>{p.price}<small style={{ fontSize:16, fontWeight:400, color:muted }}>/yr</small>
-                </div>
-                <div style={{ fontSize:13, color:muted, marginBottom:28 }}>excl. VAT · {p.period}</div>
-                <div style={{ height:1, background:border, margin:'24px 0' }}/>
-                <ul style={{ listStyle:'none', marginBottom:32, display:'flex', flexDirection:'column', gap:10 }}>
-                  {p.features.map(f => (
-                    <li key={f} style={{ fontSize:14, color:text2, paddingLeft:22, position:'relative', lineHeight:1.5 }}>
-                      <span style={{ position:'absolute', left:0, color:mid, fontWeight:700 }}>✓</span>{f}
-                    </li>
-                  ))}
-                </ul>
-                <a href="#waitlist" className="pricing-btn" style={{ display:'block', textAlign:'center', padding:13, borderRadius:8, fontSize:14, fontWeight:600, transition:'all 0.18s', ...(p.btnClass === 'grad' ? { background:grad, color:'#fff' } : { border:`1.5px solid ${navy}`, color:navy }) }}>
-                  {p.plan === 'Enterprise' ? 'Contact Us' : 'Join Waitlist'}
-                </a>
-              </div>
-            ))}
-          </div>
-          <p style={{ textAlign:'center', marginTop:36, fontSize:13, color:muted, lineHeight:1.8 }}>
-            Storage add-ons: 12-month retention SAR 600/yr · 24-month SAR 1,200/yr · Unlimited SAR 2,400/yr<br/>
-            Structured data (work orders, assets, PM logs) retained permanently on all plans at no extra cost.
-          </p>
         </div>
       </section>
 
@@ -500,7 +469,7 @@ export default function LandingPage() {
             <div>
               <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:20 }}>Product</div>
               <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:10 }}>
-                {[['#features','Work Orders','أوامر العمل'],['#features','Asset Management','الأصول'],['#features','Preventive Maintenance','الصيانة الوقائية'],['#features','Mobile App','التطبيق'],['#pricing','Pricing','الأسعار']].map(([href,label,ar_]) => (
+                {[['/features/work-orders','Work Orders','أوامر العمل'],['/features/assets','Asset Management','الأصول'],['/features/preventive-maintenance','Preventive Maintenance','الصيانة الوقائية'],['/features/mobile-app','Mobile App','التطبيق']].map(([href,label,ar_]) => (
                   <li key={label}><a href={href} style={{ fontSize:13, color:'rgba(255,255,255,0.5)', transition:'color 0.15s' }}>{label} <span style={{ fontFamily:ar, fontSize:11, color:'rgba(255,255,255,0.28)' }}>{ar_}</span></a></li>
                 ))}
               </ul>
@@ -508,7 +477,7 @@ export default function LandingPage() {
             <div>
               <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:20 }}>Company</div>
               <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:10 }}>
-                {[['#','About','عن الشركة'],['#','Contact','تواصل معنا'],['#','Privacy Policy','سياسة الخصوصية'],['#','Terms of Service','الشروط والأحكام']].map(([href,label,ar_]) => (
+                {[['/about','About','عن الشركة'],['mailto:admin@serviqfm.com','Contact','تواصل معنا'],['/privacy-policy','Privacy Policy','سياسة الخصوصية'],['/terms-of-service','Terms of Service','الشروط والأحكام']].map(([href,label,ar_]) => (
                   <li key={label}><a href={href} style={{ fontSize:13, color:'rgba(255,255,255,0.5)' }}>{label} <span style={{ fontFamily:ar, fontSize:11, color:'rgba(255,255,255,0.28)' }}>{ar_}</span></a></li>
                 ))}
               </ul>
@@ -520,10 +489,18 @@ export default function LandingPage() {
             </div>
             <div>
               <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:20 }}>Contact</div>
-              {[['📧','hello@serviqfm.com'],['💬','WhatsApp Business\n+966 XX XXX XXXX'],['📍','Jeddah, Saudi Arabia\nجدة، المملكة العربية السعودية']].map(([icon, text]) => (
-                <div key={icon} style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:16 }}>
+              {[
+                ['📧', 'admin@serviqfm.com', 'mailto:admin@serviqfm.com'],
+                ['💬', 'WhatsApp Business\n+966 58 11 44 604', 'https://wa.me/966581144604'],
+                ['📍', 'Jeddah, Saudi Arabia\nجدة، المملكة العربية السعودية', null],
+              ].map(([icon, text, href]) => (
+                <div key={icon as string} style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:16 }}>
                   <div style={{ width:32, height:32, borderRadius:8, background:'rgba(255,255,255,0.06)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>{icon}</div>
-                  <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)', lineHeight:1.6, whiteSpace:'pre-line' }}>{text}</div>
+                  {href ? (
+                    <a href={href as string} style={{ fontSize:13, color:'rgba(255,255,255,0.5)', lineHeight:1.6, whiteSpace:'pre-line' }}>{text}</a>
+                  ) : (
+                    <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)', lineHeight:1.6, whiteSpace:'pre-line' }}>{text}</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -531,7 +508,6 @@ export default function LandingPage() {
           <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:24, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
             <div style={{ fontSize:12, color:'rgba(255,255,255,0.3)' }}>© 2026 Serviq FM. All rights reserved. جميع الحقوق محفوظة.</div>
             <div style={{ fontSize:11, color:'rgba(255,255,255,0.25)', textAlign:'right', lineHeight:1.7 }}>
-              VAT Registration No: [ZATCA Number] · CR: [Commercial Registration No]<br/>
               PDPL Compliant · ZATCA E-Invoicing Phase 2 Compliant
             </div>
           </div>
