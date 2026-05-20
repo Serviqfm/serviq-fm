@@ -60,7 +60,20 @@ export default function VendorDetailPage() {
   async function saveInvoice(e: React.FormEvent) {
     e.preventDefault()
     setSavingInvoice(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('Not signed in.')
+      setSavingInvoice(false)
+      return
+    }
+    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+    if (!profile?.organisation_id) {
+      alert('No organisation found for this user.')
+      setSavingInvoice(false)
+      return
+    }
     const { error } = await supabase.from('vendor_invoices').insert({
+      organisation_id: profile.organisation_id,
       vendor_id: id,
       invoice_number: invoiceForm.invoice_number,
       amount: parseFloat(invoiceForm.amount),
@@ -69,11 +82,15 @@ export default function VendorDetailPage() {
       work_order_id: invoiceForm.work_order_id || null,
       status: 'pending',
     })
-    if (!error) {
-      setInvoiceForm({ invoice_number: '', amount: '', description: '', invoice_date: '', work_order_id: '' })
-      setShowInvoiceForm(false)
-      fetchAll()
+    if (error) {
+      console.error('[saveInvoice] failed', error)
+      alert(`Could not save invoice: ${error.message ?? 'unknown error'}`)
+      setSavingInvoice(false)
+      return
     }
+    setInvoiceForm({ invoice_number: '', amount: '', description: '', invoice_date: '', work_order_id: '' })
+    setShowInvoiceForm(false)
+    fetchAll()
     setSavingInvoice(false)
   }
 

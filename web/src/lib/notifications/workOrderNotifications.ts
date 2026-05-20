@@ -14,7 +14,7 @@ export async function notifyWOCreatedUpdated(
       <h2>Work Order Updated</h2>
       <p>Your work order <strong>${woNumber}</strong> has been updated.</p>
       <p><strong>Title:</strong> ${woTitle}</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
+      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Work Order</a></p>
     `,
     pushTitle: `WO ${woNumber} Updated`,
     pushBody: woTitle,
@@ -37,7 +37,7 @@ export async function notifyWOAssigned(
       <h2>New Work Order Assignment</h2>
       <p><strong>${assignedBy}</strong> assigned you to work order <strong>${woNumber}</strong>.</p>
       <p><strong>Title:</strong> ${woTitle}</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
+      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Work Order</a></p>
     `,
     pushTitle: `Assigned to ${woNumber}`,
     pushBody: woTitle,
@@ -60,7 +60,7 @@ export async function notifyWOAdditionalWorker(
       <h2>Added as Additional Worker</h2>
       <p><strong>${addedBy}</strong> added you as an additional worker to <strong>${woNumber}</strong>.</p>
       <p><strong>Title:</strong> ${woTitle}</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
+      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Work Order</a></p>
     `,
     pushTitle: `Added to ${woNumber}`,
     pushBody: woTitle,
@@ -85,7 +85,7 @@ export async function notifyWOTeamAssigned(
           <h2>Team Work Order Assignment</h2>
           <p>Your team <strong>${teamName}</strong> has been assigned to work order <strong>${woNumber}</strong>.</p>
           <p><strong>Title:</strong> ${woTitle}</p>
-          <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
+          <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Work Order</a></p>
         `,
         pushTitle: `Team: ${woNumber}`,
         pushBody: woTitle,
@@ -109,7 +109,7 @@ export async function notifyWOFollowedUpdated(
       <h2>Followed Work Order Updated</h2>
       <p>A work order you're following <strong>${woNumber}</strong> has been updated.</p>
       <p><strong>Title:</strong> ${woTitle}</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
+      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Work Order</a></p>
     `,
     pushTitle: `${woNumber} Updated`,
     pushBody: woTitle,
@@ -133,7 +133,7 @@ export async function notifyUnassignedWO(
           <h2>Unassigned Work Order</h2>
           <p>An unassigned work order <strong>${woNumber}</strong> requires attention.</p>
           <p><strong>Title:</strong> ${woTitle}</p>
-          <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">Assign Work Order</a></p>
+          <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">Assign Work Order</a></p>
         `,
         pushTitle: `Unassigned: ${woNumber}`,
         pushBody: woTitle,
@@ -159,7 +159,7 @@ export async function notifyWOMention(
       <h2>You've Been Mentioned</h2>
       <p><strong>${mentionedBy}</strong> mentioned you in work order <strong>${woNumber}</strong>.</p>
       <p><strong>Comment:</strong> ${comment}</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Conversation</a></p>
+      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Conversation</a></p>
     `,
     pushTitle: `Mentioned in ${woNumber}`,
     pushBody: comment.substring(0, 100),
@@ -182,7 +182,7 @@ export async function notifyWOOverdue(
     <p>Work order <strong>${woNumber}</strong> is <strong>${daysOverdue} days overdue</strong>.</p>
     <p><strong>Title:</strong> ${woTitle}</p>
     <p style="color: #C62828;"><strong>Immediate action required.</strong></p>
-    <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">Update Work Order</a></p>
+    <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">Update Work Order</a></p>
   `;
 
   await NotificationService.notify(userId, 'wo_i_assigned_updated', {

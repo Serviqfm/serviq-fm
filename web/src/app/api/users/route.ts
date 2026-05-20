@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         authData.user.id,
         cleanedEmail,
         cleanedFullName,
-        `${process.env.NEXT_PUBLIC_APP_URL}/login/employee`,
+        `${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/login/employee`,
         tempPassword
       );
     } catch (err) {

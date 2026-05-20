@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
               : `Work order <strong>${woNumber}</strong> status has changed to <strong>${label}</strong>.`
           }</p>
           <p><strong>Title:</strong> ${woTitle}</p>
-          <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/work-orders/${woId}">View Work Order</a></p>
+          <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${woId}">View Work Order</a></p>
         </div>
       `,
       pushTitle: isEvent ? `${woNumber}: ${label}` : `${woNumber} — ${label}`,

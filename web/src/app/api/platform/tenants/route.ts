@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       authUser.user.id,
       body.admin_email,
       body.admin_full_name,
-      `${process.env.NEXT_PUBLIC_APP_URL}/login/client`,
+      `${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/login/client`,
       tempPassword,
     )
   } catch (e) {

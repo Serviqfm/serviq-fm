@@ -48,15 +48,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const closeoutPhotoUrls = Array.isArray(body.closeout_photo_urls) ? body.closeout_photo_urls : []
 
-  // Field-config enforcement for the close-out form.
-  const enforcePayload: Record<string, unknown> = {
-    closeout_photos: closeoutPhotoUrls.length > 0 ? closeoutPhotoUrls : '',
-  }
-  const enforcement = await enforceFieldConfig(profile.organisation_id, 'work_orders_close', enforcePayload)
-  if ('error' in enforcement) {
-    return NextResponse.json({ error: enforcement.error }, { status: 400 })
-  }
-
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -79,6 +70,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const existingPhotos: string[] = Array.isArray(existingWO.photo_urls) ? existingWO.photo_urls : []
   const allPhotos = [...existingPhotos, ...closeoutPhotoUrls]
+
+  // Field-config enforcement: 'closeout_photos required' is satisfied by EITHER newly uploaded
+  // close-out photos OR photos already attached to the work order from earlier (the Photos tab).
+  const enforcePayload: Record<string, unknown> = {
+    closeout_photos: allPhotos.length > 0 ? allPhotos : '',
+  }
+  const enforcement = await enforceFieldConfig(profile.organisation_id, 'work_orders_close', enforcePayload)
+  if ('error' in enforcement) {
+    return NextResponse.json({ error: enforcement.error }, { status: 400 })
+  }
 
   const updateRow: Record<string, unknown> = {
     status: newStatus,

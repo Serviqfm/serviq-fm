@@ -115,7 +115,8 @@ export class NotificationService {
     data?: Record<string, string>
   ): Promise<void> {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/push`, {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'
+      const response = await fetch(`${appUrl}/api/push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, title, body, data }),

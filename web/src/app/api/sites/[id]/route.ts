@@ -55,7 +55,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     name_ar: cleaned.name_ar ? cleaned.name_ar : null,
     city: cleaned.city ? cleaned.city : null,
     address: cleaned.address ? cleaned.address : null,
-    updated_at: new Date().toISOString(),
   }
 
   // invoicing_enabled is a boolean — only include if it was in the cleaned payload

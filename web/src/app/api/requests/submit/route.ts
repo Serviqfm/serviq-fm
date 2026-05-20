@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     if (admins && admins.length > 0) {
       const { NotificationService } = await import('@/lib/NotificationService')
-      const requestUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/requests/${request.id}`
+      const requestUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/requests/${request.id}`
       await Promise.allSettled(
         admins.map(admin =>
           NotificationService.notify(admin.id, 'wo_requested_from_portal', {

@@ -107,11 +107,15 @@ export default function WorkOrderDetailPage() {
     if (closeoutPhotos.length > 0 && wo) {
       for (const file of closeoutPhotos) {
         const fileName = `${wo.organisation_id}/${Date.now()}-closeout-${file.name}`
-        const { data: uploadData } = await supabase.storage.from('work-order-media').upload(fileName, file)
-        if (uploadData) {
-          const { data: urlData } = supabase.storage.from('work-order-media').getPublicUrl(uploadData.path)
-          closeoutPhotoUrls.push(urlData.publicUrl)
+        const { data: uploadData, error: uploadErr } = await supabase.storage.from('work-order-media').upload(fileName, file)
+        if (uploadErr || !uploadData) {
+          console.error('[wo close] upload failed for', file.name, uploadErr)
+          alert(`Failed to upload "${file.name}": ${uploadErr?.message ?? 'unknown error'}. The work order was not updated.`)
+          setUpdating(false)
+          return
         }
+        const { data: urlData } = supabase.storage.from('work-order-media').getPublicUrl(uploadData.path)
+        closeoutPhotoUrls.push(urlData.publicUrl)
       }
     }
 
