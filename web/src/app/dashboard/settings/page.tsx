@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'>('organisation')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'>('account')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -38,6 +38,10 @@ export default function SettingsPage() {
     if (profile) {
       setUser(profile)
       setOrg(profile.organisation)
+      // Default to 'organisation' for admins/managers, 'account' for technicians (who can't see org/storage).
+      if (profile.role === 'admin' || profile.role === 'manager') {
+        setActiveTab('organisation')
+      }
       setForm({
         name: profile.organisation?.name ?? '',
         name_ar: profile.organisation?.name_ar ?? '',
@@ -93,13 +97,19 @@ export default function SettingsPage() {
 
           <div className="flex gap-0 mb-8 border-b border-outline-variant">
             {(() => {
-              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'; label: string }[] = [
-                { key: 'organisation',   label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
-                { key: 'storage',        label: lang === 'ar' ? 'التخزين' : 'Storage' },
-                { key: 'account',        label: lang === 'ar' ? 'الحساب' : 'Account' },
-                { key: 'notifications',  label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
-                { key: 'push_audit',     label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
-              ]
+              const isElevated = user?.role === 'admin' || user?.role === 'manager'
+              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'; label: string }[] = []
+              if (isElevated) {
+                tabs.push(
+                  { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
+                  { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
+                )
+              }
+              tabs.push(
+                { key: 'account',       label: lang === 'ar' ? 'الحساب' : 'Account' },
+                { key: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications' },
+                { key: 'push_audit',    label: lang === 'ar' ? 'تدقيق الرسائل' : 'Push Audit' },
+              )
               if (user?.role === 'admin') {
                 tabs.push({ key: 'form_fields', label: lang === 'ar' ? 'حقول النماذج' : 'Form Fields' })
               }

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatSAR } from '@/lib/currency'
+import BillingForm from './billing/BillingForm'
+import FlagsForm from './flags/FlagsForm'
 
 type TenantUser = {
   id: string
@@ -143,8 +145,8 @@ export default function TenantDetailPage() {
 
       {tab === 'overview' && <OverviewTab detail={detail} />}
       {tab === 'users' && <UsersTab tenantId={id} users={detail.users} onChange={refresh} />}
-      {tab === 'billing' && <BillingPlaceholder tenantId={id} />}
-      {tab === 'flags' && <FlagsPlaceholder tenantId={id} />}
+      {tab === 'billing' && <BillingForm tenantId={id} />}
+      {tab === 'flags' && <FlagsForm tenantId={id} />}
       {tab === 'audit' && <AuditTab tenantId={id} />}
     </div>
   )
@@ -230,16 +232,6 @@ function UsersTab({ tenantId, users, onChange }: { tenantId: string; users: Tena
       </table>
     </div>
   )
-}
-
-function BillingPlaceholder({ tenantId }: { tenantId: string }) {
-  // Agent-Billing replaces this with the actual form component
-  return <div className="text-on-surface-variant">Billing form — implemented by Agent-Billing (see /api/platform/tenants/{tenantId}/billing)</div>
-}
-
-function FlagsPlaceholder({ tenantId }: { tenantId: string }) {
-  // Agent-Flags replaces this with the actual form component
-  return <div className="text-on-surface-variant">Flags form — implemented by Agent-Flags (see /api/platform/tenants/{tenantId}/flags)</div>
 }
 
 type AuditRow = { id: string; action: string; created_at: string; source: 'platform' | 'tenant' }

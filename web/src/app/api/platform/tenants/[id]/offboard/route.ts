@@ -6,6 +6,9 @@ import { logPlatformAction } from '@/lib/platformAudit'
 import { Resend } from 'resend'
 
 export const runtime = 'nodejs'
+// Offboarding dumps 13 tables, builds a zip, uploads to storage, and sends an email.
+// On larger tenants this can take 30-60s; default Vercel timeout (10s) is too short.
+export const maxDuration = 60
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createServerSupabaseClient()
@@ -24,8 +27,19 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (org.offboarded_at) return NextResponse.json({ error: 'Already offboarded' }, { status: 400 })
 
   // 1. Build + upload zip
-  const { buffer, filename } = await buildOffboardZip(params.id)
-  const signedUrl = await uploadOffboardZip(filename, buffer)
+  let buffer: Buffer, filename: string, signedUrl: string
+  try {
+    ({ buffer, filename } = await buildOffboardZip(params.id))
+  } catch (e) {
+    console.error('[offboard] build zip failed', e)
+    return NextResponse.json({ error: 'Failed to build export zip: ' + (e instanceof Error ? e.message : String(e)) }, { status: 500 })
+  }
+  try {
+    signedUrl = await uploadOffboardZip(filename, buffer)
+  } catch (e) {
+    console.error('[offboard] upload zip failed', e)
+    return NextResponse.json({ error: 'Failed to upload export. Make sure the "offboard-exports" storage bucket exists. (' + (e instanceof Error ? e.message : String(e)) + ')' }, { status: 500 })
+  }
 
   // 2. Update organisation
   await admin.from('organisations').update({

@@ -69,7 +69,7 @@ export default function UsersPage() {
             <h1 className="text-3xl font-bold text-on-surface">{t('users.title')}</h1>
             <p className="text-on-surface-variant mt-1 text-sm">{users.length} {t('users.in_org')}</p>
           </div>
-          {currentUser?.role === 'admin' && (
+          {['admin', 'manager'].includes(currentUser?.role) && (
             <Link href='/dashboard/users/new'>
               <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
                 <span className="material-symbols-outlined text-lg">person_add</span>{t('btn.add_user')}

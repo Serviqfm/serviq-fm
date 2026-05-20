@@ -25,9 +25,14 @@ export async function buildOffboardZip(orgId: string): Promise<{ buffer: Buffer;
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
   const zip = new JSZip()
-  for (const table of TENANT_TABLES) {
+  // Run table dumps in parallel — was sequential, which on a tenant with many tables and rows
+  // made the request long enough to hit the Vercel function timeout before the zip was built.
+  const dumps = await Promise.all(TENANT_TABLES.map(async table => {
     const column = table === 'organisations' ? 'id' : 'organisation_id'
     const { data, error } = await admin.from(table).select('*').eq(column, orgId)
+    return { table, data, error }
+  }))
+  for (const { table, data, error } of dumps) {
     if (error) {
       zip.file(`${table}.error.txt`, error.message)
       continue

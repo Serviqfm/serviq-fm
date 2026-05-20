@@ -6,19 +6,20 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 
-const NAV = [
+// roles: items listed here are visible only to these roles. Items without `roles` are visible to everyone.
+const NAV: { key: string; href: string; en: string; ar: string; icon: string; exact: boolean; roles?: string[] }[] = [
   { key: 'dashboard',   href: '/dashboard',              en: 'Dashboard',    ar: 'لوحة التحكم',   icon: 'dashboard',      exact: true  },
   { key: 'work_orders', href: '/dashboard/work-orders',  en: 'Work Orders',  ar: 'أوامر العمل',   icon: 'assignment',     exact: false },
-  { key: 'requests',    href: '/dashboard/requests',     en: 'Requests',     ar: 'الطلبات',        icon: 'inbox',          exact: false },
+  { key: 'requests',    href: '/dashboard/requests',     en: 'Requests',     ar: 'الطلبات',        icon: 'inbox',          exact: false, roles: ['admin', 'manager'] },
   { key: 'assets',      href: '/dashboard/assets',       en: 'Assets',       ar: 'الأصول',         icon: 'inventory_2',    exact: false },
   { key: 'pm',          href: '/dashboard/pm-schedules', en: 'PM Schedules', ar: 'جدول الصيانة',  icon: 'event_repeat',   exact: false },
-  { key: 'sites',       href: '/dashboard/sites',        en: 'Sites',        ar: 'المواقع',        icon: 'location_city',  exact: false },
-  { key: 'vendors',     href: '/dashboard/vendors',      en: 'Vendors',      ar: 'الموردون',       icon: 'business',       exact: false },
+  { key: 'sites',       href: '/dashboard/sites',        en: 'Sites',        ar: 'المواقع',        icon: 'location_city',  exact: false, roles: ['admin', 'manager'] },
+  { key: 'vendors',     href: '/dashboard/vendors',      en: 'Vendors',      ar: 'الموردون',       icon: 'business',       exact: false, roles: ['admin', 'manager'] },
   { key: 'inspections', href: '/dashboard/inspections',  en: 'Inspections',  ar: 'التفتيش',        icon: 'fact_check',     exact: false },
   { key: 'inventory',   href: '/dashboard/inventory',    en: 'Inventory',    ar: 'المخزون',        icon: 'category',       exact: false },
-  { key: 'users',       href: '/dashboard/users',        en: 'Users',        ar: 'المستخدمون',     icon: 'group',          exact: false },
-  { key: 'invoices',    href: '/dashboard/invoices',     en: 'Invoices',     ar: 'الفواتير',        icon: 'receipt_long',   exact: false },
-  { key: 'reports',     href: '/dashboard/reports',      en: 'Reports',      ar: 'التقارير',        icon: 'bar_chart',      exact: false },
+  { key: 'users',       href: '/dashboard/users',        en: 'Users',        ar: 'المستخدمون',     icon: 'group',          exact: false, roles: ['admin', 'manager'] },
+  { key: 'invoices',    href: '/dashboard/invoices',     en: 'Invoices',     ar: 'الفواتير',        icon: 'receipt_long',   exact: false, roles: ['admin', 'manager'] },
+  { key: 'reports',     href: '/dashboard/reports',      en: 'Reports',      ar: 'التقارير',        icon: 'bar_chart',      exact: false, roles: ['admin', 'manager'] },
   { key: 'settings',    href: '/dashboard/settings',     en: 'Settings',     ar: 'الإعدادات',      icon: 'settings',       exact: false },
 ]
 
@@ -92,7 +93,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-2 flex flex-col gap-0.5">
-        {NAV.map(item => {
+        {NAV.filter(item => !item.roles || (user && item.roles.includes(user.role))).map(item => {
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href)
           const label = isAr ? item.ar : item.en
           const isWO = item.key === 'work_orders'
