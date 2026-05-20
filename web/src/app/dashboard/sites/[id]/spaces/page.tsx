@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import QRCode from 'qrcode'
+import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'
 
@@ -37,6 +38,35 @@ export default function SpacesPage({ params }: { params: { id: string } }) {
     if (!confirm('Delete this space? This cannot be undone.')) return
     await supabase.from('spaces').delete().eq('id', id)
     fetchData()
+  }
+
+  const csvImportRef = useRef<HTMLInputElement>(null)
+  function handleCsvExport() {
+    exportCSV(`spaces-${site?.name ?? 'site'}-${new Date().toISOString().slice(0, 10)}.csv`, spaces.map(s => ({
+      name: s.name ?? '', name_ar: s.name_ar ?? '', floor: s.floor ?? '', description: s.description ?? '',
+    })))
+  }
+  async function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const rows = parseCSV(await readFileText(file))
+      if (rows.length === 0) { alert('CSV had no data rows.'); return }
+      const payload = rows.filter(r => r.name).map(r => ({
+        site_id: params.id,
+        name: r.name,
+        name_ar: r.name_ar || null,
+        floor: r.floor || 'Ground',
+        description: r.description || null,
+      }))
+      if (payload.length === 0) { alert('No rows had a name to import.'); return }
+      const { error } = await supabase.from('spaces').insert(payload)
+      if (error) { alert('Import failed: ' + error.message); return }
+      alert(`Imported ${payload.length} space(s).`)
+      fetchData()
+    } finally {
+      if (csvImportRef.current) csvImportRef.current.value = ''
+    }
   }
 
   async function openQr(space: { qr_token: string; name: string; floor: string }) {
@@ -83,6 +113,9 @@ export default function SpacesPage({ params }: { params: { id: string } }) {
           </div>
           <div className="flex gap-2.5">
             <button onClick={() => setShowExport(true)} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">Export QR Codes</button>
+            <input ref={csvImportRef} type="file" accept=".csv,text/csv" onChange={handleCsvImport} className="hidden" />
+            <button onClick={() => csvImportRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">Import CSV</button>
+            <button onClick={handleCsvExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-secondary/20 transition-colors">Export CSV</button>
             <Link href={`/dashboard/sites/${params.id}/spaces/new`}>
               <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">Add Space +</button>
             </Link>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import Link from 'next/link'
+import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
 
 export default function VendorsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,6 +50,56 @@ export default function VendorsPage() {
     fetchVendors()
   }
 
+  const importRef = useRef<HTMLInputElement>(null)
+
+  function handleExport() {
+    if (vendors.length === 0) { alert('No vendors to export.'); return }
+    exportCSV(`vendors-${new Date().toISOString().slice(0, 10)}.csv`, vendors.map(v => ({
+      company_name: v.company_name ?? '',
+      company_name_ar: v.company_name_ar ?? '',
+      category: v.category ?? '',
+      email: v.email ?? '',
+      phone: v.phone ?? '',
+      contact_person: v.contact_person ?? '',
+      vat_number: v.vat_number ?? '',
+      cr_number: v.cr_number ?? '',
+      is_active: v.is_active ? 'true' : 'false',
+    })))
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await readFileText(file)
+      const rows = parseCSV(text)
+      if (rows.length === 0) { alert('CSV had no data rows.'); return }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { alert('Not signed in.'); return }
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (!profile?.organisation_id) { alert('No organisation.'); return }
+      const payload = rows.filter(r => r.company_name).map(r => ({
+        organisation_id: profile.organisation_id,
+        company_name: r.company_name,
+        company_name_ar: r.company_name_ar || null,
+        category: r.category || null,
+        email: r.email || null,
+        phone: r.phone || null,
+        contact_person: r.contact_person || null,
+        vat_number: r.vat_number || null,
+        cr_number: r.cr_number || null,
+        is_active: r.is_active === 'false' ? false : true,
+      }))
+      if (payload.length === 0) { alert('No rows had a company_name to import.'); return }
+      const { error } = await supabase.from('vendors').insert(payload)
+      if (error) { alert('Import failed: ' + error.message); return }
+      alert(`Imported ${payload.length} vendor(s).`)
+      fetchVendors()
+    } finally {
+      if (importRef.current) importRef.current.value = ''
+    }
+  }
+
   function toggleSelect(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   function toggleSelectAll() { setSelected(selected.length === filtered.length ? [] : filtered.map(v => v.id)) }
 
@@ -92,11 +143,20 @@ export default function VendorsPage() {
             <h1 className="text-3xl font-bold text-on-surface">{t('vendors.title')}</h1>
             <p className="text-on-surface-variant mt-1 text-sm">{vendors.length} {t('vendors.title').toLowerCase()} registered</p>
           </div>
-          <Link href='/dashboard/vendors/new'>
-            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-              <span className="material-symbols-outlined text-lg">add</span>{t('btn.add_vendor')}
+          <div className="flex items-center gap-2">
+            <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+            <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">upload</span>Import CSV
             </button>
-          </Link>
+            <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/20 transition-colors">
+              <span className="material-symbols-outlined text-lg">download</span>Export CSV
+            </button>
+            <Link href='/dashboard/vendors/new'>
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">add</span>{t('btn.add_vendor')}
+              </button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

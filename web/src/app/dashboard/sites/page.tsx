@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
 
 export default function SitesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +46,42 @@ export default function SitesPage() {
     s.address?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const importRef = useRef<HTMLInputElement>(null)
+  function handleExport() {
+    exportCSV(`sites-${new Date().toISOString().slice(0, 10)}.csv`, sites.map(s => ({
+      name: s.name ?? '', name_ar: s.name_ar ?? '', city: s.city ?? '', address: s.address ?? '',
+      invoicing_enabled: s.invoicing_enabled ? 'true' : 'false',
+    })))
+  }
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const rows = parseCSV(await readFileText(file))
+      if (rows.length === 0) { alert('CSV had no data rows.'); return }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { alert('Not signed in.'); return }
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (!profile?.organisation_id) { alert('No organisation.'); return }
+      const payload = rows.filter(r => r.name).map(r => ({
+        organisation_id: profile.organisation_id,
+        name: r.name,
+        name_ar: r.name_ar || null,
+        city: r.city || null,
+        address: r.address || null,
+        invoicing_enabled: r.invoicing_enabled === 'true',
+        is_active: true,
+      }))
+      if (payload.length === 0) { alert('No rows had a name to import.'); return }
+      const { error } = await supabase.from('sites').insert(payload)
+      if (error) { alert('Import failed: ' + error.message); return }
+      alert(`Imported ${payload.length} site(s).`)
+      fetchSites()
+    } finally {
+      if (importRef.current) importRef.current.value = ''
+    }
+  }
+
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
       <div className="max-w-[1440px] mx-auto space-y-6">
@@ -55,11 +92,16 @@ export default function SitesPage() {
               {sites.length} {lang === 'ar' ? 'مواقع مسجلة' : 'sites registered'}
             </p>
           </div>
-          <Link href='/dashboard/sites/new'>
-            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-              {lang === 'ar' ? '+ إضافة موقع' : 'Add Site +'}
-            </button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+            <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">Import CSV</button>
+            <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-secondary/20 transition-colors">Export CSV</button>
+            <Link href='/dashboard/sites/new'>
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                {lang === 'ar' ? '+ إضافة موقع' : 'Add Site +'}
+              </button>
+            </Link>
+          </div>
         </div>
 
         <input

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import Link from 'next/link'
+import { parseCSV, readFileText } from '@/lib/csv'
 
 export default function InventoryPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,6 +77,38 @@ export default function InventoryPage() {
     const matchesStatus = filterStatus === 'all' || statusOf(i) === filterStatus
     return matchesSearch && matchesCat && matchesStatus
   })
+
+  const importRef = useRef<HTMLInputElement>(null)
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const rows = parseCSV(await readFileText(file))
+      if (rows.length === 0) { alert('CSV had no data rows.'); return }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { alert('Not signed in.'); return }
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (!profile?.organisation_id) { alert('No organisation.'); return }
+      const payload = rows.filter(r => r.name).map(r => ({
+        organisation_id: profile.organisation_id,
+        name: r.name,
+        name_ar: r.name_ar || null,
+        sku: r.sku || null,
+        category: r.category || null,
+        unit: r.unit || 'pcs',
+        stock_quantity: r.stock_quantity ? Number(r.stock_quantity) : 0,
+        minimum_stock_level: r.minimum_stock_level ? Number(r.minimum_stock_level) : 0,
+        unit_cost: r.unit_cost ? Number(r.unit_cost) : null,
+      }))
+      if (payload.length === 0) { alert('No rows had a name to import.'); return }
+      const { error } = await supabase.from('inventory_items').insert(payload)
+      if (error) { alert('Import failed: ' + error.message); return }
+      alert(`Imported ${payload.length} item(s).`)
+      fetchItems()
+    } finally {
+      if (importRef.current) importRef.current.value = ''
+    }
+  }
 
   function exportCSV() {
     if (filtered.length === 0) {
@@ -210,6 +243,11 @@ export default function InventoryPage() {
               <button onClick={() => setShowFilters(s => !s)}
                 className={`flex items-center gap-2 px-4 py-2 border rounded-xl transition-colors text-sm ${showFilters ? 'bg-primary/10 text-primary border-primary/40' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low'}`}>
                 <span className="material-symbols-outlined text-base">filter_list</span>Filter{(filterCategory || filterStatus !== 'all') ? ` (${[filterCategory, filterStatus !== 'all' ? filterStatus : null].filter(Boolean).length})` : ''}
+              </button>
+              <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+              <button onClick={() => importRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-colors text-sm">
+                <span className="material-symbols-outlined text-base">upload</span>Import
               </button>
               <button onClick={exportCSV}
                 className="flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary rounded-xl font-semibold hover:bg-secondary/20 transition-colors text-sm">
