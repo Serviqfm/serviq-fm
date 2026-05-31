@@ -55,7 +55,7 @@ export default function FlagsForm({ tenantId }: { tenantId: string }) {
         {saved && <span className="text-primary text-sm font-semibold">Saved</span>}
       </div>
       <p className="text-[11px] text-on-surface-variant pt-2">
-        Note: feature-flag enforcement is not yet wired in this release. These toggles are stored and audited but do not gate any feature.
+        Enforced today: <strong>invoicing</strong> hides the Invoices nav for tenant users, <strong>advanced_reporting</strong> hides Reports, <strong>multi_site</strong> blocks adding a second Site. Other flags (<strong>api_access</strong>, <strong>custom_branding</strong>) persist but do not yet gate features.
       </p>
     </div>
   )

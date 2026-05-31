@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { useFeatureFlag } from '@/lib/featureFlags'
 
 // roles: items listed here are visible only to these roles. Items without `roles` are visible to everyone.
 const NAV: { key: string; href: string; en: string; ar: string; icon: string; exact: boolean; roles?: string[] }[] = [
@@ -33,6 +34,7 @@ export default function Sidebar() {
   const [reqBadge, setReqBadge] = useState(0)
   const supabase = createClient()
   const isAr = lang === 'ar'
+  const { flags } = useFeatureFlag()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUser() }, [])
@@ -93,7 +95,15 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-2 flex flex-col gap-0.5">
-        {NAV.filter(item => !item.roles || (user && item.roles.includes(user.role))).map(item => {
+        {NAV
+          .filter(item => !item.roles || (user && item.roles.includes(user.role)))
+          .filter(item => {
+            // Feature-flag gates
+            if (item.key === 'invoices' && !flags.invoicing) return false
+            if (item.key === 'reports' && !flags.advanced_reporting) return false
+            return true
+          })
+          .map(item => {
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href)
           const label = isAr ? item.ar : item.en
           const isWO = item.key === 'work_orders'

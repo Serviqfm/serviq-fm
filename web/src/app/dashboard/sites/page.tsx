@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
+import { useFeatureFlag } from '@/lib/featureFlags'
 
 export default function SitesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,6 +15,8 @@ export default function SitesPage() {
   const [search, setSearch] = useState('')
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  const { flags } = useFeatureFlag()
+  const canAddSite = flags.multi_site || sites.length === 0
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSites() }, [])
@@ -96,11 +99,18 @@ export default function SitesPage() {
             <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
             <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">Import CSV</button>
             <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-secondary/20 transition-colors">Export CSV</button>
-            <Link href='/dashboard/sites/new'>
-              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-                {lang === 'ar' ? '+ إضافة موقع' : 'Add Site +'}
+            {canAddSite ? (
+              <Link href='/dashboard/sites/new'>
+                <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                  {lang === 'ar' ? '+ إضافة موقع' : 'Add Site +'}
+                </button>
+              </Link>
+            ) : (
+              <button disabled title="Multi-site is not enabled for your plan. Contact your platform admin to enable it."
+                className="bg-surface-container-low border border-outline-variant text-on-surface-variant px-5 py-2.5 rounded-xl font-semibold text-sm opacity-60 cursor-not-allowed">
+                {lang === 'ar' ? 'محدود بموقع واحد' : 'Single-site plan'}
               </button>
-            </Link>
+            )}
           </div>
         </div>
 
