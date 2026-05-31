@@ -134,7 +134,17 @@ export default function DashboardOverviewPage() {
               <span className="material-symbols-outlined text-lg">calendar_today</span>
               Today: {today}
             </div>
-            <button disabled className="bg-secondary text-on-secondary py-2 px-4 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-2 opacity-50 cursor-not-allowed">
+            <button onClick={async () => {
+              const res = await fetch('/api/reports/dashboard')
+              if (!res.ok) { alert('Export failed.'); return }
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `dashboard-${new Date().toISOString().slice(0, 10)}.pdf`
+              a.click()
+              URL.revokeObjectURL(url)
+            }} className="bg-secondary text-on-secondary py-2 px-4 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-2 hover:bg-secondary/90 transition-colors">
               <span className="material-symbols-outlined text-lg">file_download</span>
               Export Report
             </button>

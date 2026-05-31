@@ -45,7 +45,17 @@ export default function InspectionDetailPage() {
     <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <a href='/dashboard/inspections' style={{ color: '#999', fontSize: 13, textDecoration: 'none' }}>Back to Inspections</a>
-        <button onClick={() => window.print()} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13 }}>Export PDF</button>
+        <button onClick={async () => {
+          const res = await fetch(`/api/reports/inspection/${id}`)
+          if (!res.ok) { alert('Export failed.'); return }
+          const blob = await res.blob()
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `inspection-${id}.pdf`
+          a.click()
+          URL.revokeObjectURL(url)
+        }} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: '#1a1a2e', color: 'white', cursor: 'pointer', fontSize: 13 }}>Export PDF</button>
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>

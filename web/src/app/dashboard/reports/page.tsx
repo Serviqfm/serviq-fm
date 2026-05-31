@@ -93,16 +93,11 @@ export default function ReportsPage() {
     setLoading(false)
   }
 
-  function downloadCSV(filename: string, rows: Record<string, unknown>[]) {
-    if (rows.length === 0) { alert('No data to export.'); return }
-    const cols = Object.keys(rows[0])
-    const esc = (v: unknown) => {
-      if (v === null || v === undefined) return ''
-      const s = typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v))
-      return `"${s.replace(/"/g, '""')}"`
-    }
-    const csv = [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+
+  async function downloadPdf(path: string, filename: string) {
+    const res = await fetch(path)
+    if (!res.ok) { alert('Export failed.'); return }
+    const blob = await res.blob()
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -111,63 +106,23 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url)
   }
 
-  async function getOrgId(): Promise<string | null> {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    return profile?.organisation_id ?? null
-  }
-
   async function quickExport() {
-    const orgId = await getOrgId()
-    if (!orgId) { alert('Not signed in.'); return }
-    const today = new Date().toISOString().slice(0, 10)
-    downloadCSV(`reports-summary-${today}.csv`, [
-      { metric: 'Total Work Orders', value: kpis.totalWO },
-      { metric: 'Open Work Orders', value: kpis.openWO },
-      { metric: 'Total Assets', value: kpis.totalAssets },
-      { metric: 'Active PM Schedules', value: kpis.totalPM },
-      ...woByStatus.map((s: { name: string; value: number }) => ({ metric: 'WO Status: ' + s.name, value: s.value })),
-      ...woByPriority.map((s: { name: string; value: number }) => ({ metric: 'WO Priority: ' + s.name, value: s.value })),
-      ...assetsByCategory.map((s: { name: string; value: number }) => ({ metric: 'Assets by category: ' + s.name, value: s.value })),
-    ])
+    await downloadPdf('/api/reports/dashboard', `dashboard-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   async function buildCustomReport() {
-    const orgId = await getOrgId()
-    if (!orgId) { alert('Not signed in.'); return }
-    const { data } = await supabase
-      .from('work_orders')
-      .select('wo_number, title, status, priority, created_at, completed_at, asset:asset_id(name), site:site_id(name)')
-      .eq('organisation_id', orgId)
-      .order('created_at', { ascending: false })
-    const rows = (data ?? []) as unknown as { wo_number?: string; title?: string; status?: string; priority?: string; created_at?: string; completed_at?: string; asset?: { name?: string } | null; site?: { name?: string } | null }[]
-    const flat = rows.map(w => ({
-      wo_number: w.wo_number ?? '',
-      title: w.title ?? '',
-      status: w.status ?? '',
-      priority: w.priority ?? '',
-      created_at: w.created_at ?? '',
-      completed_at: w.completed_at ?? '',
-      asset: w.asset?.name ?? '',
-      site: w.site?.name ?? '',
-    }))
-    downloadCSV(`work-orders-${new Date().toISOString().slice(0, 10)}.csv`, flat)
+    await downloadPdf('/api/reports/standard/work-orders', `work-orders-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   async function generateStandardReport(title: string) {
-    const orgId = await getOrgId()
-    if (!orgId) { alert('Not signed in.'); return }
-    if (title === 'Monthly Asset Health') {
-      const { data } = await supabase.from('assets').select('name, category, status, criticality, purchase_date, last_pm_at').eq('organisation_id', orgId)
-      downloadCSV(`asset-health-${new Date().toISOString().slice(0, 10)}.csv`, data ?? [])
-    } else if (title === 'Technician Performance') {
-      const { data } = await supabase.from('work_orders').select('assigned_to, status, priority, created_at, completed_at').eq('organisation_id', orgId)
-      downloadCSV(`technician-performance-${new Date().toISOString().slice(0, 10)}.csv`, data ?? [])
-    } else if (title === 'PM Compliance') {
-      const { data } = await supabase.from('pm_schedules').select('name, frequency, next_due_at, last_completed_at, is_active').eq('organisation_id', orgId)
-      downloadCSV(`pm-compliance-${new Date().toISOString().slice(0, 10)}.csv`, data ?? [])
+    const map: Record<string, string> = {
+      'Monthly Asset Health': 'asset-health',
+      'Technician Performance': 'technician-performance',
+      'PM Compliance': 'pm-compliance',
     }
+    const type = map[title]
+    if (!type) { alert('Unknown report.'); return }
+    await downloadPdf(`/api/reports/standard/${type}`, `${type}-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   const statusLabel: Record<string, string> = {

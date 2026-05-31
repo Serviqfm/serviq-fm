@@ -15,13 +15,29 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const { data, error } = await admin
+
+  // First try qr_token (the proper field). Fall back to id in case a QR was generated
+  // before qr_token existed on the spaces row, or a tester scanned a space id by hand.
+  const byToken = await admin
     .from('spaces')
     .select('id, name, floor, qr_token, site:site_id(id, name, organisation_id)')
     .eq('qr_token', token)
-    .single()
-  if (error || !data) {
-    return NextResponse.json({ error: 'Space not found' }, { status: 404 })
+    .maybeSingle()
+
+  let space = byToken.data
+  if (!space) {
+    const byId = await admin
+      .from('spaces')
+      .select('id, name, floor, qr_token, site:site_id(id, name, organisation_id)')
+      .eq('id', token)
+      .maybeSingle()
+    space = byId.data
   }
-  return NextResponse.json({ space: data })
+
+  if (!space) {
+    console.warn('[space-by-token] no match for', token, 'errors:', byToken.error)
+    return NextResponse.json({ error: 'Space not found', detail: byToken.error?.message }, { status: 404 })
+  }
+
+  return NextResponse.json({ space })
 }

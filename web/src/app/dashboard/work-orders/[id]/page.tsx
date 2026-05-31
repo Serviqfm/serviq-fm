@@ -421,7 +421,17 @@ export default function WorkOrderDetailPage() {
             <a href={'/dashboard/work-orders/' + id + '/edit'}>
               <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>Edit</button>
             </a>
-            <button onClick={() => window.print()} className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors" style={{ padding: '6px 16px' }}>Export PDF</button>
+            <button onClick={async () => {
+              const res = await fetch(`/api/reports/work-order/${id}`)
+              if (!res.ok) { alert('Export failed.'); return }
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `WO-${wo?.wo_number ?? id}.pdf`
+              a.click()
+              URL.revokeObjectURL(url)
+            }} className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors" style={{ padding: '6px 16px' }}>Export PDF</button>
             {wo.status === 'completed' && wo.site?.invoicing_enabled && !existingInvoice && (
               <a href={`/dashboard/invoices/new?wo=${wo.id}`}>
                 <button className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors flex items-center gap-1.5" style={{ padding: '6px 16px' }}>
