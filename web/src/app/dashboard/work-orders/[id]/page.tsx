@@ -105,17 +105,24 @@ export default function WorkOrderDetailPage() {
 
     const closeoutPhotoUrls: string[] = []
     if (closeoutPhotos.length > 0 && wo) {
+      // Upload via server endpoint so we bypass storage.objects RLS — the server uses the
+      // service-role key and enforces org-scoping in app code.
       for (const file of closeoutPhotos) {
-        const fileName = `${wo.organisation_id}/${Date.now()}-closeout-${file.name}`
-        const { data: uploadData, error: uploadErr } = await supabase.storage.from('work-order-media').upload(fileName, file)
-        if (uploadErr || !uploadData) {
-          console.error('[wo close] upload failed for', file.name, uploadErr)
-          alert(`Failed to upload "${file.name}": ${uploadErr?.message ?? 'unknown error'}. The work order was not updated.`)
+        const fd = new FormData()
+        fd.append('file', file)
+        const params = new URLSearchParams({
+          bucket: 'work-order-media',
+          prefix: `${wo.organisation_id}/${id}`,
+        })
+        const res = await fetch(`/api/upload?${params.toString()}`, { method: 'POST', body: fd })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({ error: 'unknown error' }))
+          alert(`Failed to upload "${file.name}": ${j.error ?? 'unknown error'}. The work order was not updated.`)
           setUpdating(false)
           return
         }
-        const { data: urlData } = supabase.storage.from('work-order-media').getPublicUrl(uploadData.path)
-        closeoutPhotoUrls.push(urlData.publicUrl)
+        const { publicUrl } = await res.json()
+        closeoutPhotoUrls.push(publicUrl)
       }
     }
 

@@ -58,10 +58,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const vat = Math.round(subtotal * vatRate)
   const total = subtotal + vat
 
-  // Allocate invoice number via the SQL function we created
-  const { data: numData, error: numErr } = await admin.rpc('next_tenant_invoice_number', { org_id: params.id })
-  if (numErr) return NextResponse.json({ error: 'Could not allocate invoice number: ' + numErr.message }, { status: 500 })
-  const invoiceNumber = String(numData)
+  // Allocate the next sequential invoice number per tenant (TI-0001, TI-0002, ...).
+  // Done in the API to avoid relying on a SQL function that may not have been migrated yet.
+  const { data: prior } = await admin
+    .from('tenant_invoices')
+    .select('invoice_number')
+    .eq('organisation_id', params.id)
+    .like('invoice_number', 'TI-%')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  const maxSeq = (prior ?? []).reduce((m, r: { invoice_number: string }) => {
+    const match = /^TI-(\d+)$/.exec(r.invoice_number)
+    return match ? Math.max(m, parseInt(match[1], 10)) : m
+  }, 0)
+  const invoiceNumber = `TI-${String(maxSeq + 1).padStart(4, '0')}`
 
   const { data: inv, error } = await admin.from('tenant_invoices').insert({
     organisation_id: params.id,

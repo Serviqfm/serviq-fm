@@ -9,6 +9,7 @@ export default function PublicRequestPage({ params }: { params: { token: string 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [space, setSpace] = useState<any>(null)
   const [notFound, setNotFound] = useState(false)
+  const [notFoundDetail, setNotFoundDetail] = useState<string>('')
   const [submitted, setSubmitted] = useState(false)
   const [submitterName, setSubmitterName] = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
@@ -21,12 +22,25 @@ export default function PublicRequestPage({ params }: { params: { token: string 
 
   useEffect(() => {
     async function load() {
+      // Stale QR codes printed before NEXT_PUBLIC_APP_URL was set encoded 'undefined' as the
+      // token. Detect that explicitly so the user sees a helpful message instead of a generic
+      // 'not active'.
+      if (!params.token || params.token === 'undefined' || params.token === 'null') {
+        setNotFoundDetail('This QR code points to an empty space token, likely printed before the QR system was fully configured. Please re-print from the dashboard.')
+        setNotFound(true)
+        return
+      }
       // Use a server-side endpoint so the lookup goes through the service role and is not
       // blocked by spaces RLS (the anon client has no org membership).
       const res = await fetch(`/api/public/space-by-token/${params.token}`)
-      if (!res.ok) { setNotFound(true); return }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ detail: '' }))
+        setNotFoundDetail(j.detail ?? `Lookup failed (HTTP ${res.status}). Token: ${params.token}`)
+        setNotFound(true)
+        return
+      }
       const { space: data } = await res.json()
-      if (!data) { setNotFound(true); return }
+      if (!data) { setNotFoundDetail(`No space matches token ${params.token}.`); setNotFound(true); return }
       setSpace(data)
     }
     load()
@@ -94,10 +108,15 @@ export default function PublicRequestPage({ params }: { params: { token: string 
 
   if (notFound) return (
     <div className="min-h-[calc(100vh-56px)] flex items-center justify-center p-8">
-      <div className="text-center max-w-[480px]">
+      <div className="text-center max-w-[520px]">
         <div className="text-5xl mb-4">🚫</div>
         <h2 className="text-[22px] font-bold text-on-surface mb-3">QR Code Not Active</h2>
-        <p className="text-on-surface-variant leading-relaxed">This QR code is no longer active. Please contact the building management team.</p>
+        <p className="text-on-surface-variant leading-relaxed mb-4">This QR code is no longer active. Please contact the building management team.</p>
+        {notFoundDetail && (
+          <p className="text-xs text-outline bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-2 mt-3 font-mono break-all">
+            {notFoundDetail}
+          </p>
+        )}
       </div>
     </div>
   )
