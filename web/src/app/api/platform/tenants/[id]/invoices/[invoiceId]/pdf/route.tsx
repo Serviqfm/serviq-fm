@@ -31,13 +31,25 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
   }
   if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // Fetch the invoice and the org separately so a missing column on organisations (e.g.
+  // address/city/country may not exist on every Supabase project) does not nuke the join
+  // and surface as a useless 'Invoice not found'.
   const { data: inv, error } = await admin
     .from('tenant_invoices')
-    .select('*, organisation:organisation_id(name, vat_number, cr_number, address, city, country)')
+    .select('*')
     .eq('id', params.invoiceId)
     .eq('organisation_id', params.id)
-    .single() as { data: (Record<string, unknown> & { line_items: LineItem[]; organisation?: { name?: string; vat_number?: string; cr_number?: string; address?: string; city?: string; country?: string } | null }) | null; error: { message: string } | null }
-  if (error || !inv) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    .single() as { data: (Record<string, unknown> & { line_items: LineItem[] }) | null; error: { message: string; code?: string } | null }
+  if (error || !inv) {
+    console.error('[invoice pdf] not found', { invoiceId: params.invoiceId, orgId: params.id, error })
+    return NextResponse.json({ error: 'Invoice not found', detail: error?.message }, { status: 404 })
+  }
+  const { data: orgRow } = await admin
+    .from('organisations')
+    .select('*')
+    .eq('id', params.id)
+    .single() as { data: Record<string, unknown> | null }
+  const org = (orgRow ?? {}) as { name?: string; vat_number?: string; cr_number?: string; address?: string; city?: string; country?: string }
 
   const generatedAt = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
   const items = (inv.line_items ?? []) as LineItem[]
@@ -61,10 +73,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
           <View style={{ width: '48%' }}>
             <Text style={s.sectionTitle}>Bill To</Text>
-            <Text style={{ ...s.paragraph, fontFamily: 'Helvetica-Bold' }}>{inv.organisation?.name ?? '—'}</Text>
-            {inv.organisation?.vat_number && <Text style={s.paragraph}>VAT: {inv.organisation.vat_number}</Text>}
-            {inv.organisation?.cr_number && <Text style={s.paragraph}>CR: {inv.organisation.cr_number}</Text>}
-            <Text style={s.paragraph}>{[inv.organisation?.address, inv.organisation?.city, inv.organisation?.country].filter(Boolean).join(', ')}</Text>
+            <Text style={{ ...s.paragraph, fontFamily: 'Helvetica-Bold' }}>{org.name ?? '—'}</Text>
+            {Boolean(org.vat_number) && <Text style={s.paragraph}>VAT: {org.vat_number}</Text>}
+            {Boolean(org.cr_number) && <Text style={s.paragraph}>CR: {org.cr_number}</Text>}
+            {[org.address, org.city, org.country].filter(Boolean).length > 0 && (
+              <Text style={s.paragraph}>{[org.address, org.city, org.country].filter(Boolean).join(', ')}</Text>
+            )}
           </View>
           <View style={{ width: '48%' }}>
             <Text style={s.sectionTitle}>From</Text>
