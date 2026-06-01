@@ -1,21 +1,21 @@
 /**
  * ServiqFM <Logo /> component (React / Next.js)
  * ─────────────────────────────────────────────
- * One component, four variants. Drop-in replacement for any existing logo
- * markup on the site.
+ * Renders the brand icon (8-pointed star mark) plus the bold "ServiqFM"
+ * wordmark beside it. The icon image lives at /public/brand/serviqfm-icon.png
+ * (or .svg) — drop the new artwork there and every Logo on the site updates.
  *
- * Usage examples:
+ * Variants:
+ *   primary  — icon + navy "Serviq" + black "FM"  (default, light backgrounds)
+ *   icon     — square mark only, no text
+ *   white    — icon + white wordmark               (dark backgrounds)
+ *   navy     — icon + all-navy wordmark            (single-tone surfaces)
  *
- *   import { Logo } from '@/components/brand/Logo';
- *
- *   <Logo />                              // primary full-color, 160px
- *   <Logo variant="icon" size={48} />     // icon only, 48×48
- *   <Logo variant="white" />              // for dark backgrounds
- *   <Logo variant="navy" />               // single-color silhouette
- *   <Logo href="/" />                     // wrap in a link to the homepage
- *
- * The component renders the SVG inline by referencing files in /public/brand/.
- * If you'd rather use <img> tags, pass `as="img"`.
+ * Usage:
+ *   <Logo />                            // 160px wide
+ *   <Logo href="/" size={140} />        // wraps in a link
+ *   <Logo variant="icon" size={32} />   // icon-only, for collapsed sidebar
+ *   <Logo variant="white" size={120} /> // for navy/dark hero sections
  */
 
 import React from 'react';
@@ -23,27 +23,18 @@ import React from 'react';
 type Variant = 'primary' | 'icon' | 'white' | 'navy';
 
 interface LogoProps {
-  /** Which logo variant to render. */
   variant?: Variant;
-  /** Width in pixels (height auto-scales for non-icon variants). */
+  /** Total width of icon + wordmark in pixels. The icon is ~26% of this. */
   size?: number;
-  /** Optional className to extend styling. */
   className?: string;
-  /** If provided, wraps the logo in an <a>. */
   href?: string;
-  /** Accessible label. Defaults to "ServiqFM". */
   alt?: string;
-  /** Force <img> rendering instead of inline SVG reference. */
-  as?: 'img';
 }
 
-const SRC: Record<Variant, { src: string; aspect: number }> = {
-  // aspect = width / height
-  primary: { src: '/brand/serviqfm-logo-horizontal.svg', aspect: 1040 / 280 },
-  white:   { src: '/brand/serviqfm-logo-horizontal-white.png', aspect: 1040 / 280 },
-  navy:    { src: '/brand/serviqfm-logo-horizontal-navy.png',  aspect: 1040 / 280 },
-  icon:    { src: '/brand/serviqfm-icon.svg', aspect: 1 },
-};
+const ICON_SRC = '/brand/serviqfm-icon.png';
+
+// Tuned so the icon and wordmark feel balanced at any size.
+const ICON_RATIO = 0.32;
 
 export function Logo({
   variant = 'primary',
@@ -52,22 +43,54 @@ export function Logo({
   href,
   alt = 'ServiqFM',
 }: LogoProps) {
-  const { src, aspect } = SRC[variant];
-  const width  = size;
-  const height = Math.round(size / aspect);
+  const iconPx = Math.round(size * (variant === 'icon' ? 1 : ICON_RATIO));
+  const wordmarkFontPx = Math.round(size * 0.22);
 
-  const img = (
-    // Plain <img> keeps the component framework-agnostic. If you'd rather
-    // use next/image for the raster variants, swap this in your app.
-    <img
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
+  // Colour scheme per variant.
+  const serviqColor =
+    variant === 'white' ? '#FFFFFF' :
+    variant === 'navy'  ? '#182848' :
+                          '#182848'; // primary
+  const fmColor =
+    variant === 'white' ? '#FFFFFF' :
+    variant === 'navy'  ? '#182848' :
+                          '#000000'; // primary
+
+  const inner = (
+    <span
       className={className}
-      style={{ display: 'block', height: 'auto' }}
-      decoding="async"
-    />
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: variant === 'icon' ? 0 : Math.round(size * 0.06),
+        lineHeight: 1,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={ICON_SRC}
+        alt={alt}
+        width={iconPx}
+        height={iconPx}
+        style={{ display: 'block', width: iconPx, height: iconPx, flexShrink: 0 }}
+        decoding="async"
+      />
+      {variant !== 'icon' && (
+        <span
+          aria-hidden="true"
+          style={{
+            fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+            fontWeight: 800,
+            fontSize: wordmarkFontPx,
+            letterSpacing: '-0.01em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{ color: serviqColor }}>Serviq</span>
+          <span style={{ color: fmColor }}>FM</span>
+        </span>
+      )}
+    </span>
   );
 
   if (href) {
@@ -75,14 +98,14 @@ export function Logo({
       <a
         href={href}
         aria-label={alt}
-        style={{ display: 'inline-block', lineHeight: 0 }}
+        style={{ display: 'inline-flex', textDecoration: 'none', lineHeight: 0 }}
       >
-        {img}
+        {inner}
       </a>
     );
   }
 
-  return img;
+  return inner;
 }
 
 export default Logo;
