@@ -1,0 +1,95 @@
+/**
+ * ServiqFM Brand — CSS Variables
+ * ──────────────────────────────
+ * Import this file at the top of your app's global stylesheet:
+ *
+ *   // app/globals.css (Next.js App Router)
+ *   @import "./brand/brand.css";
+ *
+ *   // OR src/index.css (Vite, CRA)
+ *   @import "./brand/brand.css";
+ *
+ * Then use the variables anywhere:
+ *   color: var(--brand-navy);
+ *   background: var(--brand-sky-pale);
+ */
+
+:root {
+  /* ─── Brand colors ─── */
+  --brand-navy:      #182848;
+  --brand-black:     #000000;
+  --brand-blue:      #2898C8;
+  --brand-teal:      #48B8C0;
+  --brand-sky-light: #A0D0E0;
+  --brand-sky-pale:  #E0F0F8;
+  --brand-grey:      #A0B0B8;
+  --brand-text:      #303A4E;
+  --brand-text-muted:#6A7488;
+  --brand-white:     #FFFFFF;
+
+  /* ─── Semantic ─── */
+  --color-success: var(--brand-teal);
+  --color-info:    var(--brand-blue);
+  --color-warning: #E8A23C;
+  --color-danger:  #C8324C;
+
+  /* ─── Surfaces (light mode) ─── */
+  --bg-page:       var(--brand-white);
+  --bg-elevated:   #FAFBFD;
+  --bg-soft:       var(--brand-sky-pale);
+  --border-subtle: #E5EAF0;
+  --border-strong: #C8D0DC;
+
+  /* ─── Typography ─── */
+  --font-sans:   'Inter', 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+  --font-arabic: 'Tajawal', 'Noto Sans Arabic', system-ui, sans-serif;
+  --font-mono:   'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+
+  /* ─── Radii ─── */
+  --radius-sm:  0.25rem;
+  --radius-md:  0.5rem;
+  --radius-lg:  0.75rem;
+  --radius-xl:  1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full:9999px;
+
+  /* ─── Shadows (navy-tinted) ─── */
+  --shadow-sm: 0 1px 2px 0 rgba(24, 40, 72, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(24, 40, 72, 0.08), 0 2px 4px -2px rgba(24, 40, 72, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(24, 40, 72, 0.10), 0 4px 6px -4px rgba(24, 40, 72, 0.06);
+  --shadow-xl: 0 20px 25px -5px rgba(24, 40, 72, 0.12), 0 8px 10px -6px rgba(24, 40, 72, 0.08);
+
+  /* ─── Brand gradient (decorative — backgrounds, hero sections) ─── */
+  --brand-gradient: linear-gradient(135deg, #182848 0%, #1C5078 60%, #2898C8 100%);
+}
+
+/* ─────────────── RTL handling ─────────────── */
+/* When the page is in Arabic, switch the default font and direction. */
+html[lang="ar"],
+html[dir="rtl"] {
+  font-family: var(--font-arabic);
+}
+
+/* ─────────────── Optional dark mode tokens ─────────────── */
+/* Activate by adding `class="dark"` to <html> or using prefers-color-scheme */
+.dark, html[data-theme="dark"] {
+  --bg-page:       var(--brand-navy);
+  --bg-elevated:   #1F3358;
+  --bg-soft:       #243A66;
+  --border-subtle: #2C4474;
+  --border-strong: #3A5590;
+  --brand-text:    #E8EEF6;
+  --brand-text-muted: #A0B0B8;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    --bg-page:       var(--brand-navy);
+    --bg-elevated:   #1F3358;
+    --bg-soft:       #243A66;
+    --border-subtle: #2C4474;
+    --border-strong: #3A5590;
+    --brand-text:    #E8EEF6;
+    --brand-text-muted: #A0B0B8;
+  }
+}

@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# brand integration backups (created by `mkdir -p .brand-backup-YYYYMMDD` during brand-kit install)
+/.brand-backup-*

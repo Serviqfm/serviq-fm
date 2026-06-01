@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Logo } from '@/components/brand/Logo'
 
 export type FeaturePageProps = {
   eyebrow: { en: string; ar: string }
@@ -15,10 +16,7 @@ export default function FeaturePage({ eyebrow, title, description, image, market
     <div className="min-h-screen bg-surface">
       <header className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/ServiqFM_Logo_v2.jpg" alt="ServIQ-FM" style={{ height: 32, width: 'auto' }} />
-          </Link>
+          <Logo href="/" size={140} />
           <Link href="/" className="text-sm text-on-surface-variant hover:text-primary">← Home</Link>
         </div>
       </header>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { Logo } from '@/components/brand/Logo'
 
 const STEPS = [
   { num: 1, label: 'Info' },
@@ -165,7 +166,7 @@ export default function RequesterPortalPage() {
       {/* Header */}
       <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30 shadow-sm">
         <div className="flex justify-between items-center w-full px-8 max-w-[1440px] mx-auto h-16 md:h-20">
-          <span className="text-xl font-bold text-primary">Serviq Lumina</span>
+          <Logo href="/" size={140} />
           <a href="/dashboard" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Manager Login</a>
         </div>
       </header>
@@ -364,9 +365,9 @@ export default function RequesterPortalPage() {
       {/* Footer */}
       <footer className="bg-surface-container-low border-t border-outline-variant/30 mt-auto">
         <div className="w-full px-8 py-6 max-w-[1440px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <span className="font-bold text-primary">Serviq Lumina</span>
-            <p className="text-on-surface-variant text-xs mt-1">© 2024 Serviq FM. Saudi-made Facility Management.</p>
+          <div className="flex flex-col gap-2 items-start">
+            <Logo href="/" size={110} />
+            <p className="text-on-surface-variant text-xs">© 2026 Serviq FM. Saudi-made Facility Management.</p>
           </div>
           <div className="flex gap-6">
             <a href="#" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">ZATCA Compliance</a>

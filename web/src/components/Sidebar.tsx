@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { useFeatureFlag } from '@/lib/featureFlags'
+import { Logo } from '@/components/brand/Logo'
 
 // roles: items listed here are visible only to these roles. Items without `roles` are visible to everyone.
 const NAV: { key: string; href: string; en: string; ar: string; icon: string; exact: boolean; roles?: string[] }[] = [
@@ -70,20 +71,10 @@ export default function Sidebar() {
       {/* Brand */}
       <div className={`flex items-center h-14 flex-shrink-0 border-b border-outline-variant/20 ${collapsed ? 'justify-center px-3' : 'justify-between px-4'}`}>
         {!collapsed && (
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-on-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-bold text-primary leading-none truncate">Serviq Lumina</div>
-              <div className="text-[9px] text-on-surface-variant uppercase tracking-widest mt-0.5">Precision FM</div>
-            </div>
-          </div>
+          <Logo href="/dashboard" size={130} />
         )}
         {collapsed && (
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-          </div>
+          <Logo href="/dashboard" variant="icon" size={32} />
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}

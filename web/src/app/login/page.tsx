@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Logo } from '@/components/brand/Logo'
 
 export default function LoginPage() {
   return (
@@ -6,8 +7,8 @@ export default function LoginPage() {
 
       {/* Header */}
       <header className="w-full flex justify-center py-8 px-8">
-        <div className="flex flex-col items-center gap-1">
-          <h1 className="text-3xl font-bold text-primary tracking-tight">Serviq Lumina</h1>
+        <div className="flex flex-col items-center gap-2">
+          <Logo href="/" size={200} />
           <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Precision Facility Management</p>
         </div>
       </header>
@@ -68,13 +69,13 @@ export default function LoginPage() {
       {/* Footer */}
       <footer className="w-full bg-surface-container-low border-t border-outline-variant py-6 px-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-3">
-          <span className="font-bold text-primary text-lg">Serviq Lumina</span>
+          <Logo href="/" size={110} />
           <span className="text-outline-variant">|</span>
-          <p className="text-on-surface-variant text-sm">© 2024 ZATCA Compliant FM Solutions.</p>
+          <p className="text-on-surface-variant text-sm">© 2026 ZATCA Compliant FM Solutions.</p>
         </div>
         <div className="flex gap-6">
-          <a href="#" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Privacy Policy</a>
-          <a href="#" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Support Portal</a>
+          <Link href="/privacy-policy" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Privacy Policy</Link>
+          <a href="mailto:admin@serviqfm.com" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Support Portal</a>
         </div>
       </footer>
 

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { Logo } from '@/components/brand/Logo'
 
 export default function EmployeeLoginForm() {
   const [email, setEmail] = useState('')
@@ -86,11 +87,7 @@ export default function EmployeeLoginForm() {
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden star-pattern">
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-8 py-2 w-full bg-surface/80 backdrop-blur-md border-b border-outline-variant">
-        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <span className="text-primary font-bold tracking-tight text-2xl">
-            Serviq Lumina
-          </span>
-        </Link>
+        <Logo href="/" size={140} />
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer active:scale-95">
             <span className="material-symbols-outlined text-sm">language</span>
@@ -292,7 +289,7 @@ export default function EmployeeLoginForm() {
 
               <footer className="mt-8 text-center">
                 <p className="text-xs text-outline leading-relaxed">
-                  © 2024 Serviq Lumina. ZATCA Compliant FM Solutions.
+                  © 2026 Serviq FM. ZATCA Compliant FM Solutions.
                   <br />
                   By logging in, you agree to our{' '}
                   <a href="#" className="underline hover:text-primary transition-colors">
@@ -309,7 +306,7 @@ export default function EmployeeLoginForm() {
       {/* Footer Space */}
       <footer className="w-full flex flex-col md:flex-row justify-between items-center px-8 py-4 gap-4 border-t border-outline-variant mt-auto">
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <span className="text-primary text-lg font-bold">Serviq Lumina</span>
+          <Logo href="/" size={110} />
           <div className="flex gap-4">
             <Link className="text-on-surface-variant text-sm hover:text-secondary transition-colors" href="/privacy-policy">
               Privacy Policy

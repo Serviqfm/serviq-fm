@@ -1,6 +1,6 @@
 import FeaturePage from '@/components/FeaturePage'
 
-export const metadata = { title: 'Asset Management — ServIQ-FM' }
+export const metadata = { title: 'Asset Management' }
 
 export default function AssetsFeaturePage() {
   return (

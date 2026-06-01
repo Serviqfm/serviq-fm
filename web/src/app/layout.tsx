@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import "./globals.css";
 import { DM_Sans, Readex_Pro } from 'next/font/google'
+import { metadata as brandMetadata } from '@/brand/metadata'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -14,10 +14,7 @@ const readexPro = Readex_Pro({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: "Serviq FM",
-  description: "Facility Management Platform",
-};
+export const metadata = brandMetadata
 
 export default function RootLayout({
   children,

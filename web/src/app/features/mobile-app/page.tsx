@@ -1,6 +1,6 @@
 import FeaturePage from '@/components/FeaturePage'
 
-export const metadata = { title: 'Mobile App — ServIQ-FM' }
+export const metadata = { title: 'Mobile App' }
 
 export default function MobileFeaturePage() {
   return (

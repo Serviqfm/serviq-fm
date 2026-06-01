@@ -1,6 +1,6 @@
 import FeaturePage from '@/components/FeaturePage'
 
-export const metadata = { title: 'Work Orders — ServIQ-FM' }
+export const metadata = { title: 'Work Orders' }
 
 export default function WorkOrdersFeaturePage() {
   return (

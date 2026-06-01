@@ -1,4 +1,8 @@
 import type { Config } from "tailwindcss";
+// ServiqFM brand kit — merged alongside the existing Lumina tokens. The brand kit
+// uses a `brand-*` prefix so it never collides with `primary`, `secondary`, etc.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const brand = require("./src/brand/tailwind.brand.js");
 
 const config: Config = {
   content: [
@@ -9,6 +13,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ServiqFM brand kit (namespaced)
+        ...brand.theme.extend.colors,
+
         // Lumina colors from lumina-tokens.ts
         primary: "#006b54",
         "on-primary": "#ffffff",
@@ -84,6 +91,13 @@ const config: Config = {
         "body-md": "DM Sans, sans-serif",
         "headline-h1": "DM Sans, sans-serif",
         "label-caps": "DM Sans, sans-serif",
+        ...brand.theme.extend.fontFamily,
+      },
+      boxShadow: {
+        ...brand.theme.extend.boxShadow,
+      },
+      backgroundImage: {
+        ...brand.theme.extend.backgroundImage,
       },
     },
   },

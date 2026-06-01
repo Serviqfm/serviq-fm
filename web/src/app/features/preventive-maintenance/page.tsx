@@ -1,6 +1,6 @@
 import FeaturePage from '@/components/FeaturePage'
 
-export const metadata = { title: 'Preventive Maintenance — ServIQ-FM' }
+export const metadata = { title: 'Preventive Maintenance' }
 
 export default function PMFeaturePage() {
   return (

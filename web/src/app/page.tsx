@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Logo } from '@/components/brand/Logo'
 
 const navy = '#1E2D4E'
 const teal = '#6DCFB0'
@@ -115,9 +116,7 @@ export default function LandingPage() {
       {menuOpen && (
         <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:200, display:'flex', flexDirection:'column', padding:24 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:40 }}>
-            <div style={{ fontSize:21, fontWeight:700, fontFamily:en, color:navy }}>
-              Serviq <span className="grad-text">FM</span>
-            </div>
+            <Logo href="/" size={140} />
             <button onClick={() => setMenuOpen(false)} style={{ fontSize:28, cursor:'pointer', color:navy, background:'none', border:'none', lineHeight:1 }}>×</button>
           </div>
           <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:4, flex:1 }}>
@@ -142,11 +141,10 @@ export default function LandingPage() {
       <nav style={{ position:'sticky', top:0, zIndex:100, background:'rgba(255,255,255,0.95)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderBottom:`1px solid ${border}`, boxShadow:'0 1px 8px rgba(30,45,78,0.06)' }}>
         <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', height:68 }}>
-            <a href="/" style={{ display:'flex', alignItems:'center', gap:10 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/ServiqFM_Logo_v2.jpg" alt="ServIQ-FM" style={{ height:36, width:'auto' }} />
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <Logo href="/" size={150} />
               <span style={{ fontFamily:ar, fontSize:13, fontWeight:600, color:muted }}>سيرفيك</span>
-            </a>
+            </div>
             <ul className="nav-links-wrap" style={{ display:'flex', alignItems:'center', gap:4, listStyle:'none' }}>
               {[['#features','Features'],['#verticals','Industries'],['/about','About']].map(([href,label]) => (
                 <li key={href}>
@@ -455,8 +453,8 @@ export default function LandingPage() {
         <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px' }}>
           <div className="footer-grid" style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 1.2fr', gap:40, marginBottom:48 }}>
             <div>
-              <div style={{ fontSize:20, fontWeight:700, color:'#fff', marginBottom:6, fontFamily:en }}>
-                Serviq <span style={{ background:grad, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>FM</span>
+              <div style={{ marginBottom:8 }}>
+                <Logo variant="white" size={140} />
               </div>
               <div style={{ fontFamily:ar, fontSize:13, color:'rgba(255,255,255,0.45)', direction:'rtl', marginBottom:4 }}>منصة إدارة المرافق الذكية</div>
               <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginBottom:20, lineHeight:1.6 }}>The smart facility management platform<br/>built for Saudi Arabia.</div>

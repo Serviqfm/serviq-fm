@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Logo } from '@/components/brand/Logo'
 
 export default function ClientLoginPage() {
   const [email, setEmail] = useState('')
@@ -31,9 +32,7 @@ export default function ClientLoginPage() {
     <div className="bg-background text-on-background min-h-screen flex flex-col star-pattern overflow-x-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-8 py-2 w-full bg-surface/80 backdrop-blur-md border-b border-outline-variant">
-        <Link href="/login" className="flex items-center gap-2 no-underline">
-          <span className="text-primary font-bold tracking-tight text-2xl">Serviq Lumina</span>
-        </Link>
+        <Logo href="/login" size={140} />
         <div className="flex items-center gap-4">
           <Link href="/login/employee" className="text-xs font-semibold text-on-surface-variant hover:text-secondary transition-colors">
             Employee Portal →
@@ -181,7 +180,7 @@ export default function ClientLoginPage() {
 
               <footer className="mt-8 text-center">
                 <p className="text-xs text-outline leading-relaxed">
-                  © 2024 Serviq Lumina. ZATCA Compliant FM Solutions.
+                  © 2026 Serviq FM. ZATCA Compliant FM Solutions.
                 </p>
               </footer>
             </div>
@@ -191,7 +190,7 @@ export default function ClientLoginPage() {
 
       <footer className="w-full flex flex-col md:flex-row justify-between items-center px-8 py-4 gap-4 border-t border-outline-variant mt-auto">
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <span className="text-primary text-lg font-bold">Serviq Lumina</span>
+          <Logo href="/" size={110} />
           <div className="flex gap-4">
             <a href="#" className="text-on-surface-variant text-sm hover:text-primary transition-colors">Privacy Policy</a>
             <a href="#" className="text-on-surface-variant text-sm hover:text-primary transition-colors">Support Portal</a>
