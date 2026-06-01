@@ -67,11 +67,13 @@ export default function NewAssetPage() {
   async function uploadPhotos(orgId: string): Promise<string[]> {
     const urls: string[] = []
     for (const file of photos) {
-      const fileName = orgId + '/' + Date.now() + '-asset-' + file.name
-      const { data, error } = await supabase.storage.from('work-order-media').upload(fileName, file)
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from('work-order-media').getPublicUrl(data.path)
-        urls.push(urlData.publicUrl)
+      const fd = new FormData()
+      fd.append('file', file)
+      const params = new URLSearchParams({ bucket: 'work-order-media', prefix: orgId + '/assets' })
+      const res = await fetch('/api/upload?' + params.toString(), { method: 'POST', body: fd })
+      if (res.ok) {
+        const { publicUrl } = await res.json()
+        urls.push(publicUrl)
       }
     }
     return urls
