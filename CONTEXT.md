@@ -6,28 +6,46 @@
 
 ---
 
-## 🔴 IMMEDIATE NEXT STEPS (May 19, 2026)
+## 🔴 IMMEDIATE NEXT STEPS (June 1, 2026)
 
 **Phase Lumina integration branch — `phase-lumina`:**
-Integration branch containing Sprints A–G plus the user-deletion FK fix. Merges `zen-hellman` (Sprint G Lumina + Phase 4 + user-del FK fix) and `beautiful-jones` (Sprint E Field Visibility + Sprint F Platform Super-Admin) on top of `origin/main`. Build + tsc are clean (test-runner type deps for `Button.test.tsx` are the only outstanding tsc errors and are pre-existing — Next ignores them at build via `eslint.ignoreDuringBuilds`).
+Integration branch containing Sprints A–I + the ServiqFM brand kit rebrand. ~80 commits ahead of `origin/main`. Build is clean (73 routes, no warnings). `tsc` is clean outside the pre-existing `Button.test.tsx` test-runner deps (which Next ignores at build via `eslint.ignoreDuringBuilds`).
 
-**Before merging `phase-lumina` to `main`, run these SQL migrations in the Supabase SQL editor in order:**
-1. `docs/superpowers/sql/sprint-e-01-foundation.sql` — `field_configs` table + RLS + index
-2. `docs/superpowers/sql/sprint-f-01-foundation.sql` — platform admin tables, impersonation log, audit log, feature flags
-3. `docs/superpowers/sql/sprint-f-02-metrics.sql` — DAU/MAU function + MRR snapshot table
+### Pending user actions before merging to `main`
 
-Then create a platform admin auth user in Supabase Auth and uncomment the `INSERT INTO platform_admins` block at the bottom of `sprint-f-01-foundation.sql` with that auth UID.
+**1. Run SQL migrations** in Supabase SQL editor, in order (all idempotent — safe to re-run). See [docs/superpowers/sql/PHASE-LUMINA-MIGRATIONS.md](docs/superpowers/sql/PHASE-LUMINA-MIGRATIONS.md):
 
-**`RESEND_FROM_EMAIL=noreply@serviqfm.com`** is already set in Vercel — do not re-do.
+| File | Adds |
+|---|---|
+| `sprint-e-01-foundation.sql` | `field_configs` table |
+| `sprint-f-01-foundation.sql` | `platform_admins`, `tenant_feature_flags`, `platform_audit_logs`, `mrr_snapshots`, +columns on `organisations`/`users`/`audit_logs`, `tenant_health` view |
+| `sprint-f-02-metrics.sql` | `get_dau_mau()`, `get_users_with_login()` functions |
+| `sprint-h-01-vendor-invoices.sql` | `vendor_invoices` table + RLS |
+| `sprint-i-01-storage-buckets.sql` | `work-order-media`, `media`, `requests`, `offboard-exports` buckets + permissive RLS |
+| `sprint-i-02-spaces-qr-token.sql` | `spaces.qr_token` column + backfill |
+| `sprint-i-03-tenant-invoices.sql` | `tenant_invoices` table for platform-issued invoices |
 
-**Sprint F caveat (intentional, do not "fix"):**
-- Feature-flag toggles at `web/src/app/platform/tenants/[id]/flags/FlagsForm.tsx` are **scaffolding by design**. They persist values to `tenant_feature_flags` and write audit entries, but do not yet gate any product features. UI surfaces a note explaining this. Real enforcement is follow-up work.
+After running `sprint-f-01`: create a platform admin auth user in Supabase Auth and run the commented `INSERT INTO platform_admins` block at the bottom with that auth UID.
 
-**Out of scope for this PR:** Mobile EAS production build (iOS + Android) — separate workstream.
+**2. Drop the new ServiqFM icon artwork** at `web/public/brand/serviqfm-icon.png` (overwrite the existing file). The Logo component reads from this path and every header/footer/sidebar updates automatically. Optional: also drop `serviqfm-icon.svg` alongside.
 
-**Sprint G Lumina Redesign — COMPLETE:**
-- All pages converted to Lumina Tailwind design tokens
-- `brand.ts` is **restored** on `phase-lumina` (zen-hellman had deleted it but several `origin/main` pages still import `C`, `F`, `primaryBtn`, `LUMINA_COLORS`). Keep until those imports are migrated.
+**3. Confirm Vercel env vars** are set for both **Production AND Preview** environments:
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_APP_URL=https://serviqfm.com`
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL=noreply@serviqfm.com`
+- `IMPERSONATION_SIGNING_KEY` (only needed if impersonation will be used)
+
+### Caveats — intentional, do not "fix"
+
+- **Stripe sync**: BillingForm now persists Stripe Customer ID and Subscription ID, but auto-sync (webhooks, status fetching, customer creation) is **not** wired. Treat the IDs as reference fields only. Full integration is a separate workstream.
+- **Feature flags `api_access` and `custom_branding`** still persist + audit but don't gate features — no API or branding UI exists yet to gate. `invoicing`, `advanced_reporting`, `multi_site` are operational.
+- **Mobile EAS production build** (iOS + Android) — separate workstream/ticket, not in this PR.
+
+### Brand state
+
+ServiqFM brand kit is integrated. The whole UI palette is now Brand Navy `#182848` + Signal Blue `#2898C8` + Service Teal `#48B8C0` (instead of the old Lumina greens). Logo component renders `[icon] **ServiqFM**` everywhere; swap the icon file at `web/public/brand/serviqfm-icon.png` to update site-wide.
+
+`web/src/lib/brand.ts` (the legacy `C`/`F`/`primaryBtn` constants) is **still in the tree** because some `origin/main` pages reference it. Safe to delete once the merge to main lands and those references are cleaned up.
 
 ---
 
@@ -361,15 +379,66 @@ Then create a platform admin auth user in Supabase Auth and uncomment the `INSER
 
 ---
 
+### Sprint H — Vendor invoices *(COMPLETE — 2026-05-19)*
+**Goal:** Make the "Save Invoice" button on the vendor detail page actually persist.
+
+- [x] `vendor_invoices` table + RLS — [sprint-h-01-vendor-invoices.sql](docs/superpowers/sql/sprint-h-01-vendor-invoices.sql)
+- [x] `/dashboard/vendors/[id]` save flow: includes `organisation_id`, surfaces RLS errors
+
+---
+
+### Sprint I — Reliability + Reports + Brand *(COMPLETE — 2026-06-01)*
+**Goal:** Resolve preview-test issues, ship real PDF reports, integrate the ServiqFM brand kit.
+
+**P1–P11 (preview test fixes):**
+- [x] Sites PATCH no longer references missing `updated_at` column
+- [x] `NEXT_PUBLIC_APP_URL` fallback in all server interpolations (no more `undefined/login/client` in emails)
+- [x] WO close validates against existing + new photos, surfaces upload errors
+- [x] Vendor `Save Invoice` includes `organisation_id` + surfaces errors
+- [x] Technicians: limited sidebar (no Requests/Sites/Vendors/Users/Invoices/Reports), limited settings tabs (Account/Notifications/Push Audit only)
+- [x] Support Portal: BillingForm + FlagsForm wired; PlatformSidebar gains Sign Out
+- [x] Tenant Offboarding: parallel table dumps + `maxDuration=60` + concrete error messages
+- [x] Inventory: Filter (category + status) + Export CSV; guided import wizard at `/dashboard/inventory/import`
+- [x] Reports page: real PDF endpoints for Dashboard, WO detail, Inspection detail, and 4 Standard Reports
+- [x] Asset bulk QR PDF export (mirrors Spaces) — `/api/assets/export-qr`
+- [x] Multi-select assets in New PM Schedule (one schedule per asset)
+- [x] Space QR public lookup via service-role `/api/public/space-by-token/[token]`
+- [x] CSV import/export for Sites, Spaces, Vendors, Inventory — shared `lib/csv.ts`
+- [x] Landing page: navy palette, `/about`, `/privacy-policy`, `/terms-of-service`, `/features/*` (Work Orders, Assets, Mobile, PM), real contact links, dashboard screenshot section
+- [x] Tenant Invoices (`tenant_invoices` table) — line items, VAT calc, branded PDF, **Send via Resend / Mark Paid / Void** actions, sequential `TI-####` numbering allocated in API (no SQL RPC dependency)
+- [x] Stripe Customer ID + Subscription ID editable inputs (sync not yet wired)
+- [x] Feature flags operational: `invoicing` hides Invoices nav, `advanced_reporting` hides Reports, `multi_site` blocks adding a 2nd Site
+
+**P12–P13 (ServiqFM Brand Kit integration):**
+- [x] Brand kit assets in `web/public/brand/` + `web/public/site.webmanifest` + favicon set
+- [x] `web/src/brand/` — `tokens.ts`, `brand.css`, `tailwind.brand.js`, `metadata.ts`
+- [x] `web/src/components/brand/Logo.tsx` — icon + bold `Serviq` (navy) + `FM` (black) wordmark
+- [x] Tailwind palette remap: `primary` = Brand Navy `#182848`, `secondary` = Signal Blue `#2898C8`, `tertiary` = Service Teal `#48B8C0`. Lumina greens removed.
+- [x] Logo placements: landing nav/menu/footer, login pages, sidebars (tenant + platform), feature pages, legal/about, public request portal
+- [x] Next.js metadata: title template `'%s · Serviq FM'`, OG image, theme color, full favicon set
+
+**⚠️ Manual DB steps required before deploy (Supabase SQL editor):**
+1. `docs/superpowers/sql/sprint-h-01-vendor-invoices.sql`
+2. `docs/superpowers/sql/sprint-i-01-storage-buckets.sql`
+3. `docs/superpowers/sql/sprint-i-02-spaces-qr-token.sql`
+4. `docs/superpowers/sql/sprint-i-03-tenant-invoices.sql`
+
+**⚠️ Drop the new icon artwork** at `web/public/brand/serviqfm-icon.png` (the Logo component reads from this path).
+
+---
+
 ## Backlog / Future
 - [ ] Mobile EAS production build (iOS + Android) — deferred from Week 3
 - [ ] Arabic PDF support in invoices (RTL text rendering)
-- [ ] Bulk asset/inventory import via CSV
+- [x] ~~Bulk asset/inventory import via CSV~~ — shipped in Sprint I (P6)
 - [ ] PM compliance reporting improvements
 - [ ] Mobile: offline mode for WO updates
 - [ ] Client portal (read-only view for end-clients of tenants)
-- [ ] White-labelling / custom domain per tenant
-- [ ] Stripe integration for in-app billing
+- [ ] White-labelling / custom domain per tenant (custom_branding flag exists but no UI)
+- [ ] Stripe sync: webhooks, auto-create customers/subscriptions, payment status from Stripe (IDs are stored, sync not wired)
+- [ ] Feature-flag enforcement for `api_access` and `custom_branding` (no API or branding UI to gate yet)
+- [ ] Scheduled reports (Reports page surfaces "coming soon" today)
+- [ ] Move public request portal photo uploads through `/api/upload` for parity (anon flows currently rely on storage RLS for the `requests` bucket)
 
 ---
 
