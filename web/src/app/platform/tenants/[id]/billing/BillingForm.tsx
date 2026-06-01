@@ -109,10 +109,32 @@ export default function BillingForm({ tenantId }: { tenantId: string }) {
         />
       </div>
 
-      <div className="text-[11px] text-on-surface-variant border-t border-outline-variant pt-3">
-        Stripe Customer ID: <span className="font-mono">{data.stripe_customer_id ?? 'Not connected'}</span>
-        <br />
-        Stripe Subscription ID: <span className="font-mono">{data.stripe_subscription_id ?? 'Not connected'}</span>
+      <div className="border-t border-outline-variant pt-4 space-y-3">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-secondary">Stripe Integration</div>
+        <p className="text-[11px] text-on-surface-variant">
+          Paste the Customer ID (cus_…) and Subscription ID (sub_…) from your Stripe dashboard.
+          These are stored on the tenant for reference; full Stripe sync is not yet wired.
+        </p>
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Stripe Customer ID</label>
+          <input
+            type="text"
+            placeholder="cus_…"
+            value={data.stripe_customer_id ?? ''}
+            onChange={e => setData(d => d && { ...d, stripe_customer_id: e.target.value || null })}
+            className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Stripe Subscription ID</label>
+          <input
+            type="text"
+            placeholder="sub_…"
+            value={data.stripe_subscription_id ?? ''}
+            onChange={e => setData(d => d && { ...d, stripe_subscription_id: e.target.value || null })}
+            className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm font-mono"
+          />
+        </div>
       </div>
 
       {error && (
@@ -195,11 +217,6 @@ function InvoicesSection({ tenantId }: { tenantId: string }) {
     setItems([{ description: 'Subscription — Monthly', qty: 1, unit_price_cents: 0 }])
     setDueDate(''); setNotes(''); setShowForm(false)
     reload()
-  }
-
-  function downloadPdf(invoiceId: string, invoiceNumber: string) {
-    window.open(`/api/platform/tenants/${tenantId}/invoices/${invoiceId}/pdf`, '_blank')
-    void invoiceNumber
   }
 
   return (
@@ -291,23 +308,86 @@ function InvoicesSection({ tenantId }: { tenantId: string }) {
             </thead>
             <tbody className="divide-y divide-outline-variant/40">
               {invoices.map(inv => (
-                <tr key={inv.id}>
-                  <td className="px-3 py-2 font-semibold">{inv.invoice_number}</td>
-                  <td className="px-3 py-2 text-on-surface-variant">{new Date(inv.issue_date).toLocaleDateString('en-GB')}</td>
-                  <td className="px-3 py-2 text-on-surface-variant">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-GB') : '—'}</td>
-                  <td className="px-3 py-2 text-right font-semibold">{formatSAR(inv.total_cents)}</td>
-                  <td className="px-3 py-2">
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${inv.status === 'paid' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}`}>{inv.status}</span>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <button onClick={() => downloadPdf(inv.id, inv.invoice_number)} className="text-primary hover:underline text-xs font-semibold">Download PDF</button>
-                  </td>
-                </tr>
+                <InvoiceRow key={inv.id} inv={inv} tenantId={tenantId} onChange={reload} />
               ))}
             </tbody>
           </table>
         </div>
       )}
     </div>
+  )
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  draft: 'bg-surface-container-high text-on-surface-variant',
+  sent:  'bg-secondary/10 text-secondary',
+  paid:  'bg-primary/10 text-primary',
+  void:  'bg-error/10 text-error',
+}
+
+function InvoiceRow({ inv, tenantId, onChange }: { inv: Invoice; tenantId: string; onChange: () => void }) {
+  const [busy, setBusy] = useState<'' | 'send' | 'paid' | 'void'>('')
+  const [error, setError] = useState('')
+
+  function downloadPdf() {
+    window.open(`/api/platform/tenants/${tenantId}/invoices/${inv.id}/pdf`, '_blank')
+  }
+
+  async function patch(payload: Record<string, unknown>, kind: 'send' | 'paid' | 'void') {
+    setBusy(kind); setError('')
+    const res = await fetch(`/api/platform/tenants/${tenantId}/invoices/${inv.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    setBusy('')
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({ error: 'Unknown error' }))
+      setError(j.error ?? 'Action failed')
+      setTimeout(() => setError(''), 5000)
+      return
+    }
+    onChange()
+  }
+
+  return (
+    <>
+      <tr>
+        <td className="px-3 py-2 font-semibold">{inv.invoice_number}</td>
+        <td className="px-3 py-2 text-on-surface-variant">{new Date(inv.issue_date).toLocaleDateString('en-GB')}</td>
+        <td className="px-3 py-2 text-on-surface-variant">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-GB') : '—'}</td>
+        <td className="px-3 py-2 text-right font-semibold">{formatSAR(inv.total_cents)}</td>
+        <td className="px-3 py-2">
+          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.draft}`}>{inv.status}</span>
+        </td>
+        <td className="px-3 py-2 text-right">
+          <div className="flex justify-end gap-2 text-xs font-semibold">
+            <button onClick={downloadPdf} className="text-primary hover:underline">PDF</button>
+            {inv.status !== 'paid' && inv.status !== 'void' && (
+              <button onClick={() => patch({ send_email: true, status: 'sent' }, 'send')} disabled={busy === 'send'} className="text-secondary hover:underline disabled:opacity-50">
+                {busy === 'send' ? 'Sending…' : 'Send'}
+              </button>
+            )}
+            {inv.status !== 'paid' && inv.status !== 'void' && (
+              <button onClick={() => patch({ status: 'paid' }, 'paid')} disabled={busy === 'paid'} className="text-primary hover:underline disabled:opacity-50">
+                {busy === 'paid' ? '…' : 'Mark Paid'}
+              </button>
+            )}
+            {inv.status !== 'void' && (
+              <button onClick={() => { if (confirm('Void invoice ' + inv.invoice_number + '?')) patch({ status: 'void' }, 'void') }} disabled={busy === 'void'} className="text-error hover:underline disabled:opacity-50">
+                {busy === 'void' ? '…' : 'Void'}
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+      {error && (
+        <tr>
+          <td colSpan={6} className="px-3 pb-2">
+            <div className="bg-error/10 border border-error/20 text-error rounded-lg px-3 py-1.5 text-xs">{error}</div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

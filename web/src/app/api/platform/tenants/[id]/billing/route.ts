@@ -5,7 +5,7 @@ import { logPlatformAction } from '@/lib/platformAudit'
 
 export const runtime = 'nodejs'
 
-const FIELDS = ['plan', 'billing_status', 'mrr_cents', 'renews_at', 'contract_notes'] as const
+const FIELDS = ['plan', 'billing_status', 'mrr_cents', 'renews_at', 'contract_notes', 'stripe_customer_id', 'stripe_subscription_id'] as const
 type Field = (typeof FIELDS)[number]
 
 type AuthOk = { user: { id: string }; admin: SupabaseClient }
@@ -30,10 +30,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const auth = await checkPlatformAdmin()
   if ('error' in auth) return auth.error
 
-  const select = [...FIELDS, 'stripe_customer_id', 'stripe_subscription_id'].join(', ')
   const { data, error } = await auth.admin
     .from('organisations')
-    .select(select)
+    .select(FIELDS.join(', '))
     .eq('id', params.id)
     .single()
 
