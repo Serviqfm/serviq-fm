@@ -21,18 +21,21 @@ function healthBucket(score: number): { label: string; cls: string } {
 }
 
 export default function TenantsListPage() {
-  const [tenants, setTenants] = useState<TenantRow[]>([])
+  const [all, setAll] = useState<TenantRow[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    const params = new URLSearchParams()
+    const params = new URLSearchParams({ include_offboarded: '1' })
     if (search) params.set('q', search)
     fetch(`/api/platform/tenants?${params}`)
       .then(r => r.json())
-      .then(d => { setTenants(d.tenants ?? []); setLoading(false) })
+      .then(d => { setAll(d.tenants ?? []); setLoading(false) })
   }, [search])
+
+  const active = all.filter(t => !t.offboarded_at)
+  const offboarded = all.filter(t => !!t.offboarded_at)
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
@@ -53,7 +56,14 @@ export default function TenantsListPage() {
         />
       </div>
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+      {/* Active tenants */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden mb-8">
+        <div className="px-4 py-3 border-b border-outline-variant/40 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold text-on-surface">Active tenants</div>
+            <div className="text-xs text-on-surface-variant mt-0.5">{active.length} live organisation{active.length === 1 ? '' : 's'}</div>
+          </div>
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-surface-container-low">
             <tr className="text-left text-[11px] uppercase tracking-wider text-secondary">
@@ -64,7 +74,9 @@ export default function TenantsListPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={6} className="px-4 py-6 text-on-surface-variant">Loading…</td></tr>
-            ) : tenants.map(t => {
+            ) : active.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-6 text-on-surface-variant text-center">No active tenants yet. Click <strong>+ Create tenant</strong> to onboard the first one.</td></tr>
+            ) : active.map(t => {
               const bucket = healthBucket(t.total_score)
               return (
                 <tr key={t.id} className="border-t border-outline-variant/40 hover:bg-surface-container-low/40">
@@ -82,6 +94,42 @@ export default function TenantsListPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Offboarded — history log */}
+      {!loading && offboarded.length > 0 && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-outline-variant/40 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-bold text-on-surface">Offboarded — history log</div>
+              <div className="text-xs text-on-surface-variant mt-0.5">{offboarded.length} organisation{offboarded.length === 1 ? '' : 's'} archived for the record. User accounts and tenant data have been deleted; the org row is kept so export downloads remain valid.</div>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-surface-container-low">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-on-surface-variant">
+                <th className="px-4 py-3">Name</th>
+                <th>Plan (last)</th><th>MRR (last)</th><th>Offboarded</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {offboarded.map(t => (
+                <tr key={t.id} className="border-t border-outline-variant/40 hover:bg-surface-container-low/40 opacity-75">
+                  <td className="px-4 py-3 text-on-surface-variant font-medium">
+                    {t.name}
+                    <span className="ml-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-error/10 text-error border border-error/20">Offboarded</span>
+                  </td>
+                  <td className="text-on-surface-variant">{t.plan}</td>
+                  <td className="text-on-surface-variant">{formatSAR(t.mrr_cents)}</td>
+                  <td className="text-on-surface-variant">{t.offboarded_at ? new Date(t.offboarded_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
+                  <td className="text-end px-4">
+                    <Link href={`/platform/tenants/${t.id}`} className="text-secondary font-semibold text-xs">View record →</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
