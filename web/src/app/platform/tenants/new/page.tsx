@@ -1,12 +1,14 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+type CreateResult = { org_id: string; admin_email: string; temp_password: string }
 
 export default function NewTenantPage() {
-  const router = useRouter()
   const [form, setForm] = useState({ org_name: '', plan: 'free', admin_email: '', admin_full_name: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<CreateResult | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -17,7 +19,42 @@ export default function NewTenantPage() {
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setError(data.error ?? 'Failed'); return }
-    router.push(`/platform/tenants/${data.org_id}`)
+    setResult(data)
+  }
+
+  if (result) {
+    return (
+      <div className="star-pattern bg-surface min-h-screen p-8">
+        <div className="max-w-xl space-y-4">
+          <h1 className="text-2xl font-bold text-on-surface">Tenant Created</h1>
+          <div className="bg-primary/5 border border-primary/20 rounded-[12px] p-5">
+            <p className="text-sm text-on-surface mb-4">
+              <strong>{form.org_name}</strong> is ready. Share these credentials with the
+              admin once — the password will not be shown again.
+            </p>
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 font-mono text-sm space-y-2">
+              <div><span className="text-on-surface-variant">Login URL: </span>https://serviqfm.com/login/employee</div>
+              <div><span className="text-on-surface-variant">Email: </span>{result.admin_email}</div>
+              <div><span className="text-on-surface-variant">Temp password: </span><span className="font-bold text-primary">{result.temp_password}</span></div>
+            </div>
+            <p className="text-xs text-on-surface-variant mt-3">
+              A welcome email with these details was also sent to {result.admin_email}.
+              The admin should change the password immediately after first login.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link href={`/platform/tenants/${result.org_id}`}
+              className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm">
+              Open tenant detail
+            </Link>
+            <Link href="/platform/tenants"
+              className="border border-outline-variant text-on-surface-variant px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">
+              Back to tenants
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

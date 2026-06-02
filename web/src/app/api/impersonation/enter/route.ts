@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import {
   signImpersonationCookie,
   IMPERSONATION_COOKIE_NAME,
@@ -14,8 +15,17 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Need the service-role client to read organisations across tenants — the
+  // auth'd client is blocked by org-scoped RLS on the organisations table,
+  // which is what made this endpoint return 'Org not found' for valid tenants.
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
   // Verify caller is a platform admin
-  const { data: pa } = await supabase
+  const { data: pa } = await admin
     .from('platform_admins')
     .select('id')
     .eq('id', user.id)
@@ -26,12 +36,15 @@ export async function POST(req: NextRequest) {
   if (!org_id) return NextResponse.json({ error: 'Missing org_id' }, { status: 400 })
 
   // Verify the org exists and is not offboarded
-  const { data: org } = await supabase
+  const { data: org, error: orgErr } = await admin
     .from('organisations')
     .select('id, name, offboarded_at')
     .eq('id', org_id)
     .single()
-  if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
+  if (orgErr || !org) {
+    console.error('[impersonation enter] org lookup failed', { org_id, error: orgErr })
+    return NextResponse.json({ error: 'Org not found', detail: orgErr?.message }, { status: 404 })
+  }
   if (org.offboarded_at) {
     return NextResponse.json({ error: 'Cannot impersonate offboarded org' }, { status: 400 })
   }

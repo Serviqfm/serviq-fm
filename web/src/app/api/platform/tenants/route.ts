@@ -123,5 +123,11 @@ export async function POST(req: NextRequest) {
     details: { org_id: org.id, org_name: body.org_name, plan: body.plan, first_admin_email: body.admin_email },
   })
 
-  return NextResponse.json({ org_id: org.id })
+  // Return the temp password so the platform admin sees it once on screen, in
+  // case Resend hasn't delivered the welcome email (or hasn't been configured).
+  return NextResponse.json({
+    org_id: org.id,
+    admin_email: body.admin_email,
+    temp_password: tempPassword,
+  })
 }
