@@ -146,12 +146,34 @@ export async function middleware(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
-    const { data: profile } = await supabase
+
+    // Profile lookup. Some Supabase projects are missing the `disabled` column or the
+    // `organisations.offboarded_at` column (Sprint F migration); the joined select would
+    // then fail and PostgREST returns null — which the middleware used to read as 'no
+    // profile' and log the user out on every navigation. Do this defensively:
+    //  1. Try the full select; if it errors, fall back to a minimal id check.
+    //  2. Only deny access if we can prove the user is disabled or their org is
+    //     offboarded — otherwise let them through.
+    const full = await supabase
       .from('users')
       .select('is_active, disabled, organisations(offboarded_at)')
       .eq('id', user.id)
-      .single() as { data: { is_active: boolean; disabled: boolean; organisations: { offboarded_at: string | null } | null } | null }
+      .maybeSingle() as { data: { is_active: boolean | null; disabled: boolean | null; organisations: { offboarded_at: string | null } | null } | null; error: { code?: string; message?: string } | null }
 
+    if (full.error) {
+      console.warn('[middleware] full profile query failed, falling back', full.error)
+      const { data: simple } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (!simple) {
+        return NextResponse.redirect(new URL('/login/client?reason=no_profile', req.url))
+      }
+      return NextResponse.next()
+    }
+
+    const profile = full.data
     if (!profile) {
       return NextResponse.redirect(new URL('/login/client?reason=no_profile', req.url))
     }
