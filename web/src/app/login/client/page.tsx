@@ -19,13 +19,57 @@ export default function ClientLoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
+    const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInErr || !signIn.user) {
+      setError(signInErr?.message ?? 'Sign-in failed')
       setLoading(false)
-    } else {
-      router.push('/dashboard')
+      return
     }
+    const userId = signIn.user.id
+
+    // Step A: platform admin → /platform/dashboard
+    const { data: pa } = await supabase
+      .from('platform_admins')
+      .select('id')
+      .eq('id', userId)
+      .single()
+    if (pa) {
+      await fetch('/api/platform/me/sign-in-touch', { method: 'POST' }).catch(() => {})
+      router.push('/platform/dashboard')
+      return
+    }
+
+    // Step B: tenant user — check is_active, disabled, org.offboarded_at
+    const { data: profile } = await supabase
+      .from('users')
+      .select('is_active, disabled, organisations(offboarded_at)')
+      .eq('id', userId)
+      .single() as {
+        data: {
+          is_active: boolean
+          disabled: boolean
+          organisations: { offboarded_at: string | null } | null
+        } | null
+      }
+
+    if (!profile) {
+      await supabase.auth.signOut()
+      setError('No tenant or platform account found for this email.')
+      setLoading(false)
+      return
+    }
+    if (
+      profile.is_active === false ||
+      profile.disabled === true ||
+      profile.organisations?.offboarded_at
+    ) {
+      await supabase.auth.signOut()
+      setError('Account is disabled or your organisation has been offboarded.')
+      setLoading(false)
+      return
+    }
+
+    router.push('/dashboard')
   }
 
   return (

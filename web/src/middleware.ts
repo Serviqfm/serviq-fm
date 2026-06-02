@@ -99,8 +99,9 @@ async function getUserFromRequest(req: NextRequest) {
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
-  // /platform/* gate
-  if (path.startsWith('/platform/')) {
+  // /platform/* gate (covers '/platform' exact too — the matcher allows it but
+  // startsWith('/platform/') would miss the bare path)
+  if (path === '/platform' || path.startsWith('/platform/')) {
     const user = await getUserFromRequest(req)
     if (!user) {
       return NextResponse.redirect(new URL('/login/employee', req.url))
@@ -121,8 +122,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // /dashboard/* gate
-  if (path.startsWith('/dashboard/')) {
+  // /dashboard/* gate (covers '/dashboard' exact too)
+  if (path === '/dashboard' || path.startsWith('/dashboard/')) {
     const user = await getUserFromRequest(req)
     if (!user) {
       return NextResponse.redirect(new URL('/login/client', req.url))
