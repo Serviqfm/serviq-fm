@@ -52,17 +52,22 @@ export default function SpacesPage({ params }: { params: { id: string } }) {
     try {
       const rows = parseCSV(await readFileText(file))
       if (rows.length === 0) { alert('CSV had no data rows.'); return }
-      const payload = rows.filter(r => r.name).map(r => ({
-        site_id: params.id,
-        name: r.name,
-        name_ar: r.name_ar || null,
-        floor: r.floor || 'Ground',
-        description: r.description || null,
-      }))
-      if (payload.length === 0) { alert('No rows had a name to import.'); return }
-      const { error } = await supabase.from('spaces').insert(payload)
-      if (error) { alert('Import failed: ' + error.message); return }
-      alert(`Imported ${payload.length} space(s).`)
+      const cleaned = rows.filter(r => r.name)
+      if (cleaned.length === 0) { alert('No rows had a name to import.'); return }
+      // Route through a service-role API so the insert is org-scoped in code
+      // and not blocked by the spaces RLS policy on direct browser inserts.
+      const res = await fetch('/api/spaces/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site_id: params.id, rows: cleaned }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ error: 'Unknown error' }))
+        alert('Import failed: ' + (j.error ?? 'Unknown error'))
+        return
+      }
+      const { inserted } = await res.json()
+      alert(`Imported ${inserted} space(s).`)
       fetchData()
     } finally {
       if (csvImportRef.current) csvImportRef.current.value = ''
