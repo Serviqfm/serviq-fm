@@ -38,8 +38,9 @@ export default function OffboardPage() {
       <ul className="text-sm text-on-surface-variant mb-6 list-disc pl-6 space-y-1">
         <li>All tenant data will be exported to a zip and uploaded to private storage</li>
         <li>Signed download URL emailed to tenant admins + you (valid 30 days)</li>
-        <li>All tenant users will be set to disabled (cannot log in)</li>
-        <li>Organisation marked as offboarded; data retained until reactivation</li>
+        <li className="text-error font-semibold">All tenant user accounts will be permanently deleted from auth and the users table — emails are freed for reuse</li>
+        <li>Organisation row is preserved with an offboarded_at marker so the export download link remains valid</li>
+        <li>Reactivation restores org access but will not bring users back — you will need to onboard a new admin</li>
       </ul>
       <div className="mb-4">
         <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Type OFFBOARD to confirm</label>
