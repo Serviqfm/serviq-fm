@@ -33,9 +33,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       description: request.description,
       category: request.category,
       priority: priority || 'medium',
-      status: 'open',
+      status: 'new',
       assigned_to: null,
-      due_date: due_date || null,
+      due_at: due_date || null,
+      source: 'requester',
     })
     .select()
     .single()

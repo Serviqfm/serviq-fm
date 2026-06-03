@@ -57,10 +57,10 @@ export default function VendorsPage() {
     exportCSV(`vendors-${new Date().toISOString().slice(0, 10)}.csv`, vendors.map(v => ({
       company_name: v.company_name ?? '',
       company_name_ar: v.company_name_ar ?? '',
-      category: v.category ?? '',
+      specialisation: v.specialisation ?? '',
       email: v.email ?? '',
       phone: v.phone ?? '',
-      contact_person: v.contact_person ?? '',
+      contact_name: v.contact_name ?? '',
       vat_number: v.vat_number ?? '',
       cr_number: v.cr_number ?? '',
       is_active: v.is_active ? 'true' : 'false',
@@ -82,10 +82,14 @@ export default function VendorsPage() {
         organisation_id: profile.organisation_id,
         company_name: r.company_name,
         company_name_ar: r.company_name_ar || null,
-        category: r.category || null,
+        // Accept either 'specialisation' or 'category' from the CSV (we used to export
+        // 'category' before fixing the schema name). The DB column is 'specialisation'.
+        specialisation: r.specialisation || r.category || null,
         email: r.email || null,
         phone: r.phone || null,
-        contact_person: r.contact_person || null,
+        // Accept either 'contact_name' or 'contact_person' from the CSV. DB column is
+        // 'contact_name'.
+        contact_name: r.contact_name || r.contact_person || null,
         vat_number: r.vat_number || null,
         cr_number: r.cr_number || null,
         is_active: r.is_active === 'false' ? false : true,

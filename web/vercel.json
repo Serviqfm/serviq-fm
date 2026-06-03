@@ -3,6 +3,10 @@
     {
       "path": "/api/platform/cron/mrr-snapshot",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/pm-generate",
+      "schedule": "0 * * * *"
     }
   ]
 }

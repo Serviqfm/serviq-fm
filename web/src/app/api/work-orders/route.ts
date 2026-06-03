@@ -80,7 +80,10 @@ export async function POST(req: NextRequest) {
     due_at: cleaned.due_at ? cleaned.due_at : null,
     sla_hours: slaParsed,
     status: cleaned.assigned_to ? 'assigned' : 'new',
-    source: cleaned.is_recurring === 'true' ? 'recurring' : 'manual',
+    // 'source' is constrained to ('manual', 'pm_schedule', 'requester'). Recurring
+    // WOs are still manually-created — recurrence is captured by is_recurring +
+    // recurrence_frequency below, not by the source column.
+    source: 'manual',
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
   }
 

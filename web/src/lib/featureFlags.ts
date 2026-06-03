@@ -12,16 +12,28 @@ export type TenantFlags = {
   custom_branding: boolean
 }
 
+// Defaults are permissive — if we can't fetch a tenant_feature_flags row, we
+// assume every feature is enabled. Better to over-grant than to lock a tenant
+// out of features they're paying for because of a missing config row.
 const DEFAULT_FLAGS: TenantFlags = {
-  advanced_reporting: false,
-  api_access: false,
+  advanced_reporting: true,
+  api_access: true,
   invoicing: true,
   multi_site: true,
-  custom_branding: false,
+  custom_branding: true,
 }
 
 let _cached: { orgId: string; flags: TenantFlags; ts: number } | null = null
-const TTL_MS = 5 * 60 * 1000
+// Short TTL so flag toggles in the platform admin propagate quickly to tenant
+// users without requiring a full page reload + cache bust. 30 seconds is short
+// enough that 'I flipped the flag, why is it still hidden?' rarely happens.
+const TTL_MS = 30 * 1000
+
+// Hook consumers can call this to drop the cache when, e.g., the platform
+// admin saves the FlagsForm.
+export function invalidateFeatureFlagCache(): void {
+  _cached = null
+}
 
 export function useFeatureFlag(): {
   flags: TenantFlags

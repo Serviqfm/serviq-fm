@@ -12,9 +12,16 @@ const TTL_MS = 4 * 60 * 60 * 1000  // 4 hours
 const COOKIE_NAME = 'impersonating_org_id'
 
 function getSigningKey(): Buffer {
+  // Prefer the dedicated env var when set.
   const key = process.env.IMPERSONATION_SIGNING_KEY
-  if (!key) throw new Error('IMPERSONATION_SIGNING_KEY env var not set')
-  return Buffer.from(key, 'hex')
+  if (key) return Buffer.from(key, 'hex')
+  // Fall back to a deterministic key derived from the service-role key so
+  // impersonation works out-of-the-box without yet another env var. Same
+  // input on every request -> same key, so sign/verify stay consistent.
+  // (Edge variant in middleware.ts mirrors this derivation.)
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!fallback) throw new Error('Neither IMPERSONATION_SIGNING_KEY nor SUPABASE_SERVICE_ROLE_KEY is set')
+  return crypto.createHash('sha256').update('serviqfm-impersonation:' + fallback).digest()
 }
 
 export function signImpersonationCookie(payload: ImpersonationPayload): string {

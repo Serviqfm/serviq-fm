@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { TenantFlags } from '@/lib/featureFlags'
+import { TenantFlags, invalidateFeatureFlagCache } from '@/lib/featureFlags'
 
 const FLAG_KEYS: (keyof TenantFlags)[] = ['advanced_reporting', 'api_access', 'invoicing', 'multi_site', 'custom_branding']
 const FLAG_LABELS: Record<keyof TenantFlags, string> = {
@@ -30,6 +30,7 @@ export default function FlagsForm({ tenantId }: { tenantId: string }) {
     })
     setSaving(false)
     if (!res.ok) { const j = await res.json(); setError(j.error); return }
+    invalidateFeatureFlagCache()
     setSaved(true); setTimeout(() => setSaved(false), 2500)
   }
 

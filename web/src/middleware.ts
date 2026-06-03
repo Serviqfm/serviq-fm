@@ -33,6 +33,17 @@ function hexToBytes(hex: string): Uint8Array {
   for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16)
   return out
 }
+async function deriveSigningKeyBytes(): Promise<Uint8Array | null> {
+  // Mirror lib/impersonation.ts getSigningKey() fallback so sign/verify agree.
+  const explicit = process.env.IMPERSONATION_SIGNING_KEY
+  if (explicit) return hexToBytes(explicit)
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!fallback) return null
+  const seedBytes = new TextEncoder().encode('serviqfm-impersonation:' + fallback)
+  const digest = await crypto.subtle.digest('SHA-256', seedBytes)
+  return new Uint8Array(digest)
+}
+
 async function verifyImpersonationCookieEdge(token: string | undefined | null): Promise<
   { valid: true; orgId: string } | { valid: false }
 > {
@@ -40,9 +51,8 @@ async function verifyImpersonationCookieEdge(token: string | undefined | null): 
   const parts = token.split('.')
   if (parts.length !== 2) return { valid: false }
   const [bodyB64, signature] = parts
-  const keyHex = process.env.IMPERSONATION_SIGNING_KEY
-  if (!keyHex) return { valid: false }
-  const keyBytes = hexToBytes(keyHex)
+  const keyBytes = await deriveSigningKeyBytes()
+  if (!keyBytes) return { valid: false }
   const key = await crypto.subtle.importKey(
     'raw', keyBytes.buffer as ArrayBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   )

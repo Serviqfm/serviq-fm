@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { sendPushNotification } from '@/lib/push'
 import { useFieldConfig } from '@/lib/useFieldConfig'
@@ -13,6 +13,9 @@ const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-seco
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const prefilledAssetId = searchParams.get('asset_id') ?? ''
+  const prefilledSiteId = searchParams.get('site_id') ?? ''
   const { t, lang } = useLanguage()
   const supabase = createClient()
   const { isHidden, isRequired, loading: configLoading } = useFieldConfig('work_orders_new')
@@ -36,8 +39,8 @@ export default function NewWorkOrderPage() {
     description: '',
     priority: 'medium',
     category: '',
-    site_id: '',
-    asset_id: '',
+    site_id: prefilledSiteId,
+    asset_id: prefilledAssetId,
     assigned_to: '',
     due_at: '',
     sla_hours: '',

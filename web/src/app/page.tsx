@@ -281,39 +281,44 @@ export default function LandingPage() {
           <div className="features-grid" style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:24 }}>
             {[
               {
+                href: '/features/work-orders',
                 icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="#3AAECC" strokeWidth="2" strokeLinecap="round"/><path d="M9 12l2 2 4-4" stroke="#6DCFB0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
                 title:'Work Order Management', titleAr:'إدارة أوامر العمل',
                 text:'Create, assign, and track work orders with SLA countdown timers, priority levels, photo proof of completion, digital sign-off, and full audit trail — in Arabic and English.',
                 tags:['SLA Timers','Photo Proof','Digital Sign-off','Audit Trail','Priority Levels'],
               },
               {
+                href: '/features/assets',
                 icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#3AAECC" strokeWidth="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="#6DCFB0" strokeWidth="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="#6DCFB0" strokeWidth="2"/><path d="M14 17.5h7M17.5 14v7" stroke="#3AAECC" strokeWidth="2" strokeLinecap="round"/></svg>,
                 title:'Asset Management', titleAr:'إدارة الأصول',
                 text:'Maintain a complete asset registry with QR code and NFC scanning, warranty tracking, lifecycle history, cost of ownership, and location mapping across all your sites.',
                 tags:['QR Code Scanning','NFC Tags','Warranty Tracking','Multi-site'],
               },
               {
+                href: '/features/preventive-maintenance',
                 icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#3AAECC" strokeWidth="2"/><path d="M12 7v5l3 3" stroke="#6DCFB0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
                 title:'Preventive Maintenance', titleAr:'الصيانة الوقائية',
                 text:'Schedule recurring PM tasks, auto-generate work orders, track PM compliance percentage, and stop costly breakdowns before they happen with smart scheduling.',
                 tags:['Recurring Schedules','PM Compliance %','Auto-generate Tasks','MTTR / MTBF'],
               },
               {
+                href: '/features/mobile-app',
                 icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="5" y="2" width="14" height="20" rx="2" stroke="#3AAECC" strokeWidth="2"/><path d="M9 7h6M9 11h6M9 15h4" stroke="#6DCFB0" strokeWidth="2" strokeLinecap="round"/></svg>,
                 title:'Mobile Technician App', titleAr:'تطبيق الفني المتنقل',
                 text:'iOS and Android app built for field use. Works offline, GPS check-in, camera for photo uploads, push notifications on new assignments, and built-in QR scanner.',
                 tags:['Offline-capable','GPS Check-in','Push Notifications','iOS & Android'],
               },
             ].map(card => (
-              <div key={card.title} className="feature-card reveal" style={{ border:`1px solid ${border}`, borderRadius:12, padding:'36px 32px', position:'relative', overflow:'hidden', transition:'box-shadow 0.2s, transform 0.2s' }}>
+              <Link key={card.title} href={card.href} className="feature-card reveal" style={{ display:'block', textDecoration:'none', color:'inherit', border:`1px solid ${border}`, borderRadius:12, padding:'36px 32px', position:'relative', overflow:'hidden', transition:'box-shadow 0.2s, transform 0.2s' }}>
                 <div style={{ width:52, height:52, borderRadius:12, background:'#E8F7F3', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:20 }}>{card.icon}</div>
                 <div style={{ fontSize:19, fontWeight:700, color:navy, marginBottom:4 }}>{card.title}</div>
                 <div style={{ fontFamily:ar, fontSize:14, fontWeight:600, color:mid, direction:'rtl', marginBottom:14 }}>{card.titleAr}</div>
                 <div style={{ fontSize:14, color:text2, lineHeight:1.75, marginBottom:20 }}>{card.text}</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
                   {card.tags.map(t => <span key={t} style={{ background:offwhite, border:`1px solid ${border}`, color:text2, fontSize:11, fontWeight:500, padding:'4px 10px', borderRadius:999 }}>{t}</span>)}
                 </div>
-              </div>
+                <div style={{ fontSize:13, fontWeight:600, color:blue }}>Learn more →</div>
+              </Link>
             ))}
           </div>
         </div>

@@ -18,9 +18,12 @@ function NewInspectionForm() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assets, setAssets] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [spaces, setSpaces] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [templateId, setTemplateId] = useState(searchParams.get('template') ?? '')
   const [siteId, setSiteId] = useState('')
+  const [spaceId, setSpaceId] = useState('')
   const [assetId, setAssetId] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [responses, setResponses] = useState<Record<string, any>>({})
@@ -60,6 +63,14 @@ function NewInspectionForm() {
     if (assetData) setAssets(assetData)
     setLoading(false)
   }
+
+  // Whenever the chosen site changes, load that site's spaces.
+  useEffect(() => {
+    if (!siteId) { setSpaces([]); setSpaceId(''); return }
+    supabase.from('spaces').select('id, name, floor').eq('site_id', siteId).order('floor').order('name')
+      .then(({ data }) => { setSpaces(data ?? []); setSpaceId('') })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function setResponse(itemId: string, value: any) {
@@ -120,6 +131,7 @@ function NewInspectionForm() {
       .insert({
         template_id: templateId,
         site_id: siteId || null,
+        space_id: spaceId || null,
         asset_id: assetId || null,
         conducted_by: userId,
         organisation_id: orgId,
@@ -143,8 +155,9 @@ function NewInspectionForm() {
         description: 'Auto-created from failed inspection: ' + selectedTemplate.name,
         priority: 'high',
         status: 'new',
-        source: 'inspection',
+        source: 'manual',
         site_id: siteId || null,
+        space_id: spaceId || null,
         asset_id: assetId || null,
         organisation_id: orgId,
         created_by: userId,
@@ -205,6 +218,13 @@ function NewInspectionForm() {
               <select value={siteId} onChange={e => setSiteId(e.target.value)} style={fieldStyle}>
                 <option value=''>{lang === 'ar' ? 'اختر موقعاً' : 'Select site'}</option>
                 {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>{lang === 'ar' ? 'المساحة (اختياري)' : 'Space (optional)'}</label>
+              <select value={spaceId} onChange={e => setSpaceId(e.target.value)} style={fieldStyle} disabled={!siteId}>
+                <option value=''>{!siteId ? (lang === 'ar' ? 'اختر موقعاً أولاً' : 'Select a site first') : (lang === 'ar' ? 'اختر مساحة' : 'Select space')}</option>
+                {spaces.map(s => <option key={s.id} value={s.id}>{s.floor ? s.floor + ' · ' : ''}{s.name}</option>)}
               </select>
             </div>
             <div>

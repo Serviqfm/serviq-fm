@@ -49,11 +49,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Cannot impersonate offboarded org' }, { status: 400 })
   }
 
-  const token = signImpersonationCookie({
-    platform_admin_id: user.id,
-    org_id,
-    issued_at: Date.now(),
-  })
+  let token: string
+  try {
+    token = signImpersonationCookie({
+      platform_admin_id: user.id,
+      org_id,
+      issued_at: Date.now(),
+    })
+  } catch (e) {
+    console.error('[impersonation enter] sign cookie failed', e)
+    return NextResponse.json({ error: 'Could not sign impersonation cookie: ' + (e instanceof Error ? e.message : String(e)) }, { status: 500 })
+  }
 
   await logPlatformAction({
     platform_admin_id: user.id,
