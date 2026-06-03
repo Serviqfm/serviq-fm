@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { sendRequestApproved } from '@/lib/email'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-  const authHeader = req.headers.get('authorization')
-  const { data: { user } } = await supabase.auth.getUser(authHeader?.replace('Bearer ', '') || '')
+  // Use the cookie-backed server client to identify the caller (the tenant admin
+  // pressing 'Approve'). created_by on the WO comes from here.
+  const serverSupabase = await createServerSupabaseClient()
+  const { data: { user } } = await serverSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Service role for the actual inserts so spaces/work_orders RLS does not bite.
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
   const body = await req.json()
   const { priority, due_date } = body
 
-  const { data: request } = await supabase
+  const { data: request } = await admin
     .from('requests')
     .select('*, site:site_id(name, organisation_id)')
     .eq('id', params.id)
@@ -22,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   if (!request) return NextResponse.json({ error: 'Request not found' }, { status: 404 })
 
-  const { data: wo, error: woErr } = await supabase
+  const { data: wo, error: woErr } = await admin
     .from('work_orders')
     .insert({
       organisation_id: request.organisation_id,
@@ -37,13 +45,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       assigned_to: null,
       due_at: due_date || null,
       source: 'requester',
+      created_by: user.id,
     })
     .select()
     .single()
 
   if (woErr) return NextResponse.json({ error: woErr.message }, { status: 500 })
 
-  await supabase.from('requests').update({
+  await admin.from('requests').update({
     status: 'approved',
     work_order_id: wo.id,
     updated_at: new Date().toISOString(),

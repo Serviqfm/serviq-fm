@@ -51,6 +51,22 @@ export default function NewWorkOrderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadFormData() }, [])
 
+  // Belt-and-braces: useSearchParams can return null on the first client render
+  // before hydration, in which case the useState initializer above misses the
+  // ?asset_id= / ?site_id= query and the dropdowns render unselected. Watch the
+  // params and patch the form once they're available.
+  useEffect(() => {
+    const a = searchParams.get('asset_id')
+    const s = searchParams.get('site_id')
+    if (a || s) {
+      setForm(prev => ({
+        ...prev,
+        asset_id: a ?? prev.asset_id,
+        site_id: s ?? prev.site_id,
+      }))
+    }
+  }, [searchParams])
+
   async function loadFormData() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return

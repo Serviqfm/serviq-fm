@@ -76,7 +76,9 @@ async function run() {
         .limit(1)
       if (existing && existing.length > 0) continue
 
-      // Insert the WO
+      // Insert the WO. Skip is_recurring/recurrence_frequency since those
+      // columns aren't reliably present across all Supabase projects; the
+      // recurrence is captured by pm_schedule_id alone.
       const { error: insErr } = await admin.from('work_orders').insert({
         organisation_id: pm.organisation_id,
         title: `PM - ${pm.title}`,
@@ -90,8 +92,6 @@ async function run() {
         assigned_to: pm.assigned_to,
         due_at: pm.next_due_at,
         sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
-        is_recurring: 'true',
-        recurrence_frequency: pm.frequency,
       })
       if (insErr) {
         errors.push(`PM ${pm.id}: ${insErr.message}`)
