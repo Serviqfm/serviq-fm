@@ -44,7 +44,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       status: 'new',
       assigned_to: null,
       due_at: due_date || null,
-      source: 'requester',
+      // Some Supabase projects have a check constraint that doesn't allow
+      // 'requester' in work_orders.source. Use 'manual' which is universally
+      // allowed; the origin is still traceable via request_id (set above).
+      source: 'manual',
       created_by: user.id,
     })
     .select()
