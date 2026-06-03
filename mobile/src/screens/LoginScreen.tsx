@@ -28,9 +28,11 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.inner}>
         <View style={styles.logoContainer}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>S</Text>
-          </View>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logoImage}
+            resizeMode='contain'
+          />
           <Text style={styles.appName}>Serviq FM</Text>
           <Text style={styles.tagline}>{lang === 'ar' ? 'إدارة المنشآت بذكاء' : 'Facility Management Platform'}</Text>
         </View>
@@ -92,8 +94,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   inner: { flex: 1, justifyContent: 'center', padding: 24 },
   logoContainer: { alignItems: 'center', marginBottom: 32 },
-  logoBox: { width: 72, height: 72, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  logoText: { color: 'white', fontSize: 32, fontWeight: '700' },
+  logoImage: { width: 72, height: 72, marginBottom: 12 },
   appName: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 4 },
   tagline: { fontSize: 14, color: colors.textSecondary },
   card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 24, ...shadow.md, marginBottom: 24 },
