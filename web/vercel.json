@@ -6,7 +6,8 @@
     },
     {
       "path": "/api/cron/pm-generate",
-      "schedule": "0 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
+
