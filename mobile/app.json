@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Serviq FM",
+    "slug": "serviqfm-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.serviqfm.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.serviqfm.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -42,6 +44,12 @@
     "notification": {
       "icon": "./assets/icon.png",
       "color": "#182848"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1f2cdd5a-b7b2-4a26-bd36-70f00779e7aa"
+      }
+    },
+    "owner": "serviqfm"
   }
 }
