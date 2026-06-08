@@ -50,6 +50,12 @@
         "projectId": "1f2cdd5a-b7b2-4a26-bd36-70f00779e7aa"
       }
     },
-    "owner": "serviqfm"
+    "owner": "serviqfm",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1f2cdd5a-b7b2-4a26-bd36-70f00779e7aa"
+    }
   }
 }
