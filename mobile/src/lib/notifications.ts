@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 import { supabase } from './supabase'
 
 Notifications.setNotificationHandler({
@@ -26,9 +27,11 @@ export async function registerPushToken(userId: string): Promise<void> {
     return
   }
 
-  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    (Constants as any).easConfig?.projectId
   if (!projectId) {
-    console.warn('EXPO_PUBLIC_PROJECT_ID is not set — push token registration skipped')
+    console.warn('Expo project ID not found in app config — push token registration skipped')
     return
   }
 
