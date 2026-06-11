@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { sendRequestApproved } from '@/lib/email'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +12,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const serverSupabase = await createServerSupabaseClient()
   const { data: { user } } = await serverSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Load the caller's profile — only admins/managers of the request's org may approve.
+  const { data: callerProfile } = await serverSupabase
+    .from('users')
+    .select('organisation_id, role')
+    .eq('id', user.id)
+    .single()
+  if (!callerProfile?.organisation_id) {
+    return NextResponse.json({ error: 'No organisation' }, { status: 403 })
+  }
+  if (!['admin', 'manager'].includes(callerProfile.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   // Service role for the actual inserts so spaces/work_orders RLS does not bite.
   const admin = createAdminClient(
@@ -29,6 +43,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .single()
 
   if (!request) return NextResponse.json({ error: 'Request not found' }, { status: 404 })
+
+  // Org check: the request must belong to the caller's organisation.
+  if (request.organisation_id !== callerProfile.organisation_id) {
+    return NextResponse.json({ error: 'Request not found' }, { status: 404 })
+  }
 
   const { data: wo, error: woErr } = await admin
     .from('work_orders')
@@ -67,8 +86,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     await sendRequestApproved({
       to: request.requester_email,
-      name: request.requester_name,
-      siteName: (request.site as { name: string }).name,
+      // Escape user-supplied values — lib/email interpolates these into HTML.
+      name: escapeHtml(request.requester_name),
+      siteName: escapeHtml((request.site as { name: string }).name),
       woNumber: woNum,
       trackingUrl,
     })

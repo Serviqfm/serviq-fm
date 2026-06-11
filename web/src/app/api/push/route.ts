@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
+
+export const dynamic = 'force-dynamic';
 
 function getExpoClient() {
   return new Expo({
@@ -25,8 +28,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch device tokens for user (deferred to runtime)
     const supabase = getSupabaseClient();
+
+    // --- Auth: either an internal server-to-server secret (NotificationService)
+    // or a logged-in session whose org matches the target user's org. ---
+    const internalSecret = process.env.PUSH_INTERNAL_SECRET || process.env.CRON_SECRET;
+    const authHeader = request.headers.get('authorization') ?? '';
+    const isInternal = Boolean(internalSecret) && authHeader === `Bearer ${internalSecret}`;
+
+    if (!isInternal) {
+      const serverSupabase = await createServerSupabaseClient();
+      const { data: { user: caller } } = await serverSupabase.auth.getUser();
+      if (!caller) {
+        return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const { data: callerProfile } = await serverSupabase
+        .from('users')
+        .select('organisation_id')
+        .eq('id', caller.id)
+        .single();
+      if (!callerProfile?.organisation_id) {
+        return Response.json({ error: 'No organisation' }, { status: 403 });
+      }
+
+      // The target user must belong to the caller's organisation.
+      const { data: targetUser } = await supabase
+        .from('users')
+        .select('organisation_id')
+        .eq('id', userId)
+        .maybeSingle();
+      if (!targetUser || targetUser.organisation_id !== callerProfile.organisation_id) {
+        return Response.json({ error: 'User not found' }, { status: 404 });
+      }
+    }
+
+    // Fetch device tokens for user (deferred to runtime)
     const { data: deviceData, error: deviceError } = await supabase
       .from('user_devices')
       .select('push_token')

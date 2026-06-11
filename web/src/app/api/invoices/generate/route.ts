@@ -40,6 +40,19 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createServerSupabaseClient()
 
+    // Explicit auth + org scoping (defense-in-depth over RLS).
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('organisation_id')
+      .eq('id', user.id)
+      .single()
+    if (!profile?.organisation_id) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+    }
+
     const { data: inv, error: invErr } = await supabase
       .from('invoices')
       .select('*, work_order:work_order_id(title, completed_at, assignee:assigned_to(full_name), asset:asset_id(name), organisation:organisation_id(*))')
@@ -47,6 +60,11 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (invErr || !inv) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+
+    // The invoice must belong to the caller's organisation.
+    if ((inv as { organisation_id?: string }).organisation_id !== profile.organisation_id) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const invoice = inv as any

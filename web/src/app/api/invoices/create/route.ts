@@ -24,10 +24,25 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from('users')
-      .select('organisation_id')
+      .select('organisation_id, role')
       .eq('id', user.id)
       .single()
-    if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+    if (!profile?.organisation_id) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+    }
+    if (!['admin', 'manager'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // The work order must belong to the caller's organisation.
+    const { data: wo } = await supabase
+      .from('work_orders')
+      .select('id, organisation_id')
+      .eq('id', work_order_id)
+      .maybeSingle()
+    if (!wo || wo.organisation_id !== profile.organisation_id) {
+      return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
+    }
 
     const sc    = Number(service_charges ?? 0)
     const lh    = Number(labor_hours ?? 0)

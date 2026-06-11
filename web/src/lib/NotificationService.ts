@@ -116,9 +116,16 @@ export class NotificationService {
   ): Promise<void> {
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'
+      // /api/push now requires auth. This is a server-to-server call (no cookies),
+      // so authenticate with the internal secret. NotificationService only runs
+      // server-side (it uses SUPABASE_SERVICE_ROLE_KEY), so the secret is available.
+      const internalSecret = process.env.PUSH_INTERNAL_SECRET || process.env.CRON_SECRET;
       const response = await fetch(`${appUrl}/api/push`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(internalSecret ? { Authorization: `Bearer ${internalSecret}` } : {}),
+        },
         body: JSON.stringify({ userId, title, body, data }),
       });
 

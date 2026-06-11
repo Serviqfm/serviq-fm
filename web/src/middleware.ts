@@ -45,7 +45,7 @@ async function deriveSigningKeyBytes(): Promise<Uint8Array | null> {
 }
 
 async function verifyImpersonationCookieEdge(token: string | undefined | null): Promise<
-  { valid: true; orgId: string } | { valid: false }
+  { valid: true; orgId: string; platformAdminId: string } | { valid: false }
 > {
   if (!token || typeof token !== 'string') return { valid: false }
   const parts = token.split('.')
@@ -65,10 +65,11 @@ async function verifyImpersonationCookieEdge(token: string | undefined | null): 
   if (diff !== 0) return { valid: false }
   try {
     const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(bodyB64))) as {
-      org_id: string; issued_at: number
+      org_id: string; issued_at: number; platform_admin_id: string
     }
     if (Date.now() - payload.issued_at > IMPERSONATION_TTL_MS) return { valid: false }
-    return { valid: true, orgId: payload.org_id }
+    if (!payload.platform_admin_id) return { valid: false }
+    return { valid: true, orgId: payload.org_id, platformAdminId: payload.platform_admin_id }
   } catch {
     return { valid: false }
   }
@@ -142,10 +143,13 @@ export async function middleware(req: NextRequest) {
     const impersonationCookie = req.cookies.get(IMPERSONATION_COOKIE_NAME)
     if (impersonationCookie) {
       const verified = await verifyImpersonationCookieEdge(impersonationCookie.value)
-      if (verified.valid) {
+      // The cookie is only honoured when the currently-logged-in user IS the
+      // platform admin who minted it — a stolen/replayed cookie under another
+      // session is treated as no-impersonation.
+      if (verified.valid && verified.platformAdminId === user.id) {
         return NextResponse.next()
       }
-      // Stale/invalid cookie — clear it and continue with normal flow
+      // Stale/invalid/mismatched cookie — clear it and continue with normal flow
       const res = NextResponse.next()
       res.cookies.delete(IMPERSONATION_COOKIE_NAME)
       return res

@@ -1,8 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate the caller via the cookie-bound Supabase server client.
+    const serverSupabase = await createServerSupabaseClient()
+    const { data: { user: caller } } = await serverSupabase.auth.getUser()
+    if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: callerProfile } = await serverSupabase
+      .from('users')
+      .select('organisation_id, role')
+      .eq('id', caller.id)
+      .single()
+    if (!callerProfile?.organisation_id) {
+      return NextResponse.json({ error: 'No organisation' }, { status: 403 })
+    }
+    if (callerProfile.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden — admin role required' }, { status: 403 })
+    }
+
     const { userId } = await req.json()
 
     if (!userId) {
@@ -18,6 +38,31 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
+
+    // Target must exist and belong to the caller's organisation.
+    const { data: target } = await supabaseAdmin
+      .from('users')
+      .select('id, role, organisation_id')
+      .eq('id', userId)
+      .maybeSingle()
+    if (!target || target.organisation_id !== callerProfile.organisation_id) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Last-admin protection: refuse to delete the org's only remaining admin.
+    if (target.role === 'admin') {
+      const { count: adminCount } = await supabaseAdmin
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', callerProfile.organisation_id)
+        .eq('role', 'admin')
+      if ((adminCount ?? 0) <= 1) {
+        return NextResponse.json(
+          { error: 'Cannot delete the only remaining admin of this organisation.' },
+          { status: 400 }
+        )
+      }
+    }
 
     // Check for active (assigned) work orders — block deletion if any exist
     const { data: linkedWOs } = await supabaseAdmin

@@ -10,7 +10,7 @@ export const maxDuration = 60
 // audit field (left for the technician to complete the WO).
 //
 // Vercel: wire via vercel.json -> crons: [{ path: '/api/cron/pm-generate', schedule: '0 * * * *' }]
-// Manual: also accepts GET with ?run=1 for ad-hoc testing.
+// Auth: requires `Authorization: Bearer ${CRON_SECRET}` — no unauthenticated path.
 
 const FREQ_TO_DAYS: Record<string, number> = {
   daily: 1,
@@ -28,6 +28,18 @@ function addDays(d: Date, days: number): Date {
   return out
 }
 
+// From `from`, advance day-by-day (max 8 iterations) to the next date whose
+// UTC weekday is in daysOfWeek (0=Sun .. 6=Sat). Falls back to +7 days.
+// Keep in sync with src/app/dashboard/pm-schedules/pm-utils.ts.
+function nextDueOnDaysOfWeek(from: Date, daysOfWeek: number[]): Date {
+  let next = addDays(from, 1)
+  for (let i = 0; i < 8; i++) {
+    if (daysOfWeek.includes(next.getUTCDay())) return next
+    next = addDays(next, 1)
+  }
+  return addDays(from, 7)
+}
+
 type PMRow = {
   id: string
   title: string
@@ -40,6 +52,9 @@ type PMRow = {
   organisation_id: string
   next_due_at: string | null
   lead_time_days?: number | null
+  is_archived?: boolean | null
+  end_date?: string | null
+  days_of_week?: number[] | null
 }
 
 async function run() {
@@ -54,8 +69,9 @@ async function run() {
 
   const { data: due, error } = await admin
     .from('pm_schedules')
-    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days')
+    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week')
     .eq('is_active', true)
+    .eq('is_archived', false)
     .not('next_due_at', 'is', null)
     .lte('next_due_at', cutoff)
     .returns<PMRow[]>()
@@ -67,6 +83,15 @@ async function run() {
 
   for (const pm of due) {
     try {
+      // Belt-and-braces: never generate for archived schedules.
+      if (pm.is_archived) continue
+
+      // End date reached: don't generate past it — deactivate the schedule instead.
+      if (pm.end_date && new Date(pm.next_due_at!) > new Date(pm.end_date)) {
+        await admin.from('pm_schedules').update({ is_active: false }).eq('id', pm.id)
+        continue
+      }
+
       // Skip if a WO already exists for this PM cycle (linked_pm_schedule_id + due date match)
       const { data: existing } = await admin
         .from('work_orders')
@@ -98,10 +123,17 @@ async function run() {
         continue
       }
 
-      // Roll next_due_at forward
-      const days = FREQ_TO_DAYS[pm.frequency] ?? 30
-      const nextDue = addDays(new Date(pm.next_due_at!), days).toISOString()
-      await admin.from('pm_schedules').update({ next_due_at: nextDue }).eq('id', pm.id)
+      // Roll next_due_at forward. Weekly schedules with days_of_week set land
+      // on the next selected weekday instead of blindly +7 days.
+      const baseDue = new Date(pm.next_due_at!)
+      const nextDueDate =
+        pm.frequency === 'weekly' && pm.days_of_week && pm.days_of_week.length > 0
+          ? nextDueOnDaysOfWeek(baseDue, pm.days_of_week)
+          : addDays(baseDue, FREQ_TO_DAYS[pm.frequency] ?? 30)
+      const update: Record<string, unknown> = { next_due_at: nextDueDate.toISOString() }
+      // Rolled past the end date: this was the last cycle — deactivate.
+      if (pm.end_date && nextDueDate > new Date(pm.end_date)) update.is_active = false
+      await admin.from('pm_schedules').update(update).eq('id', pm.id)
       generated++
     } catch (e) {
       errors.push(`PM ${pm.id} threw: ${e instanceof Error ? e.message : String(e)}`)
@@ -112,13 +144,16 @@ async function run() {
 }
 
 export async function GET(req: NextRequest) {
-  // Allow CRON_SECRET as a guard (Vercel cron sets this header automatically when configured).
+  // CRON_SECRET is mandatory — fail closed if it isn't configured rather than
+  // running open. (Vercel cron sends `Authorization: Bearer ${CRON_SECRET}`
+  // automatically when the env var is set.)
   const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 500 })
+  }
   const authHeader = req.headers.get('authorization') ?? ''
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Also accept ?run=1 for manual ad-hoc testing during development
-    const manual = req.nextUrl.searchParams.get('run') === '1'
-    if (!manual) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const result = await run()

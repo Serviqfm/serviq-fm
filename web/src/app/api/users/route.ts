@@ -1,15 +1,44 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { email, full_name, full_name_ar, role, phone, organisation_id } = body
+    // Authenticate the caller via the cookie-bound Supabase server client.
+    const serverSupabase = await createServerSupabaseClient()
+    const { data: { user: caller } } = await serverSupabase.auth.getUser()
+    if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    if (!email || !full_name || !role || !organisation_id) {
+    const { data: callerProfile } = await serverSupabase
+      .from('users')
+      .select('organisation_id, role')
+      .eq('id', caller.id)
+      .single()
+    if (!callerProfile?.organisation_id) {
+      return NextResponse.json({ error: 'No organisation' }, { status: 403 })
+    }
+    if (!['admin', 'manager'].includes(callerProfile.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const body = await req.json()
+    const { email, full_name, full_name_ar, role, phone } = body
+
+    if (!email || !full_name || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+
+    // Only admins may create admin users.
+    if (role === 'admin' && callerProfile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can create admin users' }, { status: 403 })
+    }
+
+    // SECURITY: organisation_id always comes from the caller's profile — never
+    // from the request body (prevents cross-org user creation).
+    const organisation_id = callerProfile.organisation_id
 
     // Server-side field config enforcement (defense-in-depth)
     const enforcement = await enforceFieldConfig(organisation_id, 'users_new', {
@@ -45,6 +74,11 @@ export async function POST(req: NextRequest) {
     const cleanedEmail = cleaned.email as string
     const cleanedFullName = cleaned.full_name as string
     const cleanedRole = cleaned.role as string
+
+    // Re-check on the cleaned value too (it's what actually gets inserted).
+    if (cleanedRole === 'admin' && callerProfile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can create admin users' }, { status: 403 })
+    }
 
     // Create auth user with a temporary password
     const tempPassword = 'Serviq' + Math.random().toString(36).slice(2, 10) + '!1'
