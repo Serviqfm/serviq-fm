@@ -33,6 +33,13 @@ export default function NewWorkOrderPage() {
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
   const [duplicateWarning, setDuplicateWarning] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [templates, setTemplates] = useState<any[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [teams, setTeams] = useState<any[]>([])
+  const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
+  const [taskRows, setTaskRows] = useState<{ title: string; title_ar: string }[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     title: '',
@@ -42,10 +49,12 @@ export default function NewWorkOrderPage() {
     site_id: prefilledSiteId,
     asset_id: prefilledAssetId,
     assigned_to: '',
+    team_id: '',
     due_at: '',
     sla_hours: '',
     is_recurring: 'false',
     recurrence_frequency: 'monthly',
+    estimated_duration: '',
   })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,16 +82,20 @@ export default function NewWorkOrderPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
     const orgId = profile.organisation_id
-    const [{ data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }] = await Promise.all([
-      supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
+    const [{ data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }, { data: templateData }, { data: teamData }] = await Promise.all([
+      supabase.from('assets').select('id, name, site_id').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
       supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
       supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
+      supabase.from('checklist_templates').select('id, name, name_ar, items').eq('organisation_id', orgId).order('name'),
+      supabase.from('teams').select('id, name, name_ar').eq('organisation_id', orgId).order('name'),
     ])
     if (assetData) setAssets(assetData)
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
     if (vendorData) setVendors(vendorData)
+    if (templateData) setTemplates(templateData)
+    if (teamData) setTeams(teamData)
   }
 
   async function checkDuplicate(assetId: string, title: string) {
@@ -97,9 +110,42 @@ export default function NewWorkOrderPage() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    setForm(prev => {
+      const next = { ...prev, [name]: value }
+      // UpKeep parity: selecting an asset auto-fills its site/location
+      if (name === 'asset_id') {
+        const asset = assets.find(a => a.id === value)
+        if (asset?.site_id) next.site_id = asset.site_id
+      }
+      return next
+    })
     if (name === 'asset_id') checkDuplicate(value, form.title)
     if (name === 'title') checkDuplicate(form.asset_id, value)
+  }
+
+  function applyTemplate(templateId: string) {
+    setSelectedTemplateId(templateId)
+    if (!templateId) return
+    const tpl = templates.find(tp => tp.id === templateId)
+    if (!tpl || !Array.isArray(tpl.items)) return
+    setTaskRows(tpl.items.map((it: { title?: string; title_ar?: string }) => ({
+      title: it.title ?? '',
+      title_ar: it.title_ar ?? '',
+    })))
+  }
+
+  function updateTaskRow(index: number, value: string) {
+    setTaskRows(prev => prev.map((row, i) => {
+      if (i !== index) return row
+      // In Arabic mode, rows that came from a bilingual template edit the Arabic
+      // title (that's the one displayed); everything else edits the EN title.
+      if (lang === 'ar' && row.title_ar) return { ...row, title_ar: value }
+      return { ...row, title: value }
+    }))
+  }
+
+  function removeTaskRow(index: number) {
+    setTaskRows(prev => prev.filter((_, i) => i !== index))
   }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -165,6 +211,37 @@ export default function NewWorkOrderPage() {
       return
     }
     const newWO = data.work_order
+
+    if (newWO) {
+      // Estimated duration, team and additional workers are not part of the
+      // field-config catalog / POST whitelist — save them client-side after
+      // the insert (org-scoped RLS update).
+      const extras: Record<string, unknown> = {}
+      const estMin = parseInt(form.estimated_duration)
+      if (!isNaN(estMin) && estMin > 0) extras.estimated_duration_minutes = estMin
+      if (form.team_id) extras.team_id = form.team_id
+      const workerIds = additionalWorkers.filter(uid => uid !== form.assigned_to)
+      if (workerIds.length > 0) extras.additional_workers = workerIds
+      if (Object.keys(extras).length > 0) {
+        await supabase.from('work_orders').update(extras).eq('id', newWO.id)
+      }
+
+      // Insert checklist tasks after the WO insert succeeds
+      const validTasks = taskRows.filter(r => r.title.trim() || r.title_ar.trim())
+      if (validTasks.length > 0) {
+        const { error: taskErr } = await supabase.from('work_order_tasks').insert(
+          validTasks.map((r, i) => ({
+            organisation_id: newWO.organisation_id,
+            work_order_id: newWO.id,
+            title: r.title.trim() || r.title_ar.trim(),
+            title_ar: r.title_ar.trim() ? r.title_ar.trim() : null,
+            sort_order: i,
+          }))
+        )
+        if (taskErr) console.error('[work-orders new] task insert failed', taskErr)
+      }
+    }
+
     if (form.assigned_to && newWO) {
         sendPushNotification({
           user_id: form.assigned_to,
@@ -349,6 +426,47 @@ export default function NewWorkOrderPage() {
               )}
             </div>
 
+            {teams.length > 0 && (
+              <div>
+                <label className={labelCls}>
+                  {lang === 'ar' ? 'الفريق' : 'Team'}
+                  <span className="font-normal text-on-surface-variant ml-2 normal-case tracking-normal">
+                    {lang === 'ar' ? '(اختياري)' : '(optional)'}
+                  </span>
+                </label>
+                <select name="team_id" value={form.team_id} onChange={handleChange} className={inputCls}>
+                  <option value="">{lang === 'ar' ? 'بدون فريق' : 'No team'}</option>
+                  {teams.map(tm => (
+                    <option key={tm.id} value={tm.id}>{lang === 'ar' && tm.name_ar ? tm.name_ar : tm.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {technicians.filter(tech => tech.id !== form.assigned_to).length > 0 && (
+              <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
+                <label className={labelCls}>
+                  {lang === 'ar' ? 'عمال إضافيون' : 'Additional Workers'}
+                  <span className="font-normal text-on-surface-variant ml-2 normal-case tracking-normal">
+                    ({additionalWorkers.filter(uid => uid !== form.assigned_to).length} {lang === 'ar' ? 'محدد' : 'selected'})
+                  </span>
+                </label>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {technicians.filter(tech => tech.id !== form.assigned_to).map(tech => (
+                    <label key={tech.id} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-container cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={additionalWorkers.includes(tech.id)}
+                        onChange={() => setAdditionalWorkers(prev => prev.includes(tech.id) ? prev.filter(uid => uid !== tech.id) : [...prev, tech.id])}
+                        className="w-4 h-4 rounded border border-outline-variant text-primary cursor-pointer"
+                      />
+                      <span className="text-sm text-on-surface">{tech.full_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!isHidden('due_at') && (
               <div>
                 <label className={labelCls}>
@@ -360,6 +478,59 @@ export default function NewWorkOrderPage() {
                   className={inputCls} />
               </div>
             )}
+
+            <div>
+              <label className={labelCls}>
+                {lang === 'ar' ? 'المدة المقدرة (بالدقائق)' : 'Estimated Duration (minutes)'}
+              </label>
+              <input name="estimated_duration" type="number" value={form.estimated_duration} onChange={handleChange}
+                placeholder={lang === 'ar' ? 'مثال: 90' : 'e.g. 90'} min="1" className={inputCls} />
+            </div>
+
+            <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <label className={labelCls + ' mb-0'}>
+                  {lang === 'ar' ? 'المهام' : 'Tasks'}
+                  <span className="font-normal text-on-surface-variant ml-2 normal-case tracking-normal">
+                    {lang === 'ar' ? '(اختياري)' : '(optional)'}
+                  </span>
+                </label>
+                {templates.length > 0 && (
+                  <select value={selectedTemplateId} onChange={e => applyTemplate(e.target.value)}
+                    className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer">
+                    <option value="">{lang === 'ar' ? 'تطبيق قالب قائمة مهام...' : 'Apply checklist template...'}</option>
+                    {templates.map(tp => (
+                      <option key={tp.id} value={tp.id}>{lang === 'ar' && tp.name_ar ? tp.name_ar : tp.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {taskRows.length === 0 && (
+                <p className="text-xs text-on-surface-variant mb-2">
+                  {lang === 'ar' ? 'أضف مهام يجب إنجازها ضمن أمر العمل هذا.' : 'Add tasks to be checked off as part of this work order.'}
+                </p>
+              )}
+              {taskRows.map((row, i) => (
+                <div key={i} className="flex gap-2 mb-2 items-center">
+                  <span className="text-xs text-on-surface-variant w-5 text-center">{i + 1}.</span>
+                  <input
+                    value={lang === 'ar' && row.title_ar ? row.title_ar : row.title}
+                    onChange={e => updateTaskRow(i, e.target.value)}
+                    placeholder={lang === 'ar' ? 'وصف المهمة...' : 'Task description...'}
+                    className={inputCls + ' flex-1'}
+                  />
+                  <button type="button" onClick={() => removeTaskRow(i)}
+                    className="w-7 h-7 rounded-full bg-error/10 text-error border-none cursor-pointer text-sm flex items-center justify-center flex-shrink-0 hover:bg-error/20 transition-colors"
+                    aria-label={lang === 'ar' ? 'إزالة المهمة' : 'Remove task'}>
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setTaskRows(prev => [...prev, { title: '', title_ar: '' }])}
+                className="text-primary text-sm font-semibold bg-transparent border-none cursor-pointer hover:underline px-0">
+                {lang === 'ar' ? '+ إضافة مهمة' : '+ Add task'}
+              </button>
+            </div>
 
             {!isHidden('is_recurring') && (
               <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">

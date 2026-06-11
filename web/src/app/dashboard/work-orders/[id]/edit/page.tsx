@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 
@@ -10,6 +11,7 @@ export default function EditWorkOrderPage() {
   const router = useRouter()
   const params = useParams()
   const id = typeof params.id === 'string' ? params.id : params.id?.[0] || ''
+  const { lang } = useLanguage()
   const supabase = createClient()
   const { isHidden, isRequired, loading: configLoading } = useFieldConfig('work_orders_edit')
   const isReq = (key: string) => isRequired(key) || isSystemRequired('work_orders_edit', key)
@@ -24,6 +26,9 @@ export default function EditWorkOrderPage() {
   const [technicians, setTechnicians] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vendors, setVendors] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [teams, setTeams] = useState<any[]>([])
+  const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -32,6 +37,7 @@ export default function EditWorkOrderPage() {
     site_id: '',
     asset_id: '',
     assigned_to: '',
+    team_id: '',
     due_at: '',
     sla_hours: '',
     completion_notes: '',
@@ -64,12 +70,13 @@ export default function EditWorkOrderPage() {
       }
       const orgId = profile.organisation_id
 
-      const [woResult, assetResult, siteResult, techResult, vendorResult] = await Promise.all([
+      const [woResult, assetResult, siteResult, techResult, vendorResult, teamResult] = await Promise.all([
         supabase.from('work_orders').select('*').eq('id', id).single(),
         supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
         supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
         supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
         supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
+        supabase.from('teams').select('id, name, name_ar').eq('organisation_id', orgId).order('name'),
       ])
 
       if (woResult.error) {
@@ -89,6 +96,7 @@ export default function EditWorkOrderPage() {
       if (siteResult.data) setSites(siteResult.data)
       if (techResult.data) setTechnicians(techResult.data)
       if (vendorResult.data) setVendors(vendorResult.data)
+      if (teamResult.data) setTeams(teamResult.data)
 
       const wo = woResult.data
       setForm({
@@ -99,11 +107,13 @@ export default function EditWorkOrderPage() {
         site_id: wo.site_id ?? '',
         asset_id: wo.asset_id ?? '',
         assigned_to: wo.assigned_to ?? '',
+        team_id: wo.team_id ?? '',
         due_at: wo.due_at ? wo.due_at.slice(0, 16) : '',
         sla_hours: wo.sla_hours ? String(wo.sla_hours) : '',
         completion_notes: wo.completion_notes ?? '',
         actual_cost: wo.actual_cost ? String(wo.actual_cost) : '',
       })
+      setAdditionalWorkers(Array.isArray(wo.additional_workers) ? wo.additional_workers : [])
       setLoading(false)
     } catch (err) {
       console.error('Unexpected error in loadData:', err)
@@ -145,6 +155,14 @@ export default function EditWorkOrderPage() {
       return
     }
     const updatedWO = result.work_order ? [result.work_order] : []
+
+    // Team and additional workers are not in the PATCH whitelist — save them
+    // client-side after the PATCH succeeds (org-scoped RLS update). Always
+    // write both so clearing a selection also persists.
+    await supabase.from('work_orders').update({
+      team_id: form.team_id ? form.team_id : null,
+      additional_workers: additionalWorkers.filter(uid => uid !== form.assigned_to),
+    }).eq('id', id)
 
     // Send assignment notification via API (keeps server-side imports server-side)
     if (form.assigned_to && updatedWO && updatedWO.length > 0) {
@@ -281,6 +299,41 @@ export default function EditWorkOrderPage() {
             </div>
           )}
         </div>
+        {teams.length > 0 && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الفريق (اختياري)' : 'Team (optional)'}</label>
+            <select name='team_id' value={form.team_id} onChange={handleChange} style={fieldStyle}>
+              <option value=''>{lang === 'ar' ? 'بدون فريق' : 'No team'}</option>
+              {teams.map(tm => (
+                <option key={tm.id} value={tm.id}>{lang === 'ar' && tm.name_ar ? tm.name_ar : tm.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {technicians.filter(tech => tech.id !== form.assigned_to).length > 0 && (
+          <div>
+            <label style={labelStyle}>
+              {lang === 'ar' ? 'عمال إضافيون' : 'Additional Workers'}
+              {' '}
+              <span style={{ fontWeight: 400, color: '#888' }}>
+                ({additionalWorkers.filter(uid => uid !== form.assigned_to).length} {lang === 'ar' ? 'محدد' : 'selected'})
+              </span>
+            </label>
+            <div style={{ border: '1px solid #ddd', borderRadius: 8, background: 'white', padding: '8px 12px', maxHeight: 180, overflowY: 'auto' }}>
+              {technicians.filter(tech => tech.id !== form.assigned_to).map(tech => (
+                <label key={tech.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 14, cursor: 'pointer' }}>
+                  <input
+                    type='checkbox'
+                    checked={additionalWorkers.includes(tech.id)}
+                    onChange={() => setAdditionalWorkers(prev => prev.includes(tech.id) ? prev.filter(uid => uid !== tech.id) : [...prev, tech.id])}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  {tech.full_name}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {!isHidden('due_at') && (
             <div>

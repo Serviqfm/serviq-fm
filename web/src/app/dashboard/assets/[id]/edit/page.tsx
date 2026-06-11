@@ -6,11 +6,14 @@ import { useRouter, useParams } from 'next/navigation'
 import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle, labelStyle, LUMINA_COLORS } from '@/lib/brand'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import { useLanguage } from '@/context/LanguageContext'
+import { flattenAssetTree, getDescendantIds, MAX_ASSET_DEPTH, type FlatHierarchyAsset } from '../../asset-hierarchy'
 
 export default function EditAssetPage() {
   const router = useRouter()
   const params = useParams()
   const id = typeof params.id === 'string' ? params.id : params.id?.[0] || ''
+  const { lang } = useLanguage()
   const supabase = createClient()
   const { isHidden, isRequired, loading: configLoading } = useFieldConfig('assets_edit')
   const isReq = (key: string) => isRequired(key) || isSystemRequired('assets_edit', key)
@@ -19,10 +22,12 @@ export default function EditAssetPage() {
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  const [parentOptions, setParentOptions] = useState<FlatHierarchyAsset[]>([])
   const [form, setForm] = useState({
     name: '',
     category: '',
     site_id: '',
+    parent_asset_id: '',
     sub_location: '',
     serial_number: '',
     manufacturer: '',
@@ -44,17 +49,24 @@ export default function EditAssetPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
 
-    const [{ data: asset }, { data: siteData }] = await Promise.all([
+    const [{ data: asset }, { data: siteData }, { data: assetData }] = await Promise.all([
       supabase.from('assets').select('*').eq('id', id).single(),
       supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true),
+      supabase.from('assets').select('id, name, parent_asset_id, site_id').eq('organisation_id', profile.organisation_id),
     ])
 
     if (siteData) setSites(siteData)
+    if (assetData) {
+      // Exclude the asset itself and all of its descendants from the parent dropdown.
+      const descendants = getDescendantIds(assetData, id)
+      setParentOptions(flattenAssetTree(assetData).filter(a => a.id !== id && !descendants.has(a.id)))
+    }
     if (asset) {
       setForm({
         name: asset.name ?? '',
         category: asset.category ?? '',
         site_id: asset.site_id ?? '',
+        parent_asset_id: asset.parent_asset_id ?? '',
         sub_location: asset.sub_location ?? '',
         serial_number: asset.serial_number ?? '',
         manufacturer: asset.manufacturer ?? '',
@@ -86,6 +98,7 @@ export default function EditAssetPage() {
         name: form.name,
         category: form.category,
         site_id: form.site_id,
+        parent_asset_id: form.parent_asset_id,
         sub_location: form.sub_location,
         location_notes: form.location_notes,
         manufacturer: form.manufacturer,
@@ -157,6 +170,20 @@ export default function EditAssetPage() {
               </select>
             </div>
           )}
+        </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الأصل الرئيسي (اختياري)' : 'Parent Asset (optional)'}</label>
+          <select name='parent_asset_id' value={form.parent_asset_id} onChange={handleChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'بدون — أصل رئيسي' : 'None — top-level asset'}</option>
+            {parentOptions.map(a => (
+              <option key={a.id} value={a.id} disabled={a.depth >= MAX_ASSET_DEPTH - 1}>
+                {'— '.repeat(a.depth)}{a.name}
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: 12, color: '#999', margin: '4px 0 0' }}>
+            {lang === 'ar' ? 'حتى ٤ مستويات من التسلسل الهرمي للأصول. لا يمكن اختيار الأصل نفسه أو أصوله الفرعية.' : 'Up to 4 levels of asset hierarchy. The asset itself and its child assets are excluded.'}
+          </p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {!isHidden('sub_location') && (

@@ -6,8 +6,16 @@ import { format, isPast } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { archiveConfirmMessage, nextDueOnDaysOfWeek } from '../pm-utils'
 
-function calculateNextDue(frequency: string): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function calculateNextDue(schedule: any): string {
+  // Weekly schedules with days_of_week land on the next selected weekday
+  // (mirrors /api/cron/pm-generate).
+  if (schedule.frequency === 'weekly' && Array.isArray(schedule.days_of_week) && schedule.days_of_week.length > 0) {
+    return nextDueOnDaysOfWeek(new Date(), schedule.days_of_week).toISOString()
+  }
+  const frequency: string = schedule.frequency
   const now = new Date()
   switch (frequency) {
     case 'daily':       now.setDate(now.getDate() + 1); break
@@ -77,7 +85,15 @@ export default function PMScheduleDetailPage() {
   }
 
   async function generateWorkOrder() {
-    if (!schedule) return
+    if (!schedule || schedule.is_archived) return
+    // End date passed (or next due falls beyond it): don't generate.
+    if (schedule.end_date && (Date.now() > new Date(schedule.end_date).getTime() ||
+        (schedule.next_due_at && new Date(schedule.next_due_at) > new Date(schedule.end_date)))) {
+      alert(lang === 'ar'
+        ? 'انتهى هذا الجدول — تاريخ الانتهاء قد مضى، لن يتم إنشاء أوامر عمل جديدة.'
+        : 'This schedule has ended — its end date has passed, so no new work orders will be generated.')
+      return
+    }
     setGenerating(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setGenerating(false); return }
@@ -96,14 +112,26 @@ export default function PMScheduleDetailPage() {
       created_by: user.id,
     })
     if (!error) {
-      await supabase.from('pm_schedules').update({
+      const nextDue = calculateNextDue(schedule)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const update: any = {
         last_completed_at: new Date().toISOString(),
         last_generated_at: new Date().toISOString(),
-        next_due_at: calculateNextDue(schedule.frequency),
-      }).eq('id', id)
+        next_due_at: nextDue,
+      }
+      // Rolled past the end date: this was the last cycle — deactivate.
+      if (schedule.end_date && new Date(nextDue) > new Date(schedule.end_date)) update.is_active = false
+      await supabase.from('pm_schedules').update(update).eq('id', id)
       fetchAll()
     }
     setGenerating(false)
+  }
+
+  async function archiveSchedule() {
+    if (!schedule || schedule.is_archived) return
+    if (!confirm(archiveConfirmMessage(lang))) return
+    await supabase.from('pm_schedules').update({ is_archived: true, is_active: false }).eq('id', id)
+    fetchAll()
   }
 
   async function toggleActive() {
@@ -134,41 +162,51 @@ export default function PMScheduleDetailPage() {
           <a href="/dashboard/pm-schedules" className="text-on-surface-variant text-sm hover:text-primary transition-colors">
             {lang === 'ar' ? '← رجوع' : '← Back to PM Schedules'}
           </a>
-          <div className="flex gap-2">
-            <button
-              onClick={toggleActive}
-              className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors"
-            >
-              {schedule.is_active
-                ? (lang === 'ar' ? 'إيقاف' : 'Pause')
-                : (lang === 'ar' ? 'تفعيل' : 'Resume')}
-            </button>
-            <Link href={'/dashboard/pm-schedules/' + id + '/edit'}>
-              <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">
-                {t('common.edit')}
+          {!schedule.is_archived && (
+            <div className="flex gap-2">
+              <button
+                onClick={toggleActive}
+                className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors"
+              >
+                {schedule.is_active
+                  ? (lang === 'ar' ? 'إيقاف' : 'Pause')
+                  : (lang === 'ar' ? 'تفعيل' : 'Resume')}
               </button>
-            </Link>
-            <button
-              onClick={generateWorkOrder}
-              disabled={generating}
-              className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${generating ? ' opacity-70' : ''}`}
-            >
-              {generating
-                ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
-                : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate Work Order')}
-            </button>
-          </div>
+              <button
+                onClick={archiveSchedule}
+                className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors"
+              >
+                {lang === 'ar' ? 'أرشفة' : 'Archive'}
+              </button>
+              <Link href={'/dashboard/pm-schedules/' + id + '/edit'}>
+                <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">
+                  {t('common.edit')}
+                </button>
+              </Link>
+              <button
+                onClick={generateWorkOrder}
+                disabled={generating}
+                className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${generating ? ' opacity-70' : ''}`}
+              >
+                {generating
+                  ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
+                  : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate Work Order')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-[22px] font-bold text-on-surface">{schedule.title}</h1>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${schedule.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
-              {schedule.is_active
-                ? (lang === 'ar' ? 'نشط' : 'Active')
-                : (lang === 'ar' ? 'موقوف' : 'Paused')}
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${schedule.is_archived ? 'bg-surface-container-low text-on-surface-variant' : schedule.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
+              {schedule.is_archived
+                ? (lang === 'ar' ? 'مؤرشف' : 'Archived')
+                : schedule.is_active
+                  ? (lang === 'ar' ? 'نشط' : 'Active')
+                  : (lang === 'ar' ? 'موقوف' : 'Paused')}
             </span>
-            {isDue && schedule.is_active && (
+            {isDue && schedule.is_active && !schedule.is_archived && (
               <span className="bg-error/10 text-error px-2.5 py-0.5 rounded-full text-xs font-medium">
                 {lang === 'ar' ? 'متأخر' : 'Overdue'}
               </span>
@@ -239,6 +277,15 @@ export default function PMScheduleDetailPage() {
                   value: schedule.estimated_duration_minutes ? schedule.estimated_duration_minutes + ' min' : '—' },
                 { label: lang === 'ar' ? 'الموعد القادم' : 'Next Due',
                   value: schedule.next_due_at ? format(new Date(schedule.next_due_at), 'dd MMM yyyy HH:mm') : '—' },
+                { label: lang === 'ar' ? 'تاريخ الانتهاء' : 'End Date',
+                  value: schedule.end_date ? format(new Date(schedule.end_date), 'dd MMM yyyy') : '—' },
+                { label: lang === 'ar' ? 'أيام الأسبوع' : 'Days of Week',
+                  value: schedule.frequency === 'weekly' && Array.isArray(schedule.days_of_week) && schedule.days_of_week.length > 0
+                    ? (lang === 'ar'
+                        ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+                        : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
+                        .filter((_, i) => schedule.days_of_week.includes(i)).join(', ')
+                    : '—' },
                 { label: lang === 'ar' ? 'موسمي' : 'Seasonal',
                   value: schedule.is_seasonal
                     ? `Month ${schedule.seasonal_start_month} – ${schedule.seasonal_end_month}`
@@ -287,15 +334,17 @@ export default function PMScheduleDetailPage() {
                 <p className="text-sm text-on-surface-variant mb-3">
                   {lang === 'ar' ? 'لم يتم إنشاء أوامر عمل من هذا الجدول بعد.' : 'No work orders generated from this schedule yet.'}
                 </p>
-                <button
-                  onClick={generateWorkOrder}
-                  disabled={generating}
-                  className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${generating ? ' opacity-70' : ''}`}
-                >
-                  {generating
-                    ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
-                    : (lang === 'ar' ? 'إنشاء أول أمر عمل' : 'Generate First Work Order')}
-                </button>
+                {!schedule.is_archived && (
+                  <button
+                    onClick={generateWorkOrder}
+                    disabled={generating}
+                    className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${generating ? ' opacity-70' : ''}`}
+                  >
+                    {generating
+                      ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...')
+                      : (lang === 'ar' ? 'إنشاء أول أمر عمل' : 'Generate First Work Order')}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="border border-outline-variant rounded-[12px] overflow-hidden">

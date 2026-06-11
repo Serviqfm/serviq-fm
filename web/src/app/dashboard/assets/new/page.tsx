@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import { flattenAssetTree, MAX_ASSET_DEPTH, type FlatHierarchyAsset } from '../asset-hierarchy'
 
 export default function NewAssetPage() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function NewAssetPage() {
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  const [orgAssets, setOrgAssets] = useState<FlatHierarchyAsset[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -24,6 +26,7 @@ export default function NewAssetPage() {
     name: '',
     category: '',
     site_id: '',
+    parent_asset_id: '',
     sub_location: '',
     serial_number: '',
     manufacturer: '',
@@ -44,12 +47,27 @@ export default function NewAssetPage() {
     if (!user) return
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
-    const { data } = await supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true)
+    const [{ data }, { data: assetData }] = await Promise.all([
+      supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true),
+      supabase.from('assets').select('id, name, parent_asset_id, site_id').eq('organisation_id', profile.organisation_id),
+    ])
     if (data) setSites(data)
+    if (assetData) setOrgAssets(flattenAssetTree(assetData))
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  function handleParentChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const parentId = e.target.value
+    const parent = orgAssets.find(a => a.id === parentId)
+    setForm(prev => ({
+      ...prev,
+      parent_asset_id: parentId,
+      // Default the site to the parent's site if the user hasn't picked one yet.
+      site_id: prev.site_id || (parent?.site_id ?? ''),
+    }))
   }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -97,6 +115,7 @@ export default function NewAssetPage() {
         name: form.name,
         category: form.category,
         site_id: form.site_id,
+        parent_asset_id: form.parent_asset_id,
         sub_location: form.sub_location,
         serial_number: form.serial_number,
         manufacturer: form.manufacturer,
@@ -169,6 +188,20 @@ export default function NewAssetPage() {
               </select>
             </div>
           )}
+        </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الأصل الرئيسي (اختياري)' : 'Parent Asset (optional)'}</label>
+          <select name='parent_asset_id' value={form.parent_asset_id} onChange={handleParentChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'بدون — أصل رئيسي' : 'None — top-level asset'}</option>
+            {orgAssets.map(a => (
+              <option key={a.id} value={a.id} disabled={a.depth >= MAX_ASSET_DEPTH - 1}>
+                {'— '.repeat(a.depth)}{a.name}
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: 12, color: '#999', margin: '4px 0 0' }}>
+            {lang === 'ar' ? 'حتى ٤ مستويات من التسلسل الهرمي للأصول.' : 'Up to 4 levels of asset hierarchy.'}
+          </p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {!isHidden('sub_location') && (

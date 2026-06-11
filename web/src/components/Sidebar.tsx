@@ -20,6 +20,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'inspections', href: '/dashboard/inspections',  en: 'Inspections',  ar: 'التفتيش',        icon: 'fact_check',     exact: false },
   { key: 'inventory',   href: '/dashboard/inventory',    en: 'Inventory',    ar: 'المخزون',        icon: 'category',       exact: false },
   { key: 'users',       href: '/dashboard/users',        en: 'Users',        ar: 'المستخدمون',     icon: 'group',          exact: false, roles: ['admin', 'manager'] },
+  { key: 'teams',       href: '/dashboard/teams',        en: 'Teams',        ar: 'الفرق',           icon: 'groups',         exact: false, roles: ['admin', 'manager'] },
   { key: 'invoices',    href: '/dashboard/invoices',     en: 'Invoices',     ar: 'الفواتير',        icon: 'receipt_long',   exact: false, roles: ['admin', 'manager'] },
   { key: 'reports',     href: '/dashboard/reports',      en: 'Reports',      ar: 'التقارير',        icon: 'bar_chart',      exact: false, roles: ['admin', 'manager'] },
   { key: 'settings',    href: '/dashboard/settings',     en: 'Settings',     ar: 'الإعدادات',      icon: 'settings',       exact: false },

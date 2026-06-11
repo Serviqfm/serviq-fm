@@ -25,10 +25,57 @@ export interface WorkOrder {
   media_expires_at: string
   completion_notes: string | null
   actual_cost: number | null
+  estimated_duration_minutes: number | null
+  team_id: string | null
+  additional_workers: string[]
   source: string
   created_at: string
   updated_at: string
   assignee?: { full_name: string; email?: string } | null
   asset?: { name: string } | null
   site?: { name: string; invoicing_enabled?: boolean } | null
+  team?: { name: string; name_ar?: string | null } | null
+}
+
+export interface Team {
+  id: string
+  organisation_id: string
+  name: string
+  name_ar: string | null
+  description: string | null
+  created_at: string
+}
+
+export interface TeamMember {
+  team_id: string
+  user_id: string
+  organisation_id: string
+}
+
+export interface WorkOrderTask {
+  id: string
+  organisation_id: string
+  work_order_id: string
+  title: string
+  title_ar: string | null
+  is_done: boolean
+  done_by: string | null
+  done_at: string | null
+  sort_order: number
+  created_at: string
+  done_by_user?: { full_name: string } | null
+}
+
+export interface ChecklistTemplateItem {
+  title: string
+  title_ar?: string
+}
+
+export interface ChecklistTemplate {
+  id: string
+  organisation_id: string
+  name: string
+  name_ar: string | null
+  items: ChecklistTemplateItem[]
+  created_at: string
 }

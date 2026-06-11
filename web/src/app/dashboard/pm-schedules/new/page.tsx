@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
+import { rollNextDue } from '../pm-utils'
 
 export default function NewPMSchedulePage() {
   const router = useRouter()
@@ -24,10 +25,13 @@ export default function NewPMSchedulePage() {
     site_id: '',
     assigned_to: '',
     next_due_at: '',
+    end_date: '',
     estimated_duration_minutes: '',
   })
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
   const [assetSearch, setAssetSearch] = useState('')
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
+  const [createFirstWO, setCreateFirstWO] = useState(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadFormData() }, [])
@@ -72,13 +76,50 @@ export default function NewPMSchedulePage() {
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
       next_due_at: form.next_due_at || null,
+      end_date: form.end_date || null,
+      days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
       estimated_duration_minutes: form.estimated_duration_minutes ? parseInt(form.estimated_duration_minutes) : null,
       organisation_id: profile.organisation_id,
       is_active: true,
     }))
-    const { error: insertError } = await supabase.from('pm_schedules').insert(rows)
-    if (insertError) { setError(insertError.message); setLoading(false) }
-    else router.push('/dashboard/pm-schedules')
+    const { data: created, error: insertError } = await supabase.from('pm_schedules').insert(rows)
+      .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week')
+    if (insertError) { setError(insertError.message); setLoading(false); return }
+
+    // Optionally create the first work order immediately — same WO shape as
+    // /api/cron/pm-generate, then roll next_due_at forward like the cron does.
+    if (createFirstWO && created) {
+      for (const pm of created) {
+        if (!pm.next_due_at) continue
+        if (pm.end_date && new Date(pm.next_due_at) > new Date(pm.end_date)) continue
+        const { error: woError } = await supabase.from('work_orders').insert({
+          organisation_id: pm.organisation_id,
+          title: `PM - ${pm.title}`,
+          description: pm.description,
+          priority: 'medium',
+          status: pm.assigned_to ? 'assigned' : 'new',
+          source: 'pm_schedule',
+          pm_schedule_id: pm.id,
+          asset_id: pm.asset_id,
+          site_id: pm.site_id,
+          assigned_to: pm.assigned_to,
+          due_at: pm.next_due_at,
+          sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
+          created_by: user.id,
+        })
+        if (woError) continue
+        const nextDue = rollNextDue(new Date(pm.next_due_at), pm.frequency, pm.days_of_week)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const upd: any = { next_due_at: nextDue.toISOString(), last_generated_at: new Date().toISOString() }
+        if (pm.end_date && nextDue > new Date(pm.end_date)) upd.is_active = false
+        await supabase.from('pm_schedules').update(upd).eq('id', pm.id)
+      }
+    }
+    router.push('/dashboard/pm-schedules')
+  }
+
+  function toggleDay(day: number) {
+    setDaysOfWeek(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b))
   }
 
   function toggleAsset(id: string) {
@@ -87,6 +128,9 @@ export default function NewPMSchedulePage() {
 
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
   const labelStyle = { display: 'block' as const, marginBottom: 6, fontSize: 13, fontWeight: 500 as const, color: '#444' }
+  const dayNames = lang === 'ar'
+    ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   const templates = [
     { label: 'AC Filter Cleaning', description: 'Clean and replace AC filters, check refrigerant levels, inspect coils' },
@@ -142,6 +186,31 @@ export default function NewPMSchedulePage() {
             <input name='estimated_duration_minutes' type='number' value={form.estimated_duration_minutes} onChange={handleChange} placeholder='e.g. 60' min='1' style={fieldStyle} />
           </div>
         </div>
+        {form.frequency === 'weekly' && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'أيام الأسبوع' : 'Days of Week'}</label>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 8px' }}>
+              {lang === 'ar' ? 'اختر الأيام التي تستحق فيها الصيانة الأسبوعية. اتركها فارغة للتكرار كل 7 أيام.' : 'Pick which weekdays this weekly schedule lands on. Leave empty to repeat every 7 days.'}
+            </p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {dayNames.map((d, i) => (
+                <button
+                  key={i}
+                  type='button'
+                  onClick={() => toggleDay(i)}
+                  style={{
+                    padding: '5px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                    border: daysOfWeek.includes(i) ? '1px solid #006b54' : '1px solid #ddd',
+                    background: daysOfWeek.includes(i) ? '#006b54' : 'white',
+                    color: daysOfWeek.includes(i) ? 'white' : '#444',
+                  }}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <label style={labelStyle}>
             {lang === 'ar' ? 'الأصول' : 'Assets'}
@@ -191,6 +260,21 @@ export default function NewPMSchedulePage() {
             <input name='next_due_at' type='datetime-local' value={form.next_due_at} onChange={handleChange} required style={fieldStyle} />
           </div>
         </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'تاريخ الانتهاء (اختياري)' : 'End Date (optional)'}</label>
+            <input name='end_date' type='date' value={form.end_date} onChange={handleChange} style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'لن يتم إنشاء أوامر عمل بعد هذا التاريخ.' : 'No work orders will be generated after this date.'}
+            </p>
+          </div>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '10px 14px', cursor: 'pointer' }}>
+          <input type='checkbox' checked={createFirstWO} onChange={e => setCreateFirstWO(e.target.checked)} style={{ width: 16, height: 16 }} />
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>
+            {lang === 'ar' ? 'إنشاء أول أمر عمل الآن' : 'Create first work order now'}
+          </span>
+        </label>
         <div style={{ background: '#f0f7ff', border: '1px solid #b3d4f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#1565c0' }}>
           When this schedule is due, click Generate WO on the schedules list to create a work order automatically.
         </div>

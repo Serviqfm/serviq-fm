@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { validateParentAssignment } from '../hierarchy'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
 
   const body = (await req.json()) as Record<string, unknown>
+
+  // Non-catalog/system field handled separately from enforcement.
+  const hasParentField = Object.prototype.hasOwnProperty.call(body, 'parent_asset_id')
+  const parentAssetId = typeof body.parent_asset_id === 'string' && body.parent_asset_id.trim() !== ''
+    ? body.parent_asset_id.trim()
+    : null
 
   const enforcePayload: Record<string, unknown> = {
     name: body.name,
@@ -57,6 +64,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+
+  if (hasParentField && parentAssetId) {
+    if (parentAssetId === id) {
+      return NextResponse.json({ error: 'An asset cannot be its own parent.' }, { status: 400 })
+    }
+    const check = await validateParentAssignment(admin, profile.organisation_id, parentAssetId, id)
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: 400 })
+    }
+  }
 
   const costRaw = cleaned.purchase_cost
   const costParsed = typeof costRaw === 'string' && costRaw.trim() !== ''
@@ -88,6 +105,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     description: cleaned.description ? cleaned.description : null,
     updated_at: new Date().toISOString(),
   }
+  if (hasParentField) updateRow.parent_asset_id = parentAssetId
 
   const { data, error } = await admin
     .from('assets')

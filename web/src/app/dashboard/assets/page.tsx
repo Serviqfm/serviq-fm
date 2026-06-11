@@ -85,7 +85,7 @@ export default function AssetsPage() {
 
   async function fetchAssets() {
     setLoading(true)
-    let query = supabase.from('assets').select('*, site:site_id(name)').order('created_at', { ascending: false })
+    let query = supabase.from('assets').select('*, site:site_id(name), parent:parent_asset_id(name)').order('created_at', { ascending: false })
     if (statusFilter !== 'all') query = query.eq('status', statusFilter)
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)
     const { data, error } = await query
@@ -329,6 +329,7 @@ export default function AssetsPage() {
                             <td className="p-3"><input type='checkbox' checked={isSelected} onChange={() => toggleSelect(asset.id)} className="rounded" /></td>
                             <td className="p-3">
                               <Link href={'/dashboard/assets/' + asset.id} className="text-sm font-semibold text-primary hover:underline">{asset.name}</Link>
+                              {asset.parent?.name && <p className="text-xs text-on-surface-variant/70 mt-0.5">↳ {asset.parent.name}</p>}
                               {asset.manufacturer && <p className="text-xs text-on-surface-variant mt-0.5">{asset.manufacturer} {asset.model}</p>}
                             </td>
                             <td className="p-3 text-sm text-on-surface-variant">{asset.category ?? '—'}</td>

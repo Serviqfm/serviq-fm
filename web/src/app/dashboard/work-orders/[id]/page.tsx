@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { WorkOrder, WorkOrderStatus } from '@/types/work-order'
+import { WorkOrder, WorkOrderStatus, WorkOrderTask } from '@/types/work-order'
 import PriorityBadge from '@/components/PriorityBadge'
 import StatusBadge from '@/components/StatusBadge'
 import { format, formatDistanceToNow, isAfter, differenceInHours, differenceInDays } from 'date-fns'
@@ -28,7 +28,11 @@ export default function WorkOrderDetailPage() {
   const [history, setHistory] = useState<any[]>([])
   const { lang } = useLanguage()
   const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
-  const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'photos' | 'parts' | 'activity' | 'space_assets'>('comments')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'parts' | 'activity' | 'space_assets'>('comments')
+  const [tasks, setTasks] = useState<WorkOrderTask[]>([])
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [addingTask, setAddingTask] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventoryItems, setInventoryItems] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +51,7 @@ export default function WorkOrderDetailPage() {
   const [showSignoff, setShowSignoff] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [existingInvoice, setExistingInvoice] = useState<any>(null)
+  const [additionalWorkerNames, setAdditionalWorkerNames] = useState<string[]>([])
   useEffect(() => {
     fetchWorkOrder()
     fetchComments()
@@ -54,16 +59,79 @@ export default function WorkOrderDetailPage() {
     fetchInventory()
     fetchActivities()
     fetchInvoice()
+    fetchTasks()
+    fetchCurrentUser()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  async function fetchCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: profile } = await supabase.from('users').select('id, role').eq('id', user.id).single()
+    if (profile) setCurrentUser(profile)
+  }
+
+  async function fetchTasks() {
+    const { data } = await supabase
+      .from('work_order_tasks')
+      .select('*, done_by_user:done_by(full_name)')
+      .eq('work_order_id', id)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+    if (data) setTasks(data as WorkOrderTask[])
+  }
+
+  async function toggleTask(task: WorkOrderTask) {
+    const { data: { user } } = await supabase.auth.getUser()
+    const nowDone = !task.is_done
+    // Optimistic update so the checkbox feels instant
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, is_done: nowDone } : t))
+    await supabase.from('work_order_tasks').update({
+      is_done: nowDone,
+      done_by: nowDone ? user?.id ?? null : null,
+      done_at: nowDone ? new Date().toISOString() : null,
+    }).eq('id', task.id)
+    fetchTasks()
+  }
+
+  async function addTask(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newTaskTitle.trim() || !wo) return
+    setAddingTask(true)
+    await supabase.from('work_order_tasks').insert({
+      organisation_id: wo.organisation_id,
+      work_order_id: id,
+      title: newTaskTitle.trim(),
+      sort_order: tasks.length,
+    })
+    setNewTaskTitle('')
+    await fetchTasks()
+    setAddingTask(false)
+  }
+
+  async function deleteTask(taskId: string) {
+    if (!confirm(lang === 'ar' ? 'حذف هذه المهمة؟' : 'Delete this task?')) return
+    await supabase.from('work_order_tasks').delete().eq('id', taskId)
+    fetchTasks()
+  }
 
   async function fetchWorkOrder() {
     const { data } = await supabase
       .from('work_orders')
-      .select('*, assignee:assigned_to(full_name, email), asset:asset_id(name), site:site_id(name, invoicing_enabled)')
+      .select('*, assignee:assigned_to(full_name, email), asset:asset_id(name), site:site_id(name, invoicing_enabled), team:team_id(name, name_ar)')
       .eq('id', id)
       .single()
-    if (data) setWo(data as WorkOrder)
+    if (data) {
+      setWo(data as WorkOrder)
+      // Resolve additional worker names (uuid[] column → user full names)
+      const workerIds: string[] = Array.isArray(data.additional_workers) ? data.additional_workers : []
+      if (workerIds.length > 0) {
+        const { data: workers } = await supabase.from('users').select('id, full_name').in('id', workerIds)
+        if (workers) setAdditionalWorkerNames(workers.map(w => w.full_name).filter(Boolean))
+      } else {
+        setAdditionalWorkerNames([])
+      }
+    }
     setLoading(false)
   }
 
@@ -536,11 +604,20 @@ export default function WorkOrderDetailPage() {
             { label: 'Site', value: (wo.site as any)?.name ?? '—' },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? 'Unassigned' },
+            ...(wo.team
+              ? [{ label: lang === 'ar' ? 'الفريق' : 'Team', value: lang === 'ar' && wo.team.name_ar ? wo.team.name_ar : wo.team.name }]
+              : []),
+            ...(additionalWorkerNames.length > 0
+              ? [{ label: lang === 'ar' ? 'عمال إضافيون' : 'Additional Workers', value: additionalWorkerNames.join(', ') }]
+              : []),
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: 'Category', value: (wo as any).category ?? '—' },
             { label: 'Started', value: wo.started_at ? format(new Date(wo.started_at), 'dd MMM yyyy, HH:mm') : '—' },
             { label: 'Completed', value: wo.completed_at ? format(new Date(wo.completed_at), 'dd MMM yyyy, HH:mm') : '—' },
             { label: 'SLA', value: wo.sla_hours ? `${wo.sla_hours} hours` : '—' },
+            ...(wo.estimated_duration_minutes
+              ? [{ label: lang === 'ar' ? 'المدة المقدرة' : 'Est. Duration', value: `${wo.estimated_duration_minutes} ${lang === 'ar' ? 'دقيقة' : 'min'}` }]
+              : []),
             { label: 'Source', value: wo.source?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—' },
           ].map(({ label, value }) => (
             <div key={label} className="bg-surface-container-low rounded-xl px-4 py-3">
@@ -613,6 +690,7 @@ export default function WorkOrderDetailPage() {
         <div className="border-b border-outline-variant flex gap-0">
           {(
             [
+              { key: 'tasks', label: `${lang === 'ar' ? 'المهام' : 'Tasks'} (${tasks.filter(t2 => t2.is_done).length}/${tasks.length})` },
               { key: 'comments', label: `Comments (${comments.length})` },
               { key: 'photos', label: `Photos (${allPhotos.length + closeoutPreviewUrls.length})` },
               { key: 'history', label: `History (${history.length})` },
@@ -637,6 +715,80 @@ export default function WorkOrderDetailPage() {
             </button>
           )}
         </div>
+
+        {activeTab === 'tasks' && (
+          <div>
+            {tasks.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-sm font-medium text-on-surface-variant m-0">
+                    {lang === 'ar'
+                      ? `اكتمل ${tasks.filter(t2 => t2.is_done).length}/${tasks.length}`
+                      : `${tasks.filter(t2 => t2.is_done).length}/${tasks.length} completed`}
+                  </p>
+                  <p className="text-xs text-on-surface-variant m-0">
+                    {Math.round((tasks.filter(t2 => t2.is_done).length / tasks.length) * 100)}%
+                  </p>
+                </div>
+                <div className="w-full h-2 bg-surface-container-low rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{ width: `${(tasks.filter(t2 => t2.is_done).length / tasks.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {tasks.length === 0 && (
+              <p className="text-sm text-on-surface-variant mb-3">
+                {lang === 'ar' ? 'لا توجد مهام بعد. أضف مهمة أدناه.' : 'No tasks yet. Add one below.'}
+              </p>
+            )}
+            {tasks.map(task => (
+              <div key={task.id} className="bg-surface-container-low rounded-xl px-4 py-3 mb-2 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={task.is_done}
+                  onChange={() => toggleTask(task)}
+                  className="w-4 h-4 rounded border border-outline-variant text-primary cursor-pointer mt-0.5"
+                />
+                <div className="flex-1">
+                  <p className={`text-sm m-0 ${task.is_done ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
+                    {lang === 'ar' && task.title_ar ? task.title_ar : task.title}
+                  </p>
+                  {task.is_done && task.done_at && (
+                    <p className="text-[11px] text-on-surface-variant mt-0.5 m-0">
+                      {task.done_by_user?.full_name ?? '—'} · {format(new Date(task.done_at), 'dd MMM yyyy, HH:mm')}
+                    </p>
+                  )}
+                </div>
+                {currentUser && (currentUser.id === wo.created_by || ['admin', 'manager'].includes(currentUser.role)) && (
+                  <button
+                    onClick={() => deleteTask(task.id)}
+                    className="text-error text-xs border-none bg-transparent cursor-pointer hover:underline"
+                    aria-label={lang === 'ar' ? 'حذف المهمة' : 'Delete task'}
+                  >
+                    {lang === 'ar' ? 'حذف' : 'Delete'}
+                  </button>
+                )}
+              </div>
+            ))}
+            <form onSubmit={addTask} className="flex gap-2 mt-3">
+              <input
+                value={newTaskTitle}
+                onChange={e => setNewTaskTitle(e.target.value)}
+                placeholder={lang === 'ar' ? 'إضافة مهمة...' : 'Add a task...'}
+                className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40 flex-1"
+              />
+              <button
+                type="submit"
+                disabled={addingTask || !newTaskTitle.trim()}
+                className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!newTaskTitle.trim() ? 'opacity-50' : ''}`}
+              >
+                {addingTask ? '...' : lang === 'ar' ? 'إضافة' : 'Add'}
+              </button>
+            </form>
+          </div>
+        )}
 
         {activeTab === 'comments' && (
           <div>

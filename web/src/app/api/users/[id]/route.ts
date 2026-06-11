@@ -52,6 +52,60 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // Load the target row (org-scoped) for the role-safety checks below.
+  const { data: target, error: targetErr } = await admin
+    .from('users')
+    .select('id, role, is_active')
+    .eq('id', id)
+    .eq('organisation_id', profile.organisation_id)
+    .maybeSingle()
+  if (targetErr) {
+    console.error('[users PATCH] target lookup failed', targetErr)
+    return NextResponse.json({ error: 'Failed to load target user' }, { status: 500 })
+  }
+  if (!target) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  }
+
+  const newRole = 'role' in cleaned && typeof cleaned.role === 'string' ? cleaned.role : undefined
+  const newActive = 'is_active' in cleaned && typeof cleaned.is_active === 'boolean' ? cleaned.is_active : undefined
+
+  // SAFETY (a): a user may never change their own role — prevents accidental
+  // self-demotion and self-promotion alike.
+  if (user.id === id && newRole !== undefined && newRole !== target.role) {
+    return NextResponse.json(
+      { error: 'You cannot change your own role. Ask another admin to do it.', code: 'self_role_change' },
+      { status: 400 }
+    )
+  }
+
+  // SAFETY (b) + (c): last-admin protection. Refuse demoting or deactivating
+  // an active admin if that would leave the organisation with zero active admins.
+  const targetIsActiveAdmin = target.role === 'admin' && target.is_active !== false
+  const demotesAdmin = targetIsActiveAdmin && newRole !== undefined && newRole !== 'admin'
+  const deactivatesAdmin = targetIsActiveAdmin && newActive === false
+  if (demotesAdmin || deactivatesAdmin) {
+    const { count: otherAdmins, error: countErr } = await admin
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', profile.organisation_id)
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .neq('id', id)
+    if (countErr) {
+      console.error('[users PATCH] admin count failed', countErr)
+      return NextResponse.json({ error: 'Failed to verify admin count' }, { status: 500 })
+    }
+    if ((otherAdmins ?? 0) === 0) {
+      return NextResponse.json(
+        demotesAdmin
+          ? { error: 'Cannot remove the admin role from the only remaining active admin of this organisation.', code: 'last_admin_role' }
+          : { error: 'Cannot deactivate the only remaining active admin of this organisation.', code: 'last_admin_deactivate' },
+        { status: 400 }
+      )
+    }
+  }
+
   const updateRow: Record<string, unknown> = {
     full_name: cleaned.full_name ?? null,
     full_name_ar: cleaned.full_name_ar ? cleaned.full_name_ar : null,

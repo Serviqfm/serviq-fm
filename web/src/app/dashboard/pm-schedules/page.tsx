@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { archiveConfirmMessage, nextDueOnDaysOfWeek } from './pm-utils'
 
 export default function PMSchedulesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,6 +14,8 @@ export default function PMSchedulesPage() {
   const [generating, setGenerating] = useState<string | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -29,7 +32,14 @@ export default function PMSchedulesPage() {
     setLoading(false)
   }
 
-  function calculateNextDue(frequency: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function calculateNextDue(schedule: any): string {
+    // Weekly schedules with days_of_week land on the next selected weekday
+    // (mirrors /api/cron/pm-generate).
+    if (schedule.frequency === 'weekly' && Array.isArray(schedule.days_of_week) && schedule.days_of_week.length > 0) {
+      return nextDueOnDaysOfWeek(new Date(), schedule.days_of_week).toISOString()
+    }
+    const frequency: string = schedule.frequency
     const now = new Date()
     switch (frequency) {
       case 'daily':       now.setDate(now.getDate() + 1); break
@@ -46,6 +56,15 @@ export default function PMSchedulesPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function generateWorkOrder(schedule: any) {
+    if (schedule.is_archived) return
+    // End date passed (or next due falls beyond it): don't generate.
+    if (schedule.end_date && (Date.now() > new Date(schedule.end_date).getTime() ||
+        (schedule.next_due_at && new Date(schedule.next_due_at) > new Date(schedule.end_date)))) {
+      alert(lang === 'ar'
+        ? 'انتهى هذا الجدول — تاريخ الانتهاء قد مضى، لن يتم إنشاء أوامر عمل جديدة.'
+        : 'This schedule has ended — its end date has passed, so no new work orders will be generated.')
+      return
+    }
     setGenerating(schedule.id)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setGenerating(null); return }
@@ -64,11 +83,16 @@ export default function PMSchedulesPage() {
       created_by: user.id,
     })
     if (!error) {
-      await supabase.from('pm_schedules').update({
+      const nextDue = calculateNextDue(schedule)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const update: any = {
         last_completed_at: new Date().toISOString(),
         last_generated_at: new Date().toISOString(),
-        next_due_at: calculateNextDue(schedule.frequency),
-      }).eq('id', schedule.id)
+        next_due_at: nextDue,
+      }
+      // Rolled past the end date: this was the last cycle — deactivate.
+      if (schedule.end_date && new Date(nextDue) > new Date(schedule.end_date)) update.is_active = false
+      await supabase.from('pm_schedules').update(update).eq('id', schedule.id)
       fetchSchedules()
     }
     setGenerating(null)
@@ -83,6 +107,22 @@ export default function PMSchedulesPage() {
     setDeleting(false)
   }
 
+  async function archiveSelected() {
+    if (!confirm(archiveConfirmMessage(lang, selected.length))) return
+    setArchiving(true)
+    await supabase.from('pm_schedules').update({ is_archived: true, is_active: false }).in('id', selected)
+    setSelected([])
+    await fetchSchedules()
+    setArchiving(false)
+  }
+
+  async function archiveOne(id: string) {
+    if (!confirm(archiveConfirmMessage(lang))) return
+    await supabase.from('pm_schedules').update({ is_archived: true, is_active: false }).eq('id', id)
+    setSelected(prev => prev.filter(x => x !== id))
+    fetchSchedules()
+  }
+
   async function deleteOne(id: string) {
     if (!confirm(t('common.confirm_delete'))) return
     await supabase.from('pm_schedules').delete().eq('id', id)
@@ -94,7 +134,7 @@ export default function PMSchedulesPage() {
   }
 
   function toggleSelectAll() {
-    setSelected(prev => prev.length === schedules.length ? [] : schedules.map(s => s.id))
+    setSelected(prev => prev.length === activeList.length ? [] : activeList.map(s => s.id))
   }
 
   async function toggleActive(id: string, current: boolean) {
@@ -121,11 +161,16 @@ export default function PMSchedulesPage() {
     return days >= 0 && days <= 7
   }
 
+  // Archived schedules are hidden from the default list (and from stats).
+  const activeList = schedules.filter(s => !s.is_archived)
+  const archivedList = schedules.filter(s => s.is_archived)
+  const rows = showArchived ? archivedList : activeList
+
   const stats = {
-    total:  schedules.length,
-    active: schedules.filter(s => s.is_active).length,
-    due:    schedules.filter(s => s.is_active && isDue(s)).length,
-    soon:   schedules.filter(s => s.is_active && isDueSoon(s) && !isDue(s)).length,
+    total:  activeList.length,
+    active: activeList.filter(s => s.is_active).length,
+    due:    activeList.filter(s => s.is_active && isDue(s)).length,
+    soon:   activeList.filter(s => s.is_active && isDueSoon(s) && !isDue(s)).length,
   }
 
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
@@ -145,6 +190,12 @@ export default function PMSchedulesPage() {
             </p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => { setShowArchived(v => !v); setSelected([]) }}
+              className={`px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${showArchived ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low'}`}
+            >
+              {lang === 'ar' ? `المؤرشفة (${archivedList.length})` : `Archived (${archivedList.length})`}
+            </button>
             <Link href="/dashboard/pm-schedules/calendar">
               <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
                 {t('pm.calendar')}
@@ -182,10 +233,14 @@ export default function PMSchedulesPage() {
           ))}
         </div>
 
-        {/* Bulk delete */}
-        {selected.length > 0 && (
+        {/* Bulk archive / delete */}
+        {selected.length > 0 && !showArchived && (
           <div className="bg-error/5 border border-error/20 rounded-xl p-3 flex items-center gap-3 flex-wrap">
             <span className="text-sm font-semibold text-error">{selected.length} {t('common.selected')}</span>
+            <button onClick={archiveSelected} disabled={archiving}
+              className="px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors">
+              {archiving ? t('common.loading') : (lang === 'ar' ? 'أرشفة المحددة' : 'Archive Selected')}
+            </button>
             <button onClick={deleteSelected} disabled={deleting}
               className="px-4 py-2 rounded-xl bg-error text-on-error text-sm font-semibold disabled:opacity-50 hover:bg-error/90 transition-colors">
               {deleting ? t('common.loading') : t('btn.delete_selected')}
@@ -195,11 +250,17 @@ export default function PMSchedulesPage() {
         )}
 
         {/* Table */}
-        {schedules.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
-            <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">event_repeat</span>
-            <p className="text-lg font-semibold mb-1">{lang === 'ar' ? 'لا توجد جداول صيانة بعد' : 'No PM schedules yet'}</p>
-            <p className="text-sm">{lang === 'ar' ? 'أنشئ أول جدول صيانة وقائية للبدء' : 'Create your first preventive maintenance schedule to get started'}</p>
+            <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">{showArchived ? 'inventory_2' : 'event_repeat'}</span>
+            {showArchived ? (
+              <p className="text-lg font-semibold mb-1">{lang === 'ar' ? 'لا توجد جداول مؤرشفة' : 'No archived schedules'}</p>
+            ) : (
+              <>
+                <p className="text-lg font-semibold mb-1">{lang === 'ar' ? 'لا توجد جداول صيانة بعد' : 'No PM schedules yet'}</p>
+                <p className="text-sm">{lang === 'ar' ? 'أنشئ أول جدول صيانة وقائية للبدء' : 'Create your first preventive maintenance schedule to get started'}</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
@@ -208,7 +269,9 @@ export default function PMSchedulesPage() {
                 <thead>
                   <tr className="bg-surface-container border-b border-outline-variant/30">
                     <th className="p-3 w-10">
-                      <input type="checkbox" checked={selected.length === schedules.length && schedules.length > 0} onChange={toggleSelectAll} className="rounded" />
+                      {!showArchived && (
+                        <input type="checkbox" checked={selected.length === activeList.length && activeList.length > 0} onChange={toggleSelectAll} className="rounded" />
+                      )}
                     </th>
                     {[t('pm.col.title'), t('pm.col.asset'), t('pm.col.freq'), t('pm.col.compliance'), t('pm.col.due'), t('wo.col.assigned'), t('common.status'), t('common.actions')].map(h => (
                       <th key={h} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{h}</th>
@@ -216,13 +279,15 @@ export default function PMSchedulesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20">
-                  {schedules.map(s => {
+                  {rows.map(s => {
                     const due = isDue(s)
                     const soon = isDueSoon(s)
                     return (
-                      <tr key={s.id} className={`hover:bg-surface-container-low transition-colors ${selected.includes(s.id) ? 'bg-primary/5' : due ? 'bg-error/5' : ''}`}>
+                      <tr key={s.id} className={`hover:bg-surface-container-low transition-colors ${selected.includes(s.id) ? 'bg-primary/5' : due && !s.is_archived ? 'bg-error/5' : ''}`}>
                         <td className="p-3">
-                          <input type="checkbox" checked={selected.includes(s.id)} onChange={() => toggleSelect(s.id)} className="rounded" />
+                          {!showArchived && (
+                            <input type="checkbox" checked={selected.includes(s.id)} onChange={() => toggleSelect(s.id)} className="rounded" />
+                          )}
                         </td>
                         <td className="p-3">
                           <Link href={'/dashboard/pm-schedules/' + s.id} className="text-sm font-semibold text-primary hover:underline">
@@ -248,26 +313,34 @@ export default function PMSchedulesPage() {
                         </td>
                         <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{s.assignee?.full_name ?? t('common.unassigned')}</td>
                         <td className="p-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
-                            {s.is_active ? t('common.active') : t('common.inactive')}
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.is_archived ? 'bg-surface-container text-on-surface-variant' : s.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
+                            {s.is_archived ? (lang === 'ar' ? 'مؤرشف' : 'Archived') : s.is_active ? t('common.active') : t('common.inactive')}
                           </span>
                         </td>
                         <td className="p-3">
-                          <div className="flex gap-1.5 flex-wrap">
-                            <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id}
-                              className="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap">
-                              {generating === s.id ? '...' : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate WO')}
-                            </button>
-                            <Link href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
-                              <button className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
-                            </Link>
-                            <button onClick={() => toggleActive(s.id, s.is_active)}
-                              className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">
-                              {s.is_active ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تفعيل' : 'Resume')}
-                            </button>
-                            <button onClick={() => deleteOne(s.id)}
-                              className="px-2.5 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">{t('common.delete')}</button>
-                          </div>
+                          {s.is_archived ? (
+                            <span className="text-xs text-on-surface-variant">—</span>
+                          ) : (
+                            <div className="flex gap-1.5 flex-wrap">
+                              <button onClick={() => generateWorkOrder(s)} disabled={generating === s.id}
+                                className="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap">
+                                {generating === s.id ? '...' : (lang === 'ar' ? 'إنشاء أمر عمل' : 'Generate WO')}
+                              </button>
+                              <Link href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
+                                <button className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                              </Link>
+                              <button onClick={() => toggleActive(s.id, s.is_active)}
+                                className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">
+                                {s.is_active ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تفعيل' : 'Resume')}
+                              </button>
+                              <button onClick={() => archiveOne(s.id)}
+                                className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">
+                                {lang === 'ar' ? 'أرشفة' : 'Archive'}
+                              </button>
+                              <button onClick={() => deleteOne(s.id)}
+                                className="px-2.5 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">{t('common.delete')}</button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )

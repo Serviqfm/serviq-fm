@@ -19,6 +19,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const [resendResult, setResendResult] = useState<{ email: string; fullName: string; tempPassword: string } | null>(null)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -40,9 +42,64 @@ export default function UsersPage() {
     setLoading(false)
   }
 
-  async function toggleActive(id: string, current: boolean) {
-    await supabase.from('users').update({ is_active: !current, updated_at: new Date().toISOString() }).eq('id', id)
+  // Pending = invited but never logged in (derived, never stored).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isPending = (u: any) => Boolean(u.invited_at) && !u.first_login_at
+
+  // Friendly bilingual messages for the API safety-rule rejections.
+  const apiErrorMessage = (code?: string, fallback?: string) => {
+    const messages: Record<string, { en: string; ar: string }> = {
+      self_role_change:      { en: 'You cannot change your own role. Ask another admin to do it.', ar: 'لا يمكنك تغيير دورك بنفسك. اطلب من مشرف آخر القيام بذلك.' },
+      last_admin_role:       { en: 'This is the only active admin — assign another admin before changing this role.', ar: 'هذا هو المشرف النشط الوحيد — عيّن مشرفًا آخر قبل تغيير هذا الدور.' },
+      last_admin_deactivate: { en: 'This is the only active admin — assign another admin before deactivating this account.', ar: 'هذا هو المشرف النشط الوحيد — عيّن مشرفًا آخر قبل إلغاء تفعيل هذا الحساب.' },
+      not_pending:           { en: 'This user has already logged in — the invite can no longer be resent.', ar: 'سجّل هذا المستخدم دخوله بالفعل — لم يعد بالإمكان إعادة إرسال الدعوة.' },
+    }
+    const known = code ? messages[code] : undefined
+    if (known) return lang === 'ar' ? known.ar : known.en
+    return fallback || (lang === 'ar' ? 'حدث خطأ غير متوقع' : 'Something went wrong')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function toggleActive(u: any) {
+    // Goes through the API (not a direct table update) so the last-admin
+    // protection in PATCH /api/users/[id] applies.
+    try {
+      const res = await fetch(`/api/users/${u.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: u.full_name || u.email,
+          full_name_ar: u.full_name_ar,
+          role: u.role,
+          is_active: u.is_active === false,
+        }),
+      })
+      if (!res.ok) {
+        const result = await res.json().catch(() => ({}))
+        alert(apiErrorMessage(result?.code, result?.error))
+      }
+    } catch {
+      alert(lang === 'ar' ? 'خطأ في الشبكة' : 'Network error')
+    }
     fetchUsers()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function resendInvite(u: any) {
+    setResendingId(u.id)
+    try {
+      const res = await fetch(`/api/users/${u.id}/resend-invite`, { method: 'POST' })
+      const result = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setResendResult({ email: u.email, fullName: u.full_name ?? u.email, tempPassword: result.tempPassword })
+        fetchUsers()
+      } else {
+        alert(apiErrorMessage(result?.code, result?.error || (lang === 'ar' ? 'تعذر إعادة إرسال الدعوة' : 'Failed to resend invite')))
+      }
+    } catch {
+      alert(lang === 'ar' ? 'خطأ في الشبكة أثناء إعادة إرسال الدعوة' : 'Network error while resending invite')
+    }
+    setResendingId(null)
   }
 
   async function deleteUser(id: string, email: string) {
@@ -105,6 +162,24 @@ export default function UsersPage() {
           </div>
         </div>
 
+        {/* Resend-invite result — same temp-password presentation as the new-user page */}
+        {resendResult && (
+          <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#f57f17', margin: '0 0 8px' }}>
+                {lang === 'ar' ? `تمت إعادة إرسال الدعوة — شارك بيانات الدخول هذه مع ${resendResult.fullName}` : `Invite resent — share these login details with ${resendResult.fullName}`}
+              </p>
+              <p style={{ fontSize: 13, margin: '0 0 4px' }}>{lang === 'ar' ? 'البريد الإلكتروني:' : 'Email:'} <strong>{resendResult.email}</strong></p>
+              <p style={{ fontSize: 13, margin: '0 0 8px' }}>{lang === 'ar' ? 'كلمة المرور المؤقتة:' : 'Temporary Password:'} <strong style={{ fontFamily: 'monospace', background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{resendResult.tempPassword}</strong></p>
+              <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{lang === 'ar' ? 'اطلب منه تغيير كلمة المرور بعد أول تسجيل دخول.' : 'Ask them to change their password after first login.'}</p>
+            </div>
+            <button onClick={() => setResendResult(null)} aria-label={lang === 'ar' ? 'إغلاق' : 'Dismiss'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f57f17', fontSize: 18, lineHeight: 1, padding: 4 }}>
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
@@ -142,29 +217,43 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="p-3 whitespace-nowrap">
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.is_active !== false ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
-                          {u.is_active !== false ? t('common.active') : t('common.inactive')}
-                        </span>
+                        {u.is_active !== false && isPending(u) ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                            {lang === 'ar' ? 'بانتظار التفعيل' : 'Pending'}
+                          </span>
+                        ) : (
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.is_active !== false ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
+                            {u.is_active !== false ? t('common.active') : t('common.inactive')}
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">
                         {u.last_sign_in_at ? format(new Date(u.last_sign_in_at), 'dd MMM yyyy') : '—'}
                       </td>
                       <td className="p-3">
-                        {currentUser?.role === 'admin' && !isMe && (
-                          <div className="flex gap-2">
-                            <Link href={'/dashboard/users/' + u.id + '/edit'}>
-                              <button className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
-                            </Link>
-                            <button onClick={() => toggleActive(u.id, u.is_active !== false)}
-                              className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
-                              {u.is_active !== false ? t('common.deactivate') : t('common.activate')}
+                        <div className="flex gap-2">
+                          {['admin', 'manager'].includes(currentUser?.role) && !isMe && isPending(u) && (
+                            <button onClick={() => resendInvite(u)} disabled={resendingId === u.id}
+                              className="px-3 py-1 rounded-lg border border-amber-300 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                              {resendingId === u.id ? (lang === 'ar' ? 'جارٍ الإرسال…' : 'Sending…') : (lang === 'ar' ? 'إعادة إرسال الدعوة' : 'Resend Invite')}
                             </button>
-                            <button onClick={() => deleteUser(u.id, u.email)}
-                              className="px-3 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">
-                              Delete
-                            </button>
-                          </div>
-                        )}
+                          )}
+                          {currentUser?.role === 'admin' && !isMe && (
+                            <>
+                              <Link href={'/dashboard/users/' + u.id + '/edit'}>
+                                <button className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                              </Link>
+                              <button onClick={() => toggleActive(u)}
+                                className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                                {u.is_active !== false ? t('common.deactivate') : t('common.activate')}
+                              </button>
+                              <button onClick={() => deleteUser(u.id, u.email)}
+                                className="px-3 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )

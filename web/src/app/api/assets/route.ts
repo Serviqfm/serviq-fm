@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { validateParentAssignment } from './hierarchy'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
 
   // Non-catalog/system fields handled separately from enforcement.
   const photoUrls = Array.isArray(body.photo_urls) ? (body.photo_urls as string[]) : []
+  const parentAssetId = typeof body.parent_asset_id === 'string' && body.parent_asset_id.trim() !== ''
+    ? body.parent_asset_id.trim()
+    : null
 
   // Build payload that matches catalog keys for enforcement.
   const enforcePayload: Record<string, unknown> = {
@@ -78,6 +82,13 @@ export async function POST(req: NextRequest) {
     ? body.qr_code
     : 'SERVIQ-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11).toUpperCase()
 
+  if (parentAssetId) {
+    const check = await validateParentAssignment(admin, profile.organisation_id, parentAssetId, null)
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: 400 })
+    }
+  }
+
   const insertRow: Record<string, unknown> = {
     organisation_id: profile.organisation_id,
     created_by: user.id,
@@ -95,6 +106,7 @@ export async function POST(req: NextRequest) {
     description: cleaned.description ? cleaned.description : null,
     location_notes: cleaned.location_notes ? cleaned.location_notes : null,
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
+    parent_asset_id: parentAssetId,
     status: 'active',
     qr_code: qrCode,
   }

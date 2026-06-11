@@ -66,7 +66,7 @@ export default function WorkOrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
   const supabase = createClient()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchWorkOrders(); fetchTechnicians() }, [statusFilter, priorityFilter, categoryFilter, technicianFilter])
@@ -148,12 +148,20 @@ export default function WorkOrdersPage() {
               <span className={stats.overdue > 0 ? 'text-error font-semibold' : 'text-on-surface-variant'}>{stats.overdue} overdue</span>
             </p>
           </div>
-          <Link href='/dashboard/work-orders/new'>
-            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-              <span className="material-symbols-outlined text-lg">add</span>
-              {t('btn.new_wo')}
-            </button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href='/dashboard/work-orders/checklists'>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+                <span className="material-symbols-outlined text-lg">checklist</span>
+                {lang === 'ar' ? 'قوائم المهام' : 'Checklists'}
+              </button>
+            </Link>
+            <Link href='/dashboard/work-orders/new'>
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">add</span>
+                {t('btn.new_wo')}
+              </button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats Bento */}

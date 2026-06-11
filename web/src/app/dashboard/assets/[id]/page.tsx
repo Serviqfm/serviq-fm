@@ -36,6 +36,20 @@ interface Asset {
   photo_urls?: string[]
   qr_code?: string
   custom_fields?: Record<string, string>
+  parent_asset_id?: string | null
+  parent?: { id: string; name: string } | null
+}
+
+interface AncestorAsset {
+  id: string
+  name: string
+  parent_asset_id?: string | null
+}
+
+interface ChildAsset {
+  id: string
+  name: string
+  status: string
 }
 
 export default function AssetDetailPage() {
@@ -51,20 +65,37 @@ export default function AssetDetailPage() {
   const [pmSchedules, setPmSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [translatedAsset, setTranslatedAsset] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory' | 'children'>('details')
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [pmHistory, setPmHistory] = useState<any[]>([])
+  const [childAssets, setChildAssets] = useState<ChildAsset[]>([])
+  const [ancestors, setAncestors] = useState<AncestorAsset[]>([])
 
   // FIX #1 continued: Wrap fetchAll in useCallback to avoid re-renders
   const fetchAll = useCallback(async () => {
-    const [{ data: assetData }, { data: woData }, { data: pmData }] = await Promise.all([
-      supabase.from('assets').select('*, site:site_id(name)').eq('id', assetId).single(),
+    const [{ data: assetData }, { data: woData }, { data: pmData }, { data: childData }] = await Promise.all([
+      supabase.from('assets').select('*, site:site_id(name), parent:parent_asset_id(id, name)').eq('id', assetId).single(),
       supabase.from('work_orders').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
       supabase.from('pm_schedules').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
+      supabase.from('assets').select('id, name, status').eq('parent_asset_id', assetId).order('name'),
     ])
     if (assetData) setAsset(assetData as Asset)
     if (woData) setWorkOrders(woData)
     if (pmData) setPmSchedules(pmData)
+    if (childData) setChildAssets(childData as ChildAsset[])
+
+    // Walk up the parent chain to build the ancestor breadcrumb (max 4 levels).
+    const chain: AncestorAsset[] = []
+    let parentId: string | null = assetData?.parent_asset_id ?? null
+    let guard = 0
+    while (parentId && guard < 4) {
+      const { data: node } = await supabase.from('assets').select('id, name, parent_asset_id').eq('id', parentId).single()
+      if (!node) break
+      chain.unshift(node as AncestorAsset)
+      parentId = (node as AncestorAsset).parent_asset_id ?? null
+      guard++
+    }
+    setAncestors(chain)
     setLoading(false)
   }, [assetId])
 
@@ -125,6 +156,17 @@ export default function AssetDetailPage() {
         </div>
 
         <div>
+          {ancestors.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap text-sm mb-1.5">
+              {ancestors.map(a => (
+                <span key={a.id} className="flex items-center gap-1.5">
+                  <Link href={'/dashboard/assets/' + a.id} className="text-primary hover:underline">{a.name}</Link>
+                  <span className="text-outline-variant">›</span>
+                </span>
+              ))}
+              <span className="text-on-surface-variant">{asset.name}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-[22px] font-bold text-on-surface m-0">{translatedAsset.name ?? asset.name}</h1>
@@ -190,6 +232,7 @@ export default function AssetDetailPage() {
 
         <div className="border-b border-outline-variant flex flex-wrap">
           <button className={tabCls(activeTab === 'details')} onClick={() => setActiveTab('details')}>Details</button>
+          <button className={tabCls(activeTab === 'children')} onClick={() => setActiveTab('children')}>{lang === 'ar' ? 'الأصول الفرعية' : 'Child Assets'} ({childAssets.length})</button>
           <button className={tabCls(activeTab === 'workorders')} onClick={() => setActiveTab('workorders')}>Work Orders ({workOrders.length})</button>
           <button className={tabCls(activeTab === 'pm')} onClick={() => setActiveTab('pm')}>PM Schedules ({pmSchedules.length})</button>
           <button className={tabCls(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
@@ -202,6 +245,12 @@ export default function AssetDetailPage() {
           <div>
             <div className="grid grid-cols-2 gap-2.5 mb-2.5">
               {[
+                {
+                  label: lang === 'ar' ? 'الأصل الرئيسي' : 'Parent Asset',
+                  value: asset.parent
+                    ? <Link href={'/dashboard/assets/' + asset.parent.id} className="text-primary hover:underline">{asset.parent.name}</Link>
+                    : '—',
+                },
                 { label: 'Site',                         value: asset.site?.name ?? '—' },
                 { label: 'Sub-location',                 value: asset.sub_location ?? '—' },
                 { label: 'Location Notes',               value: asset.location_notes ?? '—' },
@@ -225,6 +274,26 @@ export default function AssetDetailPage() {
               <div className="bg-surface-container-low rounded-lg px-4 py-3 mt-1">
                 <p className="text-xs text-on-surface-variant mb-1.5">Description</p>
                 <p className="text-sm m-0 leading-relaxed text-on-surface">{asset.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'children' && (
+          <div>
+            {childAssets.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">{lang === 'ar' ? 'لا توجد أصول فرعية تحت هذا الأصل بعد.' : 'No child assets under this asset yet.'}</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {childAssets.map(child => {
+                  const cCfg = statusConfig[child.status] ?? statusConfig.active
+                  return (
+                    <div key={child.id} className="bg-surface-container-low rounded-lg px-4 py-3 flex justify-between items-center">
+                      <Link href={'/dashboard/assets/' + child.id} className="text-sm font-medium text-primary hover:underline">{child.name}</Link>
+                      <span className={`${cCfg.className} px-2.5 py-0.5 rounded-full text-xs font-medium`}>{cCfg.label}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

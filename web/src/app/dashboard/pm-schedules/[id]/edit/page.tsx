@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function EditPMSchedulePage() {
   const router = useRouter()
   const { id } = useParams()
+  const { lang } = useLanguage()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -20,9 +22,10 @@ export default function EditPMSchedulePage() {
   const [form, setForm] = useState({
     title: '', description: '', frequency: 'monthly',
     asset_id: '', site_id: '', assigned_to: '',
-    next_due_at: '', estimated_duration_minutes: '',
+    next_due_at: '', end_date: '', estimated_duration_minutes: '',
     is_seasonal: false, seasonal_start_month: '1', seasonal_end_month: '12',
   })
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
@@ -50,12 +53,18 @@ export default function EditPMSchedulePage() {
       site_id: pm.site_id ?? '',
       assigned_to: pm.assigned_to ?? '',
       next_due_at: pm.next_due_at ? pm.next_due_at.slice(0, 16) : '',
+      end_date: pm.end_date ? pm.end_date.slice(0, 10) : '',
       estimated_duration_minutes: pm.estimated_duration_minutes ? String(pm.estimated_duration_minutes) : '',
       is_seasonal: pm.is_seasonal ?? false,
       seasonal_start_month: pm.seasonal_start_month ? String(pm.seasonal_start_month) : '1',
       seasonal_end_month: pm.seasonal_end_month ? String(pm.seasonal_end_month) : '12',
     })
+    if (pm) setDaysOfWeek(Array.isArray(pm.days_of_week) ? pm.days_of_week : [])
     setLoading(false)
+  }
+
+  function toggleDay(day: number) {
+    setDaysOfWeek(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b))
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -74,6 +83,8 @@ export default function EditPMSchedulePage() {
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
       next_due_at: form.next_due_at || null,
+      end_date: form.end_date || null,
+      days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
       estimated_duration_minutes: form.estimated_duration_minutes ? parseInt(form.estimated_duration_minutes) : null,
       is_seasonal: form.is_seasonal,
       seasonal_start_month: form.is_seasonal ? parseInt(form.seasonal_start_month) : null,
@@ -87,6 +98,9 @@ export default function EditPMSchedulePage() {
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
   const labelStyle = { display: 'block' as const, marginBottom: 6, fontSize: 13, fontWeight: 500 as const, color: '#444' }
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const dayNames = lang === 'ar'
+    ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>
 
@@ -123,6 +137,31 @@ export default function EditPMSchedulePage() {
             <input name='estimated_duration_minutes' type='number' value={form.estimated_duration_minutes} onChange={handleChange} style={fieldStyle} />
           </div>
         </div>
+        {form.frequency === 'weekly' && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'أيام الأسبوع' : 'Days of Week'}</label>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 8px' }}>
+              {lang === 'ar' ? 'اختر الأيام التي تستحق فيها الصيانة الأسبوعية. اتركها فارغة للتكرار كل 7 أيام.' : 'Pick which weekdays this weekly schedule lands on. Leave empty to repeat every 7 days.'}
+            </p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {dayNames.map((d, i) => (
+                <button
+                  key={i}
+                  type='button'
+                  onClick={() => toggleDay(i)}
+                  style={{
+                    padding: '5px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                    border: daysOfWeek.includes(i) ? '1px solid #006b54' : '1px solid #ddd',
+                    background: daysOfWeek.includes(i) ? '#006b54' : 'white',
+                    color: daysOfWeek.includes(i) ? 'white' : '#444',
+                  }}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>Asset</label>
@@ -150,6 +189,15 @@ export default function EditPMSchedulePage() {
           <div>
             <label style={labelStyle}>Next Due Date</label>
             <input name='next_due_at' type='datetime-local' value={form.next_due_at} onChange={handleChange} style={fieldStyle} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'تاريخ الانتهاء (اختياري)' : 'End Date (optional)'}</label>
+            <input name='end_date' type='date' value={form.end_date} onChange={handleChange} style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'لن يتم إنشاء أوامر عمل بعد هذا التاريخ.' : 'No work orders will be generated after this date.'}
+            </p>
           </div>
         </div>
         <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem' }}>

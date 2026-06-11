@@ -5,17 +5,20 @@ import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function EditUserPage() {
   const router = useRouter()
   const params = useParams()
   const id = typeof params.id === 'string' ? params.id : params.id?.[0] || ''
   const supabase = createClient()
+  const { lang } = useLanguage()
   const { isHidden, isRequired, loading: configLoading } = useFieldConfig('users_edit')
   const isReq = (key: string) => isRequired(key) || isSystemRequired('users_edit', key)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [isSelf, setIsSelf] = useState(false)
   const [form, setForm] = useState({
     full_name: '',
     full_name_ar: '',
@@ -27,6 +30,8 @@ export default function EditUserPage() {
   useEffect(() => { loadUser() }, [id])
 
   async function loadUser() {
+    const { data: { user } } = await supabase.auth.getUser()
+    setIsSelf(Boolean(user && user.id === id))
     const { data } = await supabase.from('users').select('*').eq('id', id).single()
     if (data) setForm({
       full_name: data.full_name ?? '',
@@ -35,6 +40,13 @@ export default function EditUserPage() {
       is_active: data.is_active !== false,
     })
     setLoading(false)
+  }
+
+  // Friendly bilingual messages for the API safety-rule rejections.
+  const API_ERROR_MESSAGES: Record<string, { en: string; ar: string }> = {
+    self_role_change:      { en: 'You cannot change your own role. Ask another admin to do it.', ar: 'لا يمكنك تغيير دورك بنفسك. اطلب من مشرف آخر القيام بذلك.' },
+    last_admin_role:       { en: 'This is the only active admin of the organisation — assign another admin before changing this role.', ar: 'هذا هو المشرف النشط الوحيد في المؤسسة — عيّن مشرفًا آخر قبل تغيير هذا الدور.' },
+    last_admin_deactivate: { en: 'This is the only active admin of the organisation — assign another admin before deactivating this account.', ar: 'هذا هو المشرف النشط الوحيد في المؤسسة — عيّن مشرفًا آخر قبل إلغاء تفعيل هذا الحساب.' },
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
@@ -59,7 +71,10 @@ export default function EditUserPage() {
     })
     const result = await res.json().catch(() => ({}))
     if (!res.ok) {
-      setError(result?.error ?? 'Failed to update user')
+      const known = result?.code ? API_ERROR_MESSAGES[result.code] : undefined
+      setError(known
+        ? (lang === 'ar' ? known.ar : known.en)
+        : (result?.error ?? (lang === 'ar' ? 'فشل تحديث المستخدم' : 'Failed to update user')))
       setSaving(false)
       return
     }
@@ -102,12 +117,18 @@ export default function EditUserPage() {
         {!isHidden('role') && (
           <div>
             <label style={labelStyle}>Role{reqMark('role')}</label>
-            <select name='role' value={form.role} onChange={handleChange} required={isReq('role')} style={fieldStyle}>
+            <select name='role' value={form.role} onChange={handleChange} required={isReq('role')} disabled={isSelf}
+              style={{ ...fieldStyle, ...(isSelf ? { background: '#f5f5f5', color: '#999', cursor: 'not-allowed' } : {}) }}>
               <option value='technician'>Technician</option>
               <option value='manager'>Manager</option>
               <option value='requester'>Requester</option>
               <option value='admin'>Admin</option>
             </select>
+            {isSelf && (
+              <p style={{ fontSize: 12, color: '#996515', margin: '6px 0 0', background: '#fff8e1', border: '1px solid #ffe082', padding: '8px 12px', borderRadius: 6 }}>
+                {lang === 'ar' ? 'لا يمكنك تغيير دورك بنفسك — اطلب من مشرف آخر القيام بذلك.' : 'You cannot change your own role — ask another admin to do it.'}
+              </p>
+            )}
             {form.role && (
               <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0', background: '#f9f9f9', padding: '8px 12px', borderRadius: 6 }}>
                 {roleDescriptions[form.role]}
