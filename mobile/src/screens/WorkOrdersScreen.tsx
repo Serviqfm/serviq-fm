@@ -42,6 +42,7 @@ function useCountdown(dueAt: string | null) {
 }
 
 function CountdownPill({ dueAt }: { dueAt: string | null }) {
+  const { t } = useLang()
   const { timeLeft } = useCountdown(dueAt)
   if (!timeLeft) return null
   return (
@@ -52,7 +53,7 @@ function CountdownPill({ dueAt }: { dueAt: string | null }) {
     }}>
       <Ionicons name="time-outline" size={11} color={timeLeft === 'Overdue' ? '#C62828' : '#92400E'} />
       <Text style={{ fontSize: 11, fontWeight: '700', color: timeLeft === 'Overdue' ? '#C62828' : '#92400E' }}>
-        {timeLeft}
+        {timeLeft === 'Overdue' ? t('overdue') : timeLeft}
       </Text>
     </View>
   )
@@ -69,8 +70,13 @@ export default function WorkOrdersScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => { fetchWOs() }, [])
+  useEffect(() => { fetchWOs() }, [profile?.id])
   useEffect(() => { applyFilter() }, [wos, search, statusFilter])
+  // Refetch when returning from CreateWorkOrder (or any pushed screen).
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchWOs)
+    return unsubscribe
+  }, [navigation, profile?.id])
 
   async function fetchWOs() {
     if (!profile) return
@@ -187,6 +193,13 @@ export default function WorkOrdersScreen() {
           </View>
         }
       />
+
+      {profile?.role !== 'requester' && (
+        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('CreateWorkOrder')}
+          accessibilityLabel={t('create_work_order')}>
+          <Ionicons name='add' size={28} color='white' />
+        </TouchableOpacity>
+      )}
     </View>
   )
 }
@@ -214,4 +227,10 @@ const styles = StyleSheet.create({
   woFooterText: { fontSize: 12, color: colors.textSecondary },
   empty: { alignItems: 'center', padding: 48 },
   emptyText: { fontSize: 15, color: colors.textSecondary, marginTop: 12 },
+  fab: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    ...shadow.md,
+  },
 })

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Alert, ActivityIndicator,
+  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
@@ -49,20 +50,21 @@ function useCountdown(dueAt: string | null) {
 }
 
 function CountdownBanner({ dueAt }: { dueAt: string | null }) {
+  const { t } = useLang()
   const { timeLeft } = useCountdown(dueAt)
   if (!timeLeft) return null
   if (timeLeft === 'Overdue') {
     return (
       <View style={{ backgroundColor: '#FEE2E2', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
-        <Text style={{ color: '#C62828', fontWeight: '600', fontSize: 14 }}>Overdue</Text>
+        <Text style={{ color: '#C62828', fontWeight: '600', fontSize: 14 }}>{t('overdue')}</Text>
       </View>
     )
   }
   return (
     <View style={{ backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Ionicons name="warning-outline" size={18} color="#92400E" />
-      <Text style={{ color: '#92400E', fontWeight: '600', fontSize: 14 }}>Due in {timeLeft}</Text>
+      <Text style={{ color: '#92400E', fontWeight: '600', fontSize: 14 }}>{t('due_in', { time: timeLeft })}</Text>
     </View>
   )
 }
@@ -70,6 +72,7 @@ function CountdownBanner({ dueAt }: { dueAt: string | null }) {
 export default function WorkOrderDetailScreen() {
   const route = useRoute<any>()
   const navigation = useNavigation<any>()
+  const insets = useSafeAreaInsets()
   const { profile } = useAuth()
   const { t, lang } = useLang()
   const [wo, setWo] = useState<any>(null)
@@ -114,11 +117,12 @@ export default function WorkOrderDetailScreen() {
     const updates: any = { status: newStatus, updated_at: now }
     if (newStatus === 'in_progress' && !wo.started_at) updates.started_at = now
     if (newStatus === 'completed') updates.completed_at = now
+    else if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
     await supabase.from('work_orders').update(updates).eq('id', wo.id)
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
       user_id: profile?.id,
-      body: 'Status changed to: ' + newStatus,
+      body: t('status_changed_to', { status: t(newStatus) }),
       comment_type: 'status_change',
     })
     setWo((prev: any) => ({ ...prev, ...updates }))
@@ -128,8 +132,15 @@ export default function WorkOrderDetailScreen() {
 
   function startTimer() {
     startTimeRef.current = new Date()
+    setTimerSeconds(0)
     setTimerRunning(true)
-    timerRef.current = setInterval(() => setTimerSeconds(prev => prev + 1), 1000)
+    // Display ticks are derived from wall clock so the timer stays correct
+    // even when JS timers are paused (app backgrounded / screen locked).
+    timerRef.current = setInterval(() => {
+      if (startTimeRef.current) {
+        setTimerSeconds(Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000))
+      }
+    }, 1000)
   }
 
   async function stopTimer() {
@@ -137,7 +148,8 @@ export default function WorkOrderDetailScreen() {
     clearInterval(timerRef.current)
     timerRef.current = null
     setTimerRunning(false)
-    const secs = timerSeconds
+    // Log the real elapsed wall-clock time, not the interval tick count.
+    const secs = Math.max(0, Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000))
     const mins = Math.round(secs / 60)
     const h = Math.floor(secs / 3600)
     const m = Math.floor((secs % 3600) / 60)
@@ -147,7 +159,7 @@ export default function WorkOrderDetailScreen() {
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
       user_id: profile?.id,
-      body: 'Time logged: ' + timeStr + ' by ' + (profile?.full_name ?? 'technician'),
+      body: t('time_logged_by', { time: timeStr, name: profile?.full_name ?? t('technician') }),
       comment_type: 'time_log',
     })
     const currentHours = wo.actual_hours ?? 0
@@ -157,7 +169,7 @@ export default function WorkOrderDetailScreen() {
     setTimerSeconds(0)
     startTimeRef.current = null
     await fetchWO()
-    Alert.alert('Time Logged', 'Logged ' + timeStr)
+    Alert.alert(t('time_logged'), t('time_logged_msg', { time: timeStr }))
   }
 
   function formatTime(secs: number) {
@@ -206,18 +218,32 @@ export default function WorkOrderDetailScreen() {
         { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
       )
       const uri = compressed.uri
-      const filename = 'wo-' + wo.id + '-' + Date.now() + '.jpg'
+      // Random suffix keeps the public-bucket filename unguessable, and
+      // upsert: false guarantees we never overwrite an existing object.
+      const filename = 'wo-' + wo.id + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.jpg'
       const response = await fetch(uri)
       const blob = await response.blob()
       const arrayBuffer = await new Response(blob).arrayBuffer()
-      const { error } = await supabase.storage.from('media').upload(filename, arrayBuffer, { contentType: 'image/jpeg', upsert: true })
+      const { error } = await supabase.storage.from('media').upload(filename, arrayBuffer, { contentType: 'image/jpeg', upsert: false })
       if (error) { Alert.alert('Upload error', error.message); setUploading(false); return }
       const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filename)
-      const currentPhotos = wo.photo_urls ?? []
+      // Re-fetch the latest photo list right before writing to shrink the
+      // read-modify-write window against concurrent uploads.
+      const { data: fresh } = await supabase.from('work_orders').select('photo_urls').eq('id', wo.id).single()
+      const currentPhotos = fresh?.photo_urls ?? wo.photo_urls ?? []
       await supabase.from('work_orders').update({
         photo_urls: [...currentPhotos, publicUrl],
         updated_at: new Date().toISOString(),
       }).eq('id', wo.id)
+      // Verify our URL survived any concurrent update; retry once if it was lost.
+      const { data: check } = await supabase.from('work_orders').select('photo_urls').eq('id', wo.id).single()
+      const latest: string[] = check?.photo_urls ?? []
+      if (check && !latest.includes(publicUrl)) {
+        await supabase.from('work_orders').update({
+          photo_urls: [...latest, publicUrl],
+          updated_at: new Date().toISOString(),
+        }).eq('id', wo.id)
+      }
       await fetchWO()
       Alert.alert(lang === 'ar' ? 'تم' : 'Done', lang === 'ar' ? 'تم رفع الصورة' : 'Photo uploaded')
     } catch (e: any) {
@@ -227,7 +253,7 @@ export default function WorkOrderDetailScreen() {
   }
 
   if (loading) return <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>
-  if (!wo) return <View style={styles.centered}><Text>Work order not found</Text></View>
+  if (!wo) return <View style={styles.centered}><Text>{t('wo_not_found')}</Text></View>
 
   const pri = colors.priority[wo.priority as keyof typeof colors.priority] ?? colors.priority.medium
   const sts = colors.status[wo.status as keyof typeof colors.status] ?? colors.status.new
@@ -261,7 +287,10 @@ export default function WorkOrderDetailScreen() {
   ]
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 44 : 0}>
       <View style={styles.titleCard}>
         <View style={styles.badgeRow}>
           <View style={[styles.badge, { backgroundColor: pri.bg }]}>
@@ -482,7 +511,7 @@ export default function WorkOrderDetailScreen() {
           </TouchableOpacity>
         </Modal>
       )}
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 

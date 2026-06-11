@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useState } from 'react'
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
 import { format } from 'date-fns'
@@ -10,25 +11,51 @@ import { format } from 'date-fns'
 export default function AssetDetailScreen() {
   const route = useRoute<any>()
   const navigation = useNavigation<any>()
+  const { profile } = useAuth()
   const { t, lang } = useLang()
   const [asset, setAsset] = useState<any>(null)
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchAsset() }, [route.params?.id])
+  useEffect(() => { fetchAsset() }, [route.params?.id, profile?.organisation_id])
+  // Refetch when returning from the edit screen.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchAsset)
+    return unsubscribe
+  }, [navigation, route.params?.id, profile?.organisation_id])
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        profile?.role !== 'requester' && asset ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AssetForm', { asset })}
+            accessibilityLabel={t('edit_asset')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+            <Ionicons name='create-outline' size={18} color='white' />
+            <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>{t('edit')}</Text>
+          </TouchableOpacity>
+        ) : null
+      ),
+    })
+  }, [navigation, profile?.role, asset, t])
 
   async function fetchAsset() {
+    // Defense-in-depth: only fetch assets belonging to the user's organisation.
+    if (!profile?.organisation_id) return
     const { data } = await supabase
       .from('assets')
       .select('*, site:site_id(name)')
       .eq('id', route.params.id)
-      .single()
+      .eq('organisation_id', profile.organisation_id)
+      .maybeSingle()
     if (data) setAsset(data)
 
     const { data: wos } = await supabase
       .from('work_orders')
       .select('id, title, status, priority, created_at')
       .eq('asset_id', route.params.id)
+      .eq('organisation_id', profile.organisation_id)
       .order('created_at', { ascending: false })
       .limit(10)
     if (wos) setWorkOrders(wos)

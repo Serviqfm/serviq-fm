@@ -6,7 +6,7 @@ type LangContextType = {
   lang: 'ar' | 'en'
   isRTL: boolean
   setLang: (lang: 'ar' | 'en') => void
-  t: (key: string) => string
+  t: (key: string, options?: Record<string, unknown>) => string
 }
 
 const LangContext = createContext<LangContextType>({
@@ -30,8 +30,8 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     setLocale(l)
   }
 
-  function t(key: string) {
-    return i18n.t(key)
+  function t(key: string, options?: Record<string, unknown>) {
+    return i18n.t(key, options)
   }
 
   return (

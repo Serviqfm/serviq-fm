@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { registerPushToken } from '../lib/notifications'
+import { registerPushToken, clearPushToken } from '../lib/notifications'
 
 type AuthContextType = {
   user: any | null
@@ -36,15 +36,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function fetchProfile(userId: string) {
     const { data: { user: authUser } } = await supabase.auth.getUser()
-    console.log("AUTH_USER:", authUser?.id, authUser?.email)
+    if (__DEV__) console.log("AUTH_USER:", authUser?.id, authUser?.email)
     const { data, error } = await supabase
       .from('users')
       .select('*, organisation:organisation_id(name, plan_tier)')
       .eq('id', userId)
       .single()
-    console.log("PROFILE:", JSON.stringify(data))
-    console.log("ERROR:", JSON.stringify(error))
-    console.log("USER_ID:", userId)
+    if (__DEV__) {
+      console.log("PROFILE:", JSON.stringify(data))
+      console.log("ERROR:", JSON.stringify(error))
+      console.log("USER_ID:", userId)
+    }
     if (data) {
       data.email = authUser?.email ?? data.email
     }
@@ -56,6 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    // Clear the push token while we still have a session; never block sign-out.
+    try {
+      if (profile?.id) await clearPushToken(profile.id)
+    } catch (e) {
+      if (__DEV__) console.warn('Failed to clear push token on sign-out:', e)
+    }
     await supabase.auth.signOut()
   }
 

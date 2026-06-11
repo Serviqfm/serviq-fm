@@ -17,39 +17,56 @@ export default function HomeScreen() {
   const [upcomingPMs, setUpcomingPMs] = useState<any[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [profile?.id])
 
   async function fetchData() {
     if (!profile) return
-    let query = supabase
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfTomorrow = new Date(startOfToday)
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1)
+
+    // Exact server-side counts over all open WOs (not a limited sample).
+    function countQuery() {
+      let q = supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('organisation_id', profile.organisation_id)
+        .not('status', 'in', '("completed","closed")')
+      // Technicians only see their assigned WOs
+      if (profile.role === 'technician') q = q.eq('assigned_to', profile.id)
+      return q
+    }
+
+    // Recent-WO list query stays limited — display only.
+    let listQuery = supabase
       .from('work_orders')
       .select('*')
       .eq('organisation_id', profile.organisation_id)
       .not('status', 'in', '("completed","closed")')
       .order('created_at', { ascending: false })
-      .limit(20)
-
-    // Technicians only see their assigned WOs
+      .limit(5)
     if (profile.role === 'technician') {
-      query = query.eq('assigned_to', profile.id)
+      listQuery = listQuery.eq('assigned_to', profile.id)
     }
 
-    const { data: wos } = await query
+    const [openRes, overdueRes, dueTodayRes, inProgressRes, listRes] = await Promise.all([
+      countQuery(),
+      // Overdue: due before the start of today (and not completed/closed)
+      countQuery().lt('due_at', startOfToday.toISOString()),
+      // Due today: due within today (mutually exclusive with overdue)
+      countQuery().gte('due_at', startOfToday.toISOString()).lt('due_at', startOfTomorrow.toISOString()),
+      countQuery().eq('status', 'in_progress'),
+      listQuery,
+    ])
 
-    if (wos) {
-      const now = new Date()
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const tomorrow = new Date(today)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-
-      setStats({
-        open: wos.filter(w => !['completed','closed'].includes(w.status)).length,
-        overdue: wos.filter(w => w.due_at && new Date(w.due_at) < now).length,
-        dueToday: wos.filter(w => w.due_at && new Date(w.due_at) >= today && new Date(w.due_at) < tomorrow).length,
-        inProgress: wos.filter(w => w.status === 'in_progress').length,
-      })
-      setRecentWOs(wos.slice(0, 5))
-    }
+    setStats({
+      open: openRes.count ?? 0,
+      overdue: overdueRes.count ?? 0,
+      dueToday: dueTodayRes.count ?? 0,
+      inProgress: inProgressRes.count ?? 0,
+    })
+    setRecentWOs(listRes.data ?? [])
 
     const { data: pms } = await supabase
       .from('pm_schedules')
@@ -189,7 +206,7 @@ export default function HomeScreen() {
                     {pm.title}
                   </Text>
                   <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
-                    {pm.asset?.name ?? 'No asset'}
+                    {pm.asset?.name ?? t('no_asset')}
                   </Text>
                 </View>
                 <View style={{
@@ -200,7 +217,7 @@ export default function HomeScreen() {
                     fontSize: 11, fontWeight: '700',
                     color: days <= 1 ? '#C62828' : days <= 7 ? '#92400E' : '#166534',
                   }}>
-                    {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `In ${days}d`}
+                    {days === 0 ? t('today') : days === 1 ? t('tomorrow') : t('in_days', { d: days })}
                   </Text>
                 </View>
               </View>

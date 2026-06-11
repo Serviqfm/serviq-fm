@@ -19,16 +19,31 @@ export default function AssetsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('QRScanner' as never)}
-          style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
-          <Ionicons name="qr-code-outline" size={22} color="white" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          {profile?.role !== 'requester' && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AssetForm' as never)}
+              accessibilityLabel={t('create_asset')}
+              style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+              <Ionicons name="add" size={22} color="white" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('QRScanner' as never)}
+            style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+            <Ionicons name="qr-code-outline" size={22} color="white" />
+          </TouchableOpacity>
+        </View>
       ),
     })
-  }, [navigation])
+  }, [navigation, profile?.role, t])
 
-  useEffect(() => { fetchAssets() }, [])
+  useEffect(() => { fetchAssets() }, [profile?.id])
+  // Refetch when returning from create/edit asset screens.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchAssets)
+    return unsubscribe
+  }, [navigation, profile?.id])
 
   async function fetchAssets() {
     if (!profile) return

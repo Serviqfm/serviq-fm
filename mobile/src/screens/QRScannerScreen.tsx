@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNavigation } from '@react-navigation/native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useLang } from '../context/LangContext'
 import { colors } from '../lib/theme'
 
 export default function QRScannerScreen() {
@@ -11,6 +12,7 @@ export default function QRScannerScreen() {
   const [scanned, setScanned] = useState(false)
   const navigation = useNavigation<any>()
   const { profile } = useAuth()
+  const { t } = useLang()
 
   useEffect(() => {
     if (!permission?.granted) requestPermission()
@@ -20,39 +22,40 @@ export default function QRScannerScreen() {
     if (scanned) return
     setScanned(true)
 
-    let assetId: string | null = null
+    if (!profile?.organisation_id) {
+      Alert.alert(t('error'), t('org_not_loaded'))
+      setScanned(false)
+      return
+    }
 
+    // Resolve a candidate asset id from the QR payload (URL or bare UUID),
+    // then ALWAYS verify the asset belongs to the user's organisation.
     const urlMatch = data.match(/assets\/([0-9a-f-]{36})/i)
-    if (urlMatch) {
-      assetId = urlMatch[1]
-    } else if (/^[0-9a-f-]{36}$/i.test(data)) {
-      assetId = data
-    } else {
-      if (!profile?.organisation_id) {
-        Alert.alert('Error', 'Organisation not loaded. Please try again.')
-        setScanned(false)
-        return
-      }
-      try {
-        const { data: asset } = await supabase
-          .from('assets')
-          .select('id')
-          .eq('qr_code', data)
-          .eq('organisation_id', profile.organisation_id)
-          .single()
-        assetId = asset?.id ?? null
-      } catch {
-        Alert.alert('Error', 'Could not look up QR code. Please try again.')
-        setScanned(false)
-        return
-      }
+    const candidateId = urlMatch
+      ? urlMatch[1]
+      : (/^[0-9a-f-]{36}$/i.test(data) ? data : null)
+
+    let assetId: string | null = null
+    try {
+      let query = supabase
+        .from('assets')
+        .select('id')
+        .eq('organisation_id', profile.organisation_id)
+      query = candidateId ? query.eq('id', candidateId) : query.eq('qr_code', data)
+      const { data: asset, error } = await query.maybeSingle()
+      if (error) throw error
+      assetId = asset?.id ?? null
+    } catch {
+      Alert.alert(t('error'), t('qr_lookup_failed'))
+      setScanned(false)
+      return
     }
 
     if (!assetId) {
       Alert.alert(
-        'Not Found',
-        'This QR code does not match any asset in your organisation.',
-        [{ text: 'Scan Again', onPress: () => setScanned(false) }]
+        t('not_found_title'),
+        t('asset_not_in_org'),
+        [{ text: t('scan_again'), onPress: () => setScanned(false) }]
       )
       return
     }
@@ -63,7 +66,7 @@ export default function QRScannerScreen() {
   if (!permission) {
     return (
       <View style={styles.center}>
-        <Text style={styles.text}>Requesting camera permission...</Text>
+        <Text style={styles.text}>{t('requesting_camera')}</Text>
       </View>
     )
   }
@@ -71,9 +74,9 @@ export default function QRScannerScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.center}>
-        <Text style={styles.text}>Camera access required to scan QR codes.</Text>
+        <Text style={styles.text}>{t('camera_access_required')}</Text>
         <TouchableOpacity style={styles.btn} onPress={requestPermission}>
-          <Text style={styles.btnText}>Grant Access</Text>
+          <Text style={styles.btnText}>{t('grant_access')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -90,15 +93,15 @@ export default function QRScannerScreen() {
       <View style={styles.overlay}>
         <View style={styles.scanBox} />
         <Text style={styles.hint}>
-          {scanned ? 'Opening asset...' : 'Point at an asset QR code'}
+          {scanned ? t('opening_asset') : t('point_at_qr')}
         </Text>
         {scanned && (
           <TouchableOpacity style={styles.btn} onPress={() => setScanned(false)}>
-            <Text style={styles.btnText}>Scan Again</Text>
+            <Text style={styles.btnText}>{t('scan_again')}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={[styles.btn, { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={() => navigation.goBack()}>
-          <Text style={[styles.btnText, { color: 'white' }]}>Cancel</Text>
+          <Text style={[styles.btnText, { color: 'white' }]}>{t('cancel')}</Text>
         </TouchableOpacity>
       </View>
     </View>
