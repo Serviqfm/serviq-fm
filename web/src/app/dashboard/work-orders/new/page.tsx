@@ -238,7 +238,12 @@ export default function NewWorkOrderPage() {
             sort_order: i,
           }))
         )
-        if (taskErr) console.error('[work-orders new] task insert failed', taskErr)
+        if (taskErr) {
+          console.error('[work-orders new] task insert failed', taskErr)
+          alert(lang === 'ar'
+            ? 'تم إنشاء أمر العمل، لكن فشلت إضافة المهام. يمكنك إضافتها من صفحة أمر العمل.'
+            : 'Work order created, but adding its tasks failed. You can add them from the work order page.')
+        }
       }
     }
 

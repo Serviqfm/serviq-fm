@@ -28,6 +28,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
   function setLang(l: 'ar' | 'en') {
     setLangState(l)
     setLocale(l)
+    AsyncStorage.setItem('serviq_lang', l).catch(() => {})
   }
 
   function t(key: string, options?: Record<string, unknown>) {
