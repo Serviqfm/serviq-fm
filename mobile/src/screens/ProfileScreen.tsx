@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
@@ -16,6 +17,30 @@ export default function ProfileScreen() {
       [
         { text: t('cancel'), style: 'cancel' },
         { text: t('sign_out'), style: 'destructive', onPress: signOut },
+      ]
+    )
+  }
+
+  async function handleDeleteAccount() {
+    Alert.alert(
+      lang === 'ar' ? 'حذف الحساب' : 'Delete Account',
+      lang === 'ar'
+        ? 'سيتم حذف حسابك نهائياً ولن تتمكن من تسجيل الدخول مرة أخرى. هل أنت متأكد؟'
+        : 'Your account will be permanently deleted and you will no longer be able to sign in. Are you sure?',
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: lang === 'ar' ? 'حذف الحساب' : 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.rpc('request_account_deletion')
+            if (error) {
+              Alert.alert(t('error'), error.message)
+              return
+            }
+            await signOut()
+          },
+        },
       ]
     )
   }
@@ -73,6 +98,11 @@ export default function ProfileScreen() {
         <Ionicons name='log-out-outline' size={20} color={colors.error} />
         <Text style={styles.signOutText}>{t('sign_out')}</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
+        <Ionicons name='trash-outline' size={18} color={colors.textSecondary} />
+        <Text style={styles.deleteText}>{lang === 'ar' ? 'حذف الحساب' : 'Delete Account'}</Text>
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -98,4 +128,6 @@ const styles = StyleSheet.create({
   langBtnTextActive: { color: 'white', fontWeight: '600' },
   signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, margin: 16, backgroundColor: 'white', borderRadius: radius.md, padding: 16, borderWidth: 1, borderColor: colors.errorLight, ...shadow.sm },
   signOutText: { fontSize: 15, color: colors.error, fontWeight: '500' },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 4, marginBottom: 24, padding: 12 },
+  deleteText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
 })

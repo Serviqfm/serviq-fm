@@ -21,9 +21,12 @@
   },
   "submit": {
     "production": {
-      "android": {
-        "track": "internal"
-      }
+      "ios": {
+        "appleId": "maaz.junaidi@gmail.com",
+        "ascAppId": "6782810104",
+        "appleTeamId": "48WZ9XV6HQ"
+      },
+      "android": { "track": "internal" }
     }
   }
 }
