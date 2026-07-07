@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { generateTempPassword } from '@/lib/tempPassword'
 
 export const runtime = 'nodejs'
 
@@ -65,8 +66,8 @@ export async function POST(req: NextRequest) {
   // 2. Feature flag row
   await admin.from('tenant_feature_flags').insert({ organisation_id: org.id })
 
-  // 3. Auth user with temp password
-  const tempPassword = 'Serviq' + Math.random().toString(36).slice(2, 10) + '!1'
+  // 3. Auth user with a CSPRNG temp password (DV-09)
+  const tempPassword = generateTempPassword()
   const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
     email: body.admin_email, password: tempPassword, email_confirm: true,
   })
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
     is_active: true,
     disabled: false,
     invited_at: new Date().toISOString(),
+    must_change_password: true,
   })
   if (profErr) {
     await admin.auth.admin.deleteUser(authUser.user.id)

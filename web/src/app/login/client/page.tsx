@@ -165,7 +165,7 @@ export default function ClientLoginPage() {
                     <label htmlFor="password" className="text-primary text-xs font-semibold uppercase tracking-wider block">
                       Password
                     </label>
-                    <a href="#" className="text-xs font-semibold text-on-surface-variant hover:text-primary transition-colors">
+                    <a href="/reset-password" className="text-xs font-semibold text-on-surface-variant hover:text-primary transition-colors">
                       Forgot password?
                     </a>
                   </div>

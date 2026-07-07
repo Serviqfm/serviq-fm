@@ -20,7 +20,7 @@ export default function UsersPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [resendingId, setResendingId] = useState<string | null>(null)
-  const [resendResult, setResendResult] = useState<{ email: string; fullName: string; tempPassword: string } | null>(null)
+  const [resendResult, setResendResult] = useState<{ email: string; fullName: string } | null>(null)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -91,7 +91,7 @@ export default function UsersPage() {
       const res = await fetch(`/api/users/${u.id}/resend-invite`, { method: 'POST' })
       const result = await res.json().catch(() => ({}))
       if (res.ok) {
-        setResendResult({ email: u.email, fullName: u.full_name ?? u.email, tempPassword: result.tempPassword })
+        setResendResult({ email: u.email, fullName: u.full_name ?? u.email })
         fetchUsers()
       } else {
         alert(apiErrorMessage(result?.code, result?.error || (lang === 'ar' ? 'تعذر إعادة إرسال الدعوة' : 'Failed to resend invite')))
@@ -162,19 +162,21 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* Resend-invite result — same temp-password presentation as the new-user page */}
+        {/* Resend-invite result — the new temp password is emailed, not shown (DV-09) */}
         {resendResult && (
-          <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#f57f17', margin: '0 0 8px' }}>
-                {lang === 'ar' ? `تمت إعادة إرسال الدعوة — شارك بيانات الدخول هذه مع ${resendResult.fullName}` : `Invite resent — share these login details with ${resendResult.fullName}`}
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1565c0', margin: '0 0 6px' }}>
+                {lang === 'ar' ? 'تمت إعادة إرسال الدعوة عبر البريد الإلكتروني' : 'Invitation re-sent by email'}
               </p>
-              <p style={{ fontSize: 13, margin: '0 0 4px' }}>{lang === 'ar' ? 'البريد الإلكتروني:' : 'Email:'} <strong>{resendResult.email}</strong></p>
-              <p style={{ fontSize: 13, margin: '0 0 8px' }}>{lang === 'ar' ? 'كلمة المرور المؤقتة:' : 'Temporary Password:'} <strong style={{ fontFamily: 'monospace', background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{resendResult.tempPassword}</strong></p>
-              <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{lang === 'ar' ? 'اطلب منه تغيير كلمة المرور بعد أول تسجيل دخول.' : 'Ask them to change their password after first login.'}</p>
+              <p style={{ fontSize: 13, margin: 0, color: '#333' }}>
+                {lang === 'ar'
+                  ? <>أُرسلت كلمة مرور مؤقتة جديدة إلى <strong>{resendResult.email}</strong>. سيُطلب منه تعيين كلمة مرور جديدة عند تسجيل الدخول.</>
+                  : <>A new temporary password was emailed to <strong>{resendResult.email}</strong>. They&apos;ll set a new password on login.</>}
+              </p>
             </div>
             <button onClick={() => setResendResult(null)} aria-label={lang === 'ar' ? 'إغلاق' : 'Dismiss'}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f57f17', fontSize: 18, lineHeight: 1, padding: 4 }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1565c0', fontSize: 18, lineHeight: 1, padding: 4 }}>
               ×
             </button>
           </div>

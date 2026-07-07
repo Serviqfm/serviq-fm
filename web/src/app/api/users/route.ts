@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { generateTempPassword } from '@/lib/tempPassword'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,8 +81,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Only admins can create admin users' }, { status: 403 })
     }
 
-    // Create auth user with a temporary password
-    const tempPassword = 'Serviq' + Math.random().toString(36).slice(2, 10) + '!1'
+    // Create auth user with a CSPRNG temporary password (DV-09)
+    const tempPassword = generateTempPassword()
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: cleanedEmail,
       password: tempPassword,
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
       organisation_id,
       is_active: true,
       invited_at: new Date().toISOString(),
+      must_change_password: true,
     })
 
     if (profileError) {
@@ -126,10 +128,11 @@ export async function POST(req: NextRequest) {
       // Don't fail the user creation if email fails
     }
 
+    // DV-09: do NOT echo the temp password in the response — it is delivered by
+    // the welcome email, and the user is forced to change it on first login.
     return NextResponse.json({
       success: true,
       userId: authData.user.id,
-      tempPassword,
     })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

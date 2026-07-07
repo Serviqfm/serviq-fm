@@ -13,6 +13,11 @@ export const maxDuration = 60
 // POST /api/upload?bucket=work-order-media&prefix=<orgId>/<woId>
 // multipart form field: 'file'
 const ALLOWED_BUCKETS = new Set(['work-order-media', 'media', 'requests'])
+// DV-10: only images + PDF, capped at 25 MiB (matches the requests-bucket policy).
+const ALLOWED_UPLOAD_MIME = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'application/pdf',
+])
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabaseClient()
@@ -35,6 +40,14 @@ export async function POST(req: NextRequest) {
   const form = await req.formData()
   const file = form.get('file')
   if (!(file instanceof File)) return NextResponse.json({ error: 'Missing file' }, { status: 400 })
+
+  // DV-10: reject oversized or non-allowed types before reading the file into memory.
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 })
+  }
+  if (!ALLOWED_UPLOAD_MIME.has(file.type)) {
+    return NextResponse.json({ error: `Unsupported file type: ${file.type || 'unknown'}` }, { status: 415 })
+  }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
   const path = `${prefix}/${Date.now()}-${safeName}`
