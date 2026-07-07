@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  web:
+    name: web (build · typecheck · test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Dummy values so `next build` can statically evaluate client-bearing pages.
+      # Supabase clients are constructed at request time (never at module/build
+      # time), so these placeholders are never used to reach a real project.
+      NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      # Build first: generates next-env.d.ts + .next/types that the standalone
+      # tsc step relies on. `next build` also fails on type errors
+      # (typescript.ignoreBuildErrors is off), so this is the primary type gate.
+      - run: npm run build
+      - run: npx tsc --noEmit
+      - run: npm run test
+
+  mobile:
+    name: mobile (typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
