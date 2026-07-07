@@ -52,24 +52,33 @@ export default function PublicRequestPage({ params }: { params: { token: string 
     setLoading(true)
     setError('')
 
+    // Surface upload failures instead of swallowing them: the 'requests' bucket
+    // enforces an image/PDF allowlist + 25 MB cap (DV-03), so a rejected file must
+    // not vanish silently — abort and tell the requester how to fix it.
     const photoUrls: string[] = []
     for (const photo of photos) {
       const path = `${Date.now()}-${photo.name}`
       const { error: upErr } = await supabase.storage.from('requests').upload(path, photo)
-      if (!upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('requests').getPublicUrl(path)
-        photoUrls.push(publicUrl)
+      if (upErr) {
+        setError(`Couldn't upload "${photo.name}". Please use a JPG, PNG, or WebP image under 25 MB.`)
+        setLoading(false)
+        return
       }
+      const { data: { publicUrl } } = supabase.storage.from('requests').getPublicUrl(path)
+      photoUrls.push(publicUrl)
     }
 
     let fileUrl = ''
     if (file) {
       const path = `${Date.now()}-${file.name}`
       const { error: upErr } = await supabase.storage.from('requests').upload(path, file)
-      if (!upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('requests').getPublicUrl(path)
-        fileUrl = publicUrl
+      if (upErr) {
+        setError(`Couldn't upload "${file.name}". Attachments must be an image or PDF under 25 MB.`)
+        setLoading(false)
+        return
       }
+      const { data: { publicUrl } } = supabase.storage.from('requests').getPublicUrl(path)
+      fileUrl = publicUrl
     }
 
     const res = await fetch('/api/requests/submit', {
@@ -204,7 +213,7 @@ export default function PublicRequestPage({ params }: { params: { token: string 
               </div>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">File Attachment (1)</label>
-                <input type="file" className="text-sm text-on-surface-variant" onChange={e => setFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*,application/pdf" className="text-sm text-on-surface-variant" onChange={e => setFile(e.target.files?.[0] || null)} />
               </div>
             </div>
           </div>
