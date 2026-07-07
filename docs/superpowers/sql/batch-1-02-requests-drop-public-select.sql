@@ -1,0 +1,21 @@
+-- Batch 1 / DV-02 — Drop the public SELECT policy on `requests`. Idempotent.
+-- Run in the Supabase SQL editor. Safe to run twice.
+--
+-- The "public can track own request" policy is `FOR SELECT USING (true)`: any
+-- anon-key holder can dump every tenant's requester PII (names / emails / phones /
+-- tracking tokens). Nothing depends on it:
+--   * the public /track/[token] page reads `requests` via the SERVICE-ROLE client
+--     (bypasses RLS), so status-by-token tracking is unaffected;
+--   * logged-in org members read via the separate "org members can manage requests"
+--     FOR ALL policy (auth.uid()-scoped);
+--   * portal submissions insert through the service-role /api/requests/submit route.
+--
+-- Acceptance (owner): anon-key `select * from requests` returns 0 rows; /track/<token>
+-- still shows request status; /dashboard/requests still lists this org's requests.
+--
+-- NOTE (out of DV-02 scope, flagged for Batch 2 / DV-10): the "public can submit
+-- requests" INSERT policy (WITH CHECK (true)) is likewise unused by app code (inserts
+-- go via the service-role route) and lets anon spam-insert rows. Tightening/rate-
+-- limiting that is a separate item — left untouched here.
+
+DROP POLICY IF EXISTS "public can track own request" ON public.requests;
