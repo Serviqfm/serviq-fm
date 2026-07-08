@@ -8,6 +8,8 @@ export interface WorkOrder {
   asset_id: string | null
   created_by: string
   assigned_to: string | null
+  assigned_vendor_id: string | null
+  signed_off_by: string | null
   title: string
   title_ar: string | null
   description: string | null
@@ -32,6 +34,7 @@ export interface WorkOrder {
   created_at: string
   updated_at: string
   assignee?: { full_name: string; email?: string } | null
+  vendor?: { company_name: string } | null
   asset?: { name: string } | null
   site?: { name: string; invoicing_enabled?: boolean } | null
   team?: { name: string; name_ar?: string | null } | null

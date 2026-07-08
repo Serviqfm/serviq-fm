@@ -63,22 +63,22 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fetch device tokens for user (deferred to runtime)
-    const { data: deviceData, error: deviceError } = await supabase
-      .from('user_devices')
+    // DV-05: read the Expo token from users.push_token (the single store the mobile
+    // app writes) — user_devices was never populated and is retired.
+    const { data: userRow, error: tokenError } = await supabase
+      .from('users')
       .select('push_token')
-      .eq('user_id', userId)
-      .eq('is_active', true);
+      .eq('id', userId)
+      .maybeSingle();
 
-    if (deviceError || !deviceData || deviceData.length === 0) {
+    if (tokenError || !userRow?.push_token) {
       return Response.json(
-        { error: 'No active devices found for user', sent: 0 },
+        { error: 'No push token registered for user', sent: 0 },
         { status: 404 }
       );
     }
 
-    const pushTokens = deviceData
-      .map((d: { push_token: string }) => d.push_token)
+    const pushTokens = [userRow.push_token]
       .filter(token => token && Expo.isExpoPushToken(token));
 
     if (pushTokens.length === 0) {

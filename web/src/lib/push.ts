@@ -1,12 +1,7 @@
-// Fire-and-forget push send. Routes through the authenticated, same-origin
-// /api/push route (the browser session cookie authorises the caller) — this
-// replaces the unauthenticated `send-push` Supabase edge function removed in DV-04,
-// which let any caller send an arbitrary push to any user.
-//
-// KNOWN LIMITATION (tracked as DV-05, Batch 3): /api/push reads the `user_devices`
-// table, which the mobile app does not yet populate (it writes `users.push_token`),
-// so delivery stays blocked until DV-05 unifies the token store. DV-04's scope is to
-// remove the unauthenticated edge function — not to restore delivery.
+// Fire-and-forget push send. Routes through the authenticated, same-origin /api/push
+// route (the browser session cookie authorises the caller). /api/push reads the user's
+// Expo token from users.push_token (written by the mobile app) and sends via Expo — the
+// token store is unified end to end (DV-05).
 //
 // Callers are client components, so a relative URL resolves to the same origin and
 // carries the auth cookie.

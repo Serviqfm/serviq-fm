@@ -87,7 +87,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}),
     ...(newStatus === 'closed' ? { closed_at: new Date().toISOString() } : {}),
     ...(closeoutPhotoUrls.length > 0 ? { photo_urls: allPhotos } : {}),
-    ...(body.signoff ? { completion_notes: `Signed off by: ${body.signoff}` } : {}),
+    // WO-01: store the sign-off in its own column instead of overwriting the
+    // technician's completion_notes.
+    ...(body.signoff ? { signed_off_by: body.signoff } : {}),
   }
 
   const { data, error } = await admin

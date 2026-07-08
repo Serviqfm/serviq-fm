@@ -18,6 +18,8 @@ const PRIORITY_OPTIONS = [
   { value: 'critical', label: 'Critical', sub: 'Safety issue',       active: 'border-error bg-error text-on-error' },
 ]
 
+const CATEGORIES = ['HVAC', 'Electrical', 'Plumbing', 'Elevator/Lift', 'Fire Safety', 'Furniture', 'Kitchen Equipment', 'Pool/Gym', 'IT Equipment', 'Signage', 'Vehicle', 'Other']
+
 const inputCls = 'w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all placeholder:text-on-surface-variant/40'
 const labelCls = 'text-[11px] font-bold uppercase tracking-wider text-secondary'
 
@@ -26,6 +28,7 @@ export default function RequesterPortalPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [trackingToken, setTrackingToken] = useState('')
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null)
@@ -39,6 +42,7 @@ export default function RequesterPortalPage() {
     requester_phone: '',
     title: '',
     description: '',
+    category: '',
     priority: 'medium',
     location: '',
     site_id: '',
@@ -97,32 +101,59 @@ export default function RequesterPortalPage() {
     setLoading(true)
     setError('')
     if (!profile) { setError('Please log in to submit a request'); setLoading(false); return }
+    if (!form.category) { setError('Please choose a category (step 2)'); setLoading(false); return }
+    // requests.site_id is NOT NULL, so a site is mandatory (matches the QR portal, which
+    // always carries one). Orgs with no sites can't take requests through this queue.
+    if (!form.site_id) {
+      setError(sites.length === 0
+        ? 'No sites are configured for your organisation yet — please contact an administrator.'
+        : 'Please select a site (step 3)')
+      setLoading(false); return
+    }
+
     const uploadedUrls = await uploadPhotos()
-    const { error: insertError } = await supabase.from('work_orders').insert({
-      title: form.title,
-      description: form.description,
-      location_notes: form.location,
-      site_id: form.site_id || null,
-      priority: form.priority,
-      status: 'new',
-      source: 'requester',
-      organisation_id: profile.organisation_id,
-      created_by: user.id,
-      requester_name: form.requester_name,
-      requester_phone: form.requester_phone || null,
-      photo_urls: uploadedUrls.length > 0 ? uploadedUrls : null,
+
+    // DV-07: submit into the requests approval queue (like the QR portal) instead of
+    // inserting a work order directly. `requests` has no priority/location columns, so
+    // fold those into the description; a manager sets the real priority at approval.
+    let description = form.description
+    if (form.location) description += `\n\nLocation: ${form.location}`
+    description += `\n\nSuggested priority: ${form.priority}`
+
+    const res = await fetch('/api/requests/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organisation_id: profile.organisation_id,
+        site_id: form.site_id || null,
+        requester_name: form.requester_name,
+        requester_email: form.requester_email,
+        requester_phone: form.requester_phone || null,
+        title: form.title,
+        description,
+        category: form.category,
+        photo_urls: uploadedUrls,
+      }),
     })
-    if (insertError) { setError(insertError.message); setLoading(false); return }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      setError(j.error || 'Submission failed. Please try again.')
+      setLoading(false)
+      return
+    }
+    const { tracking_token } = await res.json()
+    setTrackingToken(tracking_token || '')
     setSuccess(true)
     setLoading(false)
   }
 
   function reset() {
     setSuccess(false)
+    setTrackingToken('')
     setStep(1)
     setError('')
     setPhotos([])
-    setForm(prev => ({ ...prev, title: '', description: '', priority: 'medium', location: '', site_id: '', requester_phone: '' }))
+    setForm(prev => ({ ...prev, title: '', description: '', category: '', priority: 'medium', location: '', site_id: '', requester_phone: '' }))
   }
 
   function nextStep() {
@@ -140,8 +171,13 @@ export default function RequesterPortalPage() {
           <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
         </div>
         <h2 className="text-2xl font-bold text-on-surface mb-2">Request Submitted</h2>
-        <p className="text-sm text-on-surface-variant mb-2">Your maintenance request has been received and will be reviewed by the facilities team.</p>
-        <p className="text-xs text-on-surface-variant/70 mb-8">You will be notified when your request is assigned and updated.</p>
+        <p className="text-sm text-on-surface-variant mb-2">Your maintenance request has been received and is now pending review by the facilities team.</p>
+        <p className="text-xs text-on-surface-variant/70 mb-6">You will be notified when your request is approved and assigned.</p>
+        {trackingToken && (
+          <a href={`/track/${trackingToken}`} className="block w-full border border-outline-variant text-on-surface py-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors mb-3">
+            Track this request
+          </a>
+        )}
         <button onClick={reset} className="bg-primary text-on-primary px-6 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors w-full">
           Submit Another Request
         </button>
@@ -254,6 +290,16 @@ export default function RequesterPortalPage() {
                     <span className="text-error text-[10px] font-bold">Required</span>
                   </div>
                   <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe the issue in as much detail as possible..." rows={4} className={inputCls + ' resize-none'} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-baseline">
+                    <label className={labelCls}>Category / الفئة</label>
+                    <span className="text-error text-[10px] font-bold">Required</span>
+                  </div>
+                  <select name="category" value={form.category} onChange={handleChange} className={inputCls}>
+                    <option value="">Select category</option>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className={labelCls}>Priority / الأولوية</label>

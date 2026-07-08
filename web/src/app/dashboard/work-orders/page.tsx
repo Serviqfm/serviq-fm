@@ -25,6 +25,7 @@ interface WorkOrder {
   asset?: { name: string }
   site?: { name: string }
   assignee?: { full_name: string }
+  vendor?: { company_name: string } | null
 }
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -82,7 +83,7 @@ export default function WorkOrdersPage() {
 
   async function fetchWorkOrders() {
     setLoading(true)
-    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), asset:asset_id(name), site:site_id(name)').order('created_at', { ascending: false })
+    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').order('created_at', { ascending: false })
     if (statusFilter !== 'all') query = query.eq('status', statusFilter)
     if (priorityFilter !== 'all') query = query.eq('priority', priorityFilter)
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)
@@ -123,6 +124,7 @@ export default function WorkOrdersPage() {
       : 0
     return {
       all: workOrders.length,
+      open: workOrders.filter(w => !['completed', 'closed'].includes(w.status)).length,
       overdue: workOrders.filter(w => isOverdue(w)).length,
       in_progress: workOrders.filter(w => w.status === 'in_progress').length,
       urgent: workOrders.filter(w => w.priority === 'critical' || w.priority === 'high').length,
@@ -172,10 +174,8 @@ export default function WorkOrdersPage() {
               <span className="material-symbols-outlined">assignment</span>
             </div>
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1">Open Orders</p>
-            <p className="text-4xl font-bold text-on-surface">{stats.all}</p>
-            <div className="flex items-center gap-1.5 mt-2 text-xs text-primary">
-              <span className="material-symbols-outlined text-base">trending_up</span>12% from last week
-            </div>
+            <p className="text-4xl font-bold text-on-surface">{stats.open}</p>
+            <p className="text-xs text-on-surface-variant mt-2">Not completed or closed</p>
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant p-5 rounded-[12px] shadow-sm relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-20 h-20 -mr-6 -mt-6 bg-error/5 rounded-full group-hover:scale-110 transition-transform duration-500" />
@@ -193,7 +193,7 @@ export default function WorkOrdersPage() {
             </div>
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1">In Progress</p>
             <p className="text-4xl font-bold text-secondary">{stats.in_progress}</p>
-            <p className="text-xs text-on-surface-variant mt-2">Across multiple sites</p>
+            <p className="text-xs text-on-surface-variant mt-2">Currently being worked</p>
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant p-5 rounded-[12px] shadow-sm relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-20 h-20 -mr-6 -mt-6 bg-primary/5 rounded-full group-hover:scale-110 transition-transform duration-500" />
@@ -202,9 +202,7 @@ export default function WorkOrdersPage() {
             </div>
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1">Avg. Completion</p>
             <p className="text-4xl font-bold text-on-surface">{stats.avgCompletion}h</p>
-            <div className="flex items-center gap-1.5 mt-2 text-xs text-primary">
-              <span className="material-symbols-outlined text-base">check_circle</span>Optimal efficiency
-            </div>
+            <p className="text-xs text-on-surface-variant mt-2">Created → completed</p>
           </div>
         </div>
 
@@ -335,7 +333,7 @@ export default function WorkOrdersPage() {
                         <td className="p-3 whitespace-nowrap">
                           <Badge text={wo.status.replace('_', ' ')} cls={STATUS_BADGE[wo.status] ?? STATUS_BADGE.new} />
                         </td>
-                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{wo.assignee?.full_name ?? t('common.unassigned')}</td>
+                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{wo.assignee?.full_name ?? (wo.vendor?.company_name ? `${wo.vendor.company_name} (Vendor)` : t('common.unassigned'))}</td>
                         <td className={`p-3 text-sm whitespace-nowrap ${overdue ? 'text-error font-semibold' : 'text-on-surface-variant'}`}>
                           {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
                         </td>

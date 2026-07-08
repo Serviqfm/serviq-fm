@@ -118,7 +118,7 @@ export default function WorkOrderDetailPage() {
   async function fetchWorkOrder() {
     const { data } = await supabase
       .from('work_orders')
-      .select('*, assignee:assigned_to(full_name, email), asset:asset_id(name), site:site_id(name, invoicing_enabled), team:team_id(name, name_ar)')
+      .select('*, assignee:assigned_to(full_name, email), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name, invoicing_enabled), team:team_id(name, name_ar)')
       .eq('id', id)
       .single()
     if (data) {
@@ -603,7 +603,10 @@ export default function WorkOrderDetailPage() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: 'Site', value: (wo.site as any)?.name ?? '—' },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? 'Unassigned' },
+            { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? ((wo.vendor as any)?.company_name ? `${(wo.vendor as any).company_name} (Vendor)` : 'Unassigned') },
+            ...((wo as any).signed_off_by
+              ? [{ label: lang === 'ar' ? 'تم الاعتماد بواسطة' : 'Signed Off By', value: (wo as any).signed_off_by }]
+              : []),
             ...(wo.team
               ? [{ label: lang === 'ar' ? 'الفريق' : 'Team', value: lang === 'ar' && wo.team.name_ar ? wo.team.name_ar : wo.team.name }]
               : []),
@@ -636,7 +639,7 @@ export default function WorkOrderDetailPage() {
 
         {wo.completion_notes && (
           <div className="bg-surface-container-low rounded-xl px-4 py-3 border border-primary/20">
-            <p className="text-xs text-primary mb-1.5">Digital Sign-off</p>
+            <p className="text-xs text-primary mb-1.5">{lang === 'ar' ? 'ملاحظات الإنجاز' : 'Completion Notes'}</p>
             <p className="text-sm m-0 text-on-surface">{wo.completion_notes}</p>
           </div>
         )}

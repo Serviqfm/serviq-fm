@@ -160,7 +160,6 @@ export default function DashboardOverviewPage() {
               <div className="p-2 bg-primary/10 text-primary rounded-lg">
                 <span className="material-symbols-outlined">assignment</span>
               </div>
-              <span className="text-primary font-bold text-xs">+12%</span>
             </div>
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider mb-1">Open Work Orders</p>
             <h3 className="text-5xl font-bold leading-none text-on-surface">{stats.totalOpenWOs}</h3>
@@ -174,7 +173,6 @@ export default function DashboardOverviewPage() {
               <div className="p-2 bg-error/10 text-error rounded-lg">
                 <span className="material-symbols-outlined">priority_high</span>
               </div>
-              <span className="text-error font-bold text-xs">-5%</span>
             </div>
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider mb-1">Overdue Orders</p>
             <h3 className="text-5xl font-bold leading-none text-on-surface">{stats.overdueWOs}</h3>
@@ -188,7 +186,6 @@ export default function DashboardOverviewPage() {
               <div className="p-2 bg-tertiary/10 text-tertiary rounded-lg">
                 <span className="material-symbols-outlined">event_available</span>
               </div>
-              <span className="text-tertiary font-bold text-xs">8 scheduled</span>
             </div>
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider mb-1">PM Due Today</p>
             <h3 className="text-5xl font-bold leading-none text-on-surface">{String(stats.pmDueToday).padStart(2, '0')}</h3>
@@ -273,25 +270,24 @@ export default function DashboardOverviewPage() {
           </div>
         </div>
 
-        {/* Platform Insight Banner */}
+        {/* PM shortcut (replaces the former fabricated "Platform Insight" banner — CORE-12) */}
         <div className="bg-tertiary text-white rounded-[12px] p-8 relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 -mr-20 -mt-20 rounded-full" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 flex-wrap">
             <div className="max-w-2xl">
               <span className="bg-primary px-3 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase">
-                Platform Insight
+                Preventive Maintenance
               </span>
               <h3 className="text-3xl font-bold mt-3 leading-snug">
-                Preventive maintenance compliance is up by{' '}
-                {stats.pmCompliancePercent > 80 ? '8%' : `${Math.max(1, Math.round(stats.pmCompliancePercent / 10))}%`} this month.
+                PM compliance is at {stats.pmCompliancePercent}%.
               </h3>
               <p className="text-tertiary-fixed-dim mt-2 text-base leading-relaxed">
-                Your facility operational health index is at an all-time high. Keep up the proactive maintenance schedule to reduce long-term asset costs.
+                Keep active schedules on track to reduce long-term asset costs.
               </p>
             </div>
             <Link href="/dashboard/pm-schedules">
               <button className="bg-white text-tertiary py-3 px-8 rounded-xl font-bold hover:bg-tertiary-fixed transition-colors flex items-center gap-2 flex-shrink-0">
-                Analytics Dashboard
+                View PM Schedules
                 <span className="material-symbols-outlined">query_stats</span>
               </button>
             </Link>

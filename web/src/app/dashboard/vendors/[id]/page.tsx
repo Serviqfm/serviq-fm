@@ -27,13 +27,14 @@ export default function VendorDetailPage() {
   useEffect(() => { fetchAll(); fetchVendorWOs() }, [id])
 
   async function fetchAll() {
-    const [{ data: v }, { data: wos }, { data: inv }] = await Promise.all([
+    // Work orders are loaded by fetchVendorWOs via assigned_vendor_id (DV-12) — do not
+    // also query assigned_to here (that matched the old vendor-id-in-assigned_to bug and
+    // raced this state to empty).
+    const [{ data: v }, { data: inv }] = await Promise.all([
       supabase.from('vendors').select('*').eq('id', id).single(),
-      supabase.from('work_orders').select('*, asset:asset_id(name), site:site_id(name)').eq('assigned_to', id).order('created_at', { ascending: false }),
       supabase.from('vendor_invoices').select('*').eq('vendor_id', id).order('created_at', { ascending: false }),
     ])
     if (v) { setVendor(v); setRating(v.average_rating ?? 0) }
-    if (wos) setWorkOrders(wos)
     if (inv) setInvoices(inv)
     setLoading(false)
   }
@@ -53,7 +54,7 @@ export default function VendorDetailPage() {
     if (!user) return
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
-    const { data } = await supabase.from('work_orders').select('id, title').eq('organisation_id', profile.organisation_id).eq('assigned_vendor_id', id as string).order('created_at', { ascending: false })
+    const { data } = await supabase.from('work_orders').select('*, asset:asset_id(name), site:site_id(name)').eq('organisation_id', profile.organisation_id).eq('assigned_vendor_id', id as string).order('created_at', { ascending: false })
     if (data) setWorkOrders(data)
   }
 

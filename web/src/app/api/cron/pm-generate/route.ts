@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isMonthInSeasonalWindow, nextSeasonStart } from '@/app/dashboard/pm-schedules/pm-utils'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -55,6 +56,9 @@ type PMRow = {
   is_archived?: boolean | null
   end_date?: string | null
   days_of_week?: number[] | null
+  is_seasonal?: boolean | null
+  seasonal_start_month?: number | null
+  seasonal_end_month?: number | null
 }
 
 async function run() {
@@ -65,11 +69,13 @@ async function run() {
   )
 
   const now = new Date()
-  const cutoff = addDays(now, 2).toISOString()  // generate 2 days ahead by default
+  // Fetch schedules due within a wide window; each schedule's exact lead time is
+  // applied per row below (DV-11). 400 days covers annual lead times.
+  const cutoff = addDays(now, 400).toISOString()
 
   const { data: due, error } = await admin
     .from('pm_schedules')
-    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week')
+    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month')
     .eq('is_active', true)
     .eq('is_archived', false)
     .not('next_due_at', 'is', null)
@@ -90,6 +96,23 @@ async function run() {
       if (pm.end_date && new Date(pm.next_due_at!) > new Date(pm.end_date)) {
         await admin.from('pm_schedules').update({ is_active: false }).eq('id', pm.id)
         continue
+      }
+
+      // DV-11: only generate once we're within THIS schedule's lead window (default 2d).
+      const lead = pm.lead_time_days ?? 2
+      if (new Date(pm.next_due_at!) > addDays(now, lead)) continue
+
+      // 1C-04: if the due date falls in the seasonal inactive window, generate nothing
+      // and roll next_due_at to the start of the next active season.
+      if (pm.is_seasonal && pm.seasonal_start_month && pm.seasonal_end_month) {
+        const dueMonth = new Date(pm.next_due_at!).getUTCMonth() + 1
+        if (!isMonthInSeasonalWindow(dueMonth, pm.seasonal_start_month, pm.seasonal_end_month)) {
+          const resume = nextSeasonStart(new Date(pm.next_due_at!), pm.seasonal_start_month)
+          const upd: Record<string, unknown> = { next_due_at: resume.toISOString() }
+          if (pm.end_date && resume > new Date(pm.end_date)) upd.is_active = false
+          await admin.from('pm_schedules').update(upd).eq('id', pm.id)
+          continue
+        }
       }
 
       // Skip if a WO already exists for this PM cycle (linked_pm_schedule_id + due date match)
@@ -126,10 +149,15 @@ async function run() {
       // Roll next_due_at forward. Weekly schedules with days_of_week set land
       // on the next selected weekday instead of blindly +7 days.
       const baseDue = new Date(pm.next_due_at!)
-      const nextDueDate =
+      let nextDueDate =
         pm.frequency === 'weekly' && pm.days_of_week && pm.days_of_week.length > 0
           ? nextDueOnDaysOfWeek(baseDue, pm.days_of_week)
           : addDays(baseDue, FREQ_TO_DAYS[pm.frequency] ?? 30)
+      // If the rolled date lands in the seasonal inactive window, jump to next season.
+      if (pm.is_seasonal && pm.seasonal_start_month && pm.seasonal_end_month
+          && !isMonthInSeasonalWindow(nextDueDate.getUTCMonth() + 1, pm.seasonal_start_month, pm.seasonal_end_month)) {
+        nextDueDate = nextSeasonStart(nextDueDate, pm.seasonal_start_month)
+      }
       const update: Record<string, unknown> = { next_due_at: nextDueDate.toISOString() }
       // Rolled past the end date: this was the last cycle — deactivate.
       if (pm.end_date && nextDueDate > new Date(pm.end_date)) update.is_active = false
