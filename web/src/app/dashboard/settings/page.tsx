@@ -6,6 +6,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import NotificationsTab from './NotificationsTab'
 import PushAuditTab from './PushAuditTab'
 import FormFieldsTab from './FormFieldsTab'
+import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
 
 export default function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -380,6 +381,8 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
+
+              <ChangePasswordCard lang={lang} />
 
               <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
                 <h3 className="text-base font-semibold text-on-surface mb-2">

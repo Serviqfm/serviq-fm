@@ -170,9 +170,9 @@ export async function middleware(req: NextRequest) {
     //     offboarded — otherwise let them through.
     const full = await supabase
       .from('users')
-      .select('is_active, disabled, organisations(offboarded_at)')
+      .select('is_active, disabled, must_change_password, organisations(offboarded_at)')
       .eq('id', user.id)
-      .maybeSingle() as { data: { is_active: boolean | null; disabled: boolean | null; organisations: { offboarded_at: string | null } | null } | null; error: { code?: string; message?: string } | null }
+      .maybeSingle() as { data: { is_active: boolean | null; disabled: boolean | null; must_change_password: boolean | null; organisations: { offboarded_at: string | null } | null } | null; error: { code?: string; message?: string } | null }
 
     if (full.error) {
       console.warn('[middleware] full profile query failed, falling back', full.error)
@@ -193,6 +193,12 @@ export async function middleware(req: NextRequest) {
     }
     if (profile.is_active === false || profile.disabled === true || profile.organisations?.offboarded_at) {
       return NextResponse.redirect(new URL('/login/client?reason=disabled', req.url))
+    }
+
+    // Force a password change after a temp-password first login (DV-09). /change-password
+    // is a top-level route not covered by this matcher, so there is no redirect loop.
+    if (profile.must_change_password === true) {
+      return NextResponse.redirect(new URL('/change-password', req.url))
     }
 
     return NextResponse.next()

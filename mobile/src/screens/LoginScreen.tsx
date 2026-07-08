@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, Linking,
 } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
+
+// Password reset is handled by the web app (DV-08) — mobile just opens it.
+const WEB_RESET_URL = 'https://serviqfm.com/reset-password'
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
@@ -73,6 +76,10 @@ export default function LoginScreen() {
               : <Text style={styles.buttonText}>{t('sign_in')}</Text>
             }
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => Linking.openURL(WEB_RESET_URL)}>
+            <Text style={styles.forgotText}>{lang === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.langRow}>
@@ -105,6 +112,8 @@ const styles = StyleSheet.create({
   inputRTL: { textAlign: 'right' },
   button: { backgroundColor: colors.primary, borderRadius: radius.sm, padding: 14, alignItems: 'center', marginTop: 8 },
   buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+  forgotBtn: { alignItems: 'center', marginTop: 14 },
+  forgotText: { fontSize: 13, color: colors.primary, fontWeight: '500' },
   rtl: { textAlign: 'right' },
   langRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
   langBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: 'white' },

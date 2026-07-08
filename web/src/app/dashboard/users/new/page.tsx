@@ -14,7 +14,6 @@ export default function NewUserPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [tempPassword, setTempPassword] = useState('')
   const [orgId, setOrgId] = useState('')
   const [form, setForm] = useState({
     full_name: '',
@@ -66,7 +65,6 @@ export default function NewUserPage() {
       return
     }
 
-    setTempPassword(data.tempPassword)
     setSuccess(true)
     setLoading(false)
   }
@@ -94,11 +92,13 @@ export default function NewUserPage() {
         <p style={{ fontSize: 14, color: '#333', margin: '0 0 16px' }}>
           <strong>{form.full_name}</strong> has been added as a <strong>{form.role}</strong>.
         </p>
-        <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 8, padding: '12px 16px' }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#f57f17', margin: '0 0 8px' }}>Share these login details with {form.full_name}</p>
-          <p style={{ fontSize: 13, margin: '0 0 4px' }}>Email: <strong>{form.email}</strong></p>
-          <p style={{ fontSize: 13, margin: '0 0 8px' }}>Temporary Password: <strong style={{ fontFamily: 'monospace', background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{tempPassword}</strong></p>
-          <p style={{ fontSize: 12, color: '#666', margin: 0 }}>Ask them to change their password after first login.</p>
+        <div style={{ background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 8, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#1565c0', margin: '0 0 6px' }}>{lang === 'ar' ? 'تم إرسال دعوة عبر البريد الإلكتروني' : 'Invitation email sent'}</p>
+          <p style={{ fontSize: 13, margin: 0, color: '#333' }}>
+            {lang === 'ar'
+              ? <>أُرسلت كلمة مرور مؤقتة إلى <strong>{form.email}</strong>. سيُطلب منه تعيين كلمة مرور جديدة عند أول تسجيل دخول.</>
+              : <>A temporary password was emailed to <strong>{form.email}</strong>. They&apos;ll be prompted to set a new password on first login.</>}
+          </p>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
@@ -106,7 +106,7 @@ export default function NewUserPage() {
           <button style={{ padding: '9px 24px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>{lang === 'ar' ? 'عرض المستخدمين' : 'View All Users'}</button>
         </a>
         <button
-          onClick={() => { setSuccess(false); setTempPassword(''); setForm({ full_name: '', full_name_ar: '', email: '', role: 'technician', phone: '' }) }}
+          onClick={() => { setSuccess(false); setForm({ full_name: '', full_name_ar: '', email: '', role: 'technician', phone: '' }) }}
           style={{ padding: '9px 24px', background: 'white', color: '#333', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
         >
           Add Another

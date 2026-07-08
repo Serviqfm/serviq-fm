@@ -66,6 +66,38 @@ legitimate code path is broken (4-lens adversarial review). Verified on the live
   admin client). Edge function deleted; `push.ts` retargeted to the authenticated same-origin
   `/api/push`. Verified locally: grep shows no code path references the edge function; both push
   callers still compile; payload maps to `/api/push`'s camelCase. **Owner-run SQL + `supabase
-  functions delete send-push` (deleting the repo file does NOT undeploy it) + verify a tenant-user
-  `rpc('get_users_with_login')` fails.** Known limitation: push *delivery* stays blocked until DV-05
-  (Batch 3) unifies the token store — DV-04 only removes the unauthenticated edge function.
+  functions delete send-push`** (was never deployed — confirmed empty). Known limitation: push
+  *delivery* stays blocked until DV-05 (Batch 3) unifies the token store.
+
+**Batch 0 + Batch 1 merged to main 2026-07-07 (PRs #9, #10); SQL run + smoke-tested in prod.**
+
+## Batch 2 — Auth criticals (branch `claude/batch-2-auth-criticals`)
+
+Verified locally: web build/tsc/test + mobile tsc green; adversarially reviewed (4 lenses),
+which caught and fixed the reset-page PKCE double-exchange. Live-DB / email / device
+acceptance is **owner-verify** (needs the SQL run, Supabase Auth config, and a device).
+
+- **DV-08 — Self-service password reset + change** — `425603c` — new `/reset-password`
+  (request-link + set-new-password via the recovery session; detects the auto-exchanged
+  session, no manual double-exchange), `/change-password` (forced), shared
+  `/api/account/password` route, both dead "Forgot password" links wired, Change Password
+  card on settings → Account, mobile "Forgot password?" opens the web reset URL. Verified:
+  build/tsc green. **Owner-verify:** add `<prod>/reset-password` (+ localhost) to Supabase
+  Auth → Redirect URLs and confirm the recovery email template/SMTP; then send yourself a
+  reset and complete it.
+- **DV-09 — Temp-password hygiene** — `425603c` — CSPRNG `lib/tempPassword.ts` (~144-bit)
+  in all 3 invite routes (test: `tempPassword.test.ts`); `must_change_password` flag
+  (`batch-2-01-must-change-password.sql`) + middleware gate forces a change on first web
+  login; temp password no longer echoed from the two org-admin invite routes (email-only),
+  platform-tenant creation keeps its deliberate one-time display. **Known limitation:**
+  the forced-change gate is web-only — mobile users aren't gated yet (deferred; the org
+  invite no longer exposes the password to anyone but the user, so it's defense-in-depth).
+- **DV-10 — Upload validation + rate limiting** — `425603c` — `/api/upload` now rejects
+  non-image/PDF types (415) and >25 MiB (413) before reading the file. Per-endpoint rate
+  limiting delegated to **Vercel WAF** (owner's choice) — recommended rules in the PR body.
+- **DV-18 — CSP + security headers** — `425603c` — `next.config.mjs` `headers()`: CSP
+  (self + Google Fonts + Supabase + api.qrserver.com + api.mymemory.translated.net;
+  `unsafe-inline` required for Next hydration + inline styles — nonce upgrade is a
+  follow-up), plus X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy, HSTS.
+  **Owner-verify:** smoke the preview (dashboard, uploads, asset QR tab, Translate button,
+  PDF export, fonts) under the CSP.

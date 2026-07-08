@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { generateTempPassword } from '@/lib/tempPassword'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,8 +64,8 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       )
     }
 
-    // Rotate the temporary password (same format as user creation).
-    const tempPassword = 'Serviq' + Math.random().toString(36).slice(2, 10) + '!1'
+    // Rotate the temporary password (CSPRNG, same helper as user creation — DV-09).
+    const tempPassword = generateTempPassword()
     const { error: pwError } = await supabaseAdmin.auth.admin.updateUserById(id, {
       password: tempPassword,
     })
@@ -72,10 +73,10 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       return NextResponse.json({ error: pwError.message }, { status: 400 })
     }
 
-    // Refresh invited_at so the invite timestamp reflects the latest send.
+    // Refresh invited_at and re-arm the forced password change for the new temp password.
     const { error: updateError } = await supabaseAdmin
       .from('users')
-      .update({ invited_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .update({ invited_at: new Date().toISOString(), updated_at: new Date().toISOString(), must_change_password: true })
       .eq('id', id)
     if (updateError) {
       console.error('[resend-invite] failed to refresh invited_at', updateError)
@@ -96,10 +97,11 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       // Don't fail the resend if email fails — the admin still gets the password.
     }
 
+    // DV-09: the rotated temp password is delivered by the welcome email only —
+    // never echoed in the response. The user is forced to change it on first login.
     return NextResponse.json({
       success: true,
       userId: target.id,
-      tempPassword,
     })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

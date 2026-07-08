@@ -198,7 +198,7 @@ export default function EmployeeLoginForm() {
                       Password
                     </label>
                     <a
-                      href="#"
+                      href="/reset-password"
                       className="text-xs font-semibold text-secondary hover:underline transition-all"
                     >
                       Forgot Password?
