@@ -154,6 +154,24 @@ export default function WorkOrderDetailPage() {
     if (data) setHistory(data)
   }
 
+  async function reopenWO() {
+    // CORE-03: manager/admin reopen with a mandatory reason.
+    const reason = window.prompt('Reason for reopening this work order?')
+    if (reason === null) return
+    if (reason.trim().length < 3) { alert('A reason (at least 3 characters) is required to reopen.'); return }
+    setUpdating(true)
+    const res = await fetch(`/api/work-orders/${id}/reopen`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      alert(j.error ?? 'Failed to reopen work order')
+      setUpdating(false)
+      return
+    }
+    window.location.reload()
+  }
+
   async function updateStatus(newStatus: WorkOrderStatus) {
     if (newStatus === 'closed') {
       setShowSignoff(true)
@@ -493,9 +511,12 @@ export default function WorkOrderDetailPage() {
         <div className="flex justify-between items-center">
           <a href="/dashboard/work-orders" className="text-on-surface-variant text-sm hover:text-primary transition-colors">Back to Work Orders</a>
           <div className="flex gap-2">
-            <a href={'/dashboard/work-orders/' + id + '/edit'}>
-              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>Edit</button>
-            </a>
+            {/* CORE-02: closed work orders are immutable — no Edit affordance. */}
+            {wo.status !== 'closed' && (
+              <a href={'/dashboard/work-orders/' + id + '/edit'}>
+                <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>Edit</button>
+              </a>
+            )}
             <button onClick={async () => {
               const res = await fetch(`/api/reports/work-order/${id}`)
               if (!res.ok) { alert('Export failed.'); return }
@@ -644,23 +665,39 @@ export default function WorkOrderDetailPage() {
           </div>
         )}
 
-        {nextStatuses[wo.status].length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2 text-on-surface-variant">Update Status</p>
-            <div className="flex gap-2 flex-wrap">
-              {nextStatuses[wo.status].map(s => (
-                <button
-                  key={s}
-                  onClick={() => updateStatus(s)}
-                  disabled={updating}
-                  className={`px-[18px] py-2 rounded-xl cursor-pointer text-sm font-medium transition-colors ${statusActionClass(s)}`}
-                >
-                  {updating ? '...' : `→ ${s.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`}
-                </button>
-              ))}
+        {(() => {
+          const isManager = ['admin', 'manager'].includes(currentUser?.role ?? '')
+          // CORE-01: only managers/admins can move a WO to `closed`.
+          const transitions = nextStatuses[wo.status].filter(s => s !== 'closed' || isManager)
+          const canReopen = isManager && ['completed', 'closed'].includes(wo.status)
+          if (transitions.length === 0 && !canReopen) return null
+          return (
+            <div>
+              <p className="text-sm font-medium mb-2 text-on-surface-variant">Update Status</p>
+              <div className="flex gap-2 flex-wrap">
+                {transitions.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => updateStatus(s)}
+                    disabled={updating}
+                    className={`px-[18px] py-2 rounded-xl cursor-pointer text-sm font-medium transition-colors ${statusActionClass(s)}`}
+                  >
+                    {updating ? '...' : `→ ${s.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`}
+                  </button>
+                ))}
+                {canReopen && (
+                  <button
+                    onClick={reopenWO}
+                    disabled={updating}
+                    className="px-[18px] py-2 rounded-xl cursor-pointer text-sm font-medium transition-colors bg-[#fff8e1] text-[#f57f17] hover:bg-[#ffecb3]"
+                  >
+                    {updating ? '...' : '↩ Reopen'}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {showSignoff && (
           <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6">

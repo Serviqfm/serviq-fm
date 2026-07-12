@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const { data: profile, error: profileErr } = await supabase
     .from('users')
-    .select('organisation_id')
+    .select('organisation_id, role')
     .eq('id', user.id)
     .single()
   if (profileErr) {
@@ -26,6 +26,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   if (!profile?.organisation_id) {
     return NextResponse.json({ error: 'No organisation' }, { status: 403 })
+  }
+
+  // Load the existing WO to enforce lifecycle + role rules (org-scoped via RLS).
+  const { data: existingWO } = await supabase
+    .from('work_orders')
+    .select('status, created_by, organisation_id')
+    .eq('id', id)
+    .maybeSingle()
+  if (!existingWO || existingWO.organisation_id !== profile.organisation_id) {
+    return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
+  }
+  // CORE-02: closed work orders are immutable — reopen has its own route.
+  if (existingWO.status === 'closed') {
+    return NextResponse.json({ error: 'Closed work orders cannot be edited. Reopen it first.' }, { status: 409 })
+  }
+  // WO-02: technicians may only edit work orders they created.
+  if (profile.role === 'technician' && existingWO.created_by !== user.id) {
+    return NextResponse.json({ error: 'Technicians can only edit work orders they created' }, { status: 403 })
   }
 
   const body = (await req.json()) as Record<string, unknown>
@@ -88,7 +106,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     sla_hours: slaParsed,
     actual_cost: costParsed,
     completion_notes: cleaned.completion_notes ? cleaned.completion_notes : null,
-    status: (cleaned.assigned_to || assignedVendorId) ? 'assigned' : 'new',
+    // CORE-02: preserve in_progress/on_hold/completed on edit; only (re)derive
+    // assigned/new from the assignment while the WO is still in those early states.
+    status: ['new', 'assigned'].includes(existingWO.status)
+      ? ((cleaned.assigned_to || assignedVendorId) ? 'assigned' : 'new')
+      : existingWO.status,
     updated_at: new Date().toISOString(),
   }
 

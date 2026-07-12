@@ -83,7 +83,15 @@ export default function WorkOrdersPage() {
 
   async function fetchWorkOrders() {
     setLoading(true)
+    // CORE-21: technicians see only WOs assigned to them or where they're an additional worker.
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: me } = user
+      ? await supabase.from('users').select('id, role').eq('id', user.id).single()
+      : { data: null }
     let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').order('created_at', { ascending: false })
+    if (me?.role === 'technician') {
+      query = query.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
+    }
     if (statusFilter !== 'all') query = query.eq('status', statusFilter)
     if (priorityFilter !== 'all') query = query.eq('priority', priorityFilter)
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)

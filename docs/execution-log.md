@@ -131,3 +131,27 @@ Adversarially reviewed (4 lenses) — PM logic + fake-stats passed clean; fixed 
 **SQL (owner-run, SQL-first):** `docs/superpowers/sql/batch-3-01-work-orders-columns.sql`.
 **Known limitation:** an org that sets `assigned_to` field-config to "required" would block a
 vendor-only assignment (edge config; documented, not fixed).
+
+## Batch 3 PR-B — WO governance, code layer (branch `claude/batch-3-governance`, stacked on PR-A)
+
+No SQL. Build gate green; adversarially verified (bypass + regression lenses) — all in-scope
+controls confirmed, no regressions; the review's ungoverned-'completed' finding fixed in-batch.
+
+- **CORE-19** — `b97e748` — middleware redirects `role=requester` off `/dashboard/*` to `/request`
+  (after the must-change-password gate). Web lockdown done; mobile requester UI (CORE-23) deferred.
+- **CORE-01** — `b97e748` — close route: `closed` needs admin/manager + prior status `completed`;
+  `completed` needs manager or being the assignee/additional worker.
+- **CORE-02** — `b97e748` — PATCH 409s on closed WOs; status recompute no longer silently reopens
+  in_progress/on_hold/completed WOs; Edit hidden on closed.
+- **CORE-03** — `b97e748` — new `/api/work-orders/[id]/reopen` (manager-only, mandatory reason,
+  audit-logged); web Reopen button; mobile reopen manager-gated.
+- **CORE-21** — `b97e748` — technician web WO list scoped to `assigned_to=me OR
+  me=ANY(additional_workers)`.
+- **WO-02** — `b97e748` — technicians can only PATCH WOs they created.
+- **DV-25** — `b97e748` — mobile: requesters read-only on WO detail; reopen manager-only.
+
+**Deferred (explicit):** durable role-aware **RLS** for the client-side transition surface
+(in_progress/on_hold via direct PostgREST) — blocked on **DV-06** (needs the live base-table
+policies from `supabase db pull` before writing role predicates safely). CORE-20's DB-level gating
+and CORE-23 (mobile requester experience) land there. Until then those transitions are enforced by
+UI + route checks only.

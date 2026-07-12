@@ -170,9 +170,9 @@ export async function middleware(req: NextRequest) {
     //     offboarded — otherwise let them through.
     const full = await supabase
       .from('users')
-      .select('is_active, disabled, must_change_password, organisations(offboarded_at)')
+      .select('role, is_active, disabled, must_change_password, organisations(offboarded_at)')
       .eq('id', user.id)
-      .maybeSingle() as { data: { is_active: boolean | null; disabled: boolean | null; must_change_password: boolean | null; organisations: { offboarded_at: string | null } | null } | null; error: { code?: string; message?: string } | null }
+      .maybeSingle() as { data: { role: string | null; is_active: boolean | null; disabled: boolean | null; must_change_password: boolean | null; organisations: { offboarded_at: string | null } | null } | null; error: { code?: string; message?: string } | null }
 
     if (full.error) {
       console.warn('[middleware] full profile query failed, falling back', full.error)
@@ -199,6 +199,12 @@ export async function middleware(req: NextRequest) {
     // is a top-level route not covered by this matcher, so there is no redirect loop.
     if (profile.must_change_password === true) {
       return NextResponse.redirect(new URL('/change-password', req.url))
+    }
+
+    // CORE-19: requesters are submit-and-track only — keep them out of the dashboard.
+    // /request is top-level (not under this matcher), so there is no redirect loop.
+    if (profile.role === 'requester') {
+      return NextResponse.redirect(new URL('/request', req.url))
     }
 
     return NextResponse.next()
