@@ -62,31 +62,43 @@ export async function POST(req: NextRequest) {
     const vat_amount = parseFloat((subtotal * 0.15).toFixed(2))
     const total      = parseFloat((subtotal + vat_amount).toFixed(2))
 
-    const invoice_number = 'INV-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-6)
+    // DV-13: per-org sequential number from the DB allocator (advisory-lock serialised);
+    // a unique index on (organisation_id, invoice_number) is the backstop. ZATCA requires
+    // unique sequential numbering — no more Date.now() collisions.
+    const insertInvoice = async () => {
+      const { data: num, error: numErr } = await supabase.rpc('next_invoice_number')
+      if (numErr || !num) throw new Error(numErr?.message ?? 'Failed to allocate invoice number')
+      return supabase
+        .from('invoices')
+        .insert({
+          organisation_id: profile.organisation_id,
+          work_order_id,
+          invoice_number: num as string,
+          service_charges: sc,
+          labor_hours: lh,
+          labor_rate: lr,
+          labor_charges: lc,
+          spare_parts: parts,
+          spare_parts_total,
+          surcharges: surch,
+          subtotal,
+          vat_amount,
+          total,
+          created_by: user.id,
+        })
+        .select('id, invoice_number')
+        .single()
+    }
 
-    const { data: invoice, error: insertError } = await supabase
-      .from('invoices')
-      .insert({
-        organisation_id: profile.organisation_id,
-        work_order_id,
-        invoice_number,
-        service_charges: sc,
-        labor_hours: lh,
-        labor_rate: lr,
-        labor_charges: lc,
-        spare_parts: parts,
-        spare_parts_total,
-        surcharges: surch,
-        subtotal,
-        vat_amount,
-        total,
-        created_by: user.id,
-      })
-      .select('id, invoice_number')
-      .single()
+    let { data: invoice, error: insertError } = await insertInvoice()
+    // Unique-violation (23505) can only happen if a competing insert landed between the
+    // allocator and our insert — one retry re-allocates past it.
+    if (insertError?.code === '23505') {
+      ({ data: invoice, error: insertError } = await insertInvoice())
+    }
 
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 })
+    if (insertError || !invoice) {
+      return NextResponse.json({ error: insertError?.message ?? 'Insert failed' }, { status: 500 })
     }
 
     return NextResponse.json({ id: invoice.id, invoice_number: invoice.invoice_number })

@@ -18,6 +18,8 @@ export default function NewAssetPage() {
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [spaces, setSpaces] = useState<any[]>([])
   const [orgAssets, setOrgAssets] = useState<FlatHierarchyAsset[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
@@ -26,6 +28,7 @@ export default function NewAssetPage() {
     name: '',
     category: '',
     site_id: '',
+    space_id: '',
     parent_asset_id: '',
     sub_location: '',
     serial_number: '',
@@ -47,16 +50,26 @@ export default function NewAssetPage() {
     if (!user) return
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
-    const [{ data }, { data: assetData }] = await Promise.all([
+    const [{ data }, { data: assetData }, { data: spaceData }] = await Promise.all([
       supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true),
       supabase.from('assets').select('id, name, parent_asset_id, site_id').eq('organisation_id', profile.organisation_id),
+      supabase.from('spaces').select('id, name, site_id'),
     ])
     if (data) setSites(data)
     if (assetData) setOrgAssets(flattenAssetTree(assetData))
+    if (spaceData) setSpaces(spaceData)
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setForm(prev => ({
+      ...prev,
+      [name]: value,
+      // AL-21: changing the site clears a space that belongs to another site.
+      ...(name === 'site_id' && prev.space_id && spaces.find(s => s.id === prev.space_id)?.site_id !== value
+        ? { space_id: '' }
+        : {}),
+    }))
   }
 
   function handleParentChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -115,6 +128,7 @@ export default function NewAssetPage() {
         name: form.name,
         category: form.category,
         site_id: form.site_id,
+        space_id: form.space_id,
         parent_asset_id: form.parent_asset_id,
         sub_location: form.sub_location,
         serial_number: form.serial_number,
@@ -204,6 +218,17 @@ export default function NewAssetPage() {
           </p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {form.site_id && spaces.some(s => s.site_id === form.site_id) && (
+            <div>
+              <label style={labelStyle}>{lang === 'ar' ? 'المساحة' : 'Space'}</label>
+              <select name='space_id' value={form.space_id} onChange={handleChange} style={fieldStyle}>
+                <option value=''>{lang === 'ar' ? 'بدون مساحة' : 'No space'}</option>
+                {spaces.filter(s => s.site_id === form.site_id).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {!isHidden('sub_location') && (
             <div>
               <label style={labelStyle}>{lang === 'ar' ? 'الموقع الفرعي' : 'Sub-location'}{reqMark('sub_location')}</label>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { getDescendantIds } from './asset-hierarchy'
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
@@ -45,10 +46,33 @@ export default function AssetsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAssets() }, [categoryFilter, statusFilter])
 
+  // AL-01: deleting a parent silently promoted its children to top level
+  // (parent_asset_id is ON DELETE SET NULL). Surface the descendants and make
+  // cascade-vs-promote an explicit choice. Fetches the full org hierarchy fresh —
+  // the page's `assets` state is filtered by the UI filters and could miss children.
+  async function resolveDeleteSet(ids: string[]): Promise<string[] | null> {
+    const { data: allAssets } = await supabase.from('assets').select('id, name, parent_asset_id')
+    const tree = allAssets ?? assets
+    const descendants = new Set<string>()
+    for (const id of ids) getDescendantIds(tree, id).forEach(d => descendants.add(d))
+    ids.forEach(id => descendants.delete(id))
+    if (descendants.size === 0) {
+      return confirm(`Delete ${ids.length} asset(s)? This cannot be undone.`) ? ids : null
+    }
+    if (confirm(`The selected asset(s) have ${descendants.size} sub-asset(s) underneath them.\n\nOK = delete the sub-assets too (cascade)\nCancel = choose what happens to them`)) {
+      return [...ids, ...Array.from(descendants)]
+    }
+    if (confirm(`Keep the ${descendants.size} sub-asset(s) and promote them to top level, deleting only the selected asset(s)?`)) {
+      return ids
+    }
+    return null
+  }
+
   async function deleteSelected() {
-    if (!confirm('Delete ' + selected.length + ' asset(s)? This cannot be undone.')) return
+    const toDelete = await resolveDeleteSet(selected)
+    if (!toDelete) return
     setDeleting(true)
-    await supabase.from('assets').delete().in('id', selected)
+    await supabase.from('assets').delete().in('id', toDelete)
     setSelected([])
     await fetchAssets()
     setDeleting(false)
@@ -76,8 +100,9 @@ export default function AssetsPage() {
   }
 
   async function deleteOne(id: string) {
-    if (!confirm('Delete this asset?')) return
-    await supabase.from('assets').delete().eq('id', id)
+    const toDelete = await resolveDeleteSet([id])
+    if (!toDelete) return
+    await supabase.from('assets').delete().in('id', toDelete)
     fetchAssets()
   }
 

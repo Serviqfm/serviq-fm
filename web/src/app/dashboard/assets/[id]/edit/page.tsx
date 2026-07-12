@@ -22,11 +22,14 @@ export default function EditAssetPage() {
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [spaces, setSpaces] = useState<any[]>([])
   const [parentOptions, setParentOptions] = useState<FlatHierarchyAsset[]>([])
   const [form, setForm] = useState({
     name: '',
     category: '',
     site_id: '',
+    space_id: '',
     parent_asset_id: '',
     sub_location: '',
     serial_number: '',
@@ -49,13 +52,15 @@ export default function EditAssetPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
 
-    const [{ data: asset }, { data: siteData }, { data: assetData }] = await Promise.all([
+    const [{ data: asset }, { data: siteData }, { data: assetData }, { data: spaceData }] = await Promise.all([
       supabase.from('assets').select('*').eq('id', id).single(),
       supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true),
       supabase.from('assets').select('id, name, parent_asset_id, site_id').eq('organisation_id', profile.organisation_id),
+      supabase.from('spaces').select('id, name, site_id'),
     ])
 
     if (siteData) setSites(siteData)
+    if (spaceData) setSpaces(spaceData)
     if (assetData) {
       // Exclude the asset itself and all of its descendants from the parent dropdown.
       const descendants = getDescendantIds(assetData, id)
@@ -66,6 +71,7 @@ export default function EditAssetPage() {
         name: asset.name ?? '',
         category: asset.category ?? '',
         site_id: asset.site_id ?? '',
+        space_id: asset.space_id ?? '',
         parent_asset_id: asset.parent_asset_id ?? '',
         sub_location: asset.sub_location ?? '',
         serial_number: asset.serial_number ?? '',
@@ -83,7 +89,15 @@ export default function EditAssetPage() {
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setForm(prev => ({
+      ...prev,
+      [name]: value,
+      // AL-21: changing the site clears a space that belongs to another site.
+      ...(name === 'site_id' && prev.space_id && spaces.find(s => s.id === prev.space_id)?.site_id !== value
+        ? { space_id: '' }
+        : {}),
+    }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,6 +112,7 @@ export default function EditAssetPage() {
         name: form.name,
         category: form.category,
         site_id: form.site_id,
+        space_id: form.space_id,
         parent_asset_id: form.parent_asset_id,
         sub_location: form.sub_location,
         location_notes: form.location_notes,
@@ -186,6 +201,17 @@ export default function EditAssetPage() {
           </p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {form.site_id && spaces.some(s => s.site_id === form.site_id) && (
+            <div>
+              <label style={labelStyle}>Space</label>
+              <select name='space_id' value={form.space_id} onChange={handleChange} style={fieldStyle}>
+                <option value=''>No space</option>
+                {spaces.filter(s => s.site_id === form.site_id).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {!isHidden('sub_location') && (
             <div>
               <label style={labelStyle}>Sub-location{reqMark('sub_location')}</label>
