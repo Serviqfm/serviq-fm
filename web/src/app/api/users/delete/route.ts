@@ -93,6 +93,9 @@ export async function POST(req: NextRequest) {
       // work_orders — two columns reference users.id
       supabaseAdmin.from('work_orders').update({ assigned_to: null }).eq('assigned_to', userId),
       supabaseAdmin.from('work_orders').update({ created_by: null }).eq('created_by', userId),
+      // 1C-22: additional_workers is a uuid[] (no FK) — scrub via the DB function
+      // (array_remove), else the deleted id dangles in every WO's worker list.
+      supabaseAdmin.rpc('scrub_additional_worker', { p_user_id: userId }),
       // pm_schedules
       supabaseAdmin.from('pm_schedules').update({ assigned_to: null }).eq('assigned_to', userId),
       // audit_logs

@@ -33,6 +33,10 @@ export async function POST(req: NextRequest) {
   const parentAssetId = typeof body.parent_asset_id === 'string' && body.parent_asset_id.trim() !== ''
     ? body.parent_asset_id.trim()
     : null
+  // AL-21: space assignment (drives the WO Space-Assets commissioning panel).
+  const spaceId = typeof body.space_id === 'string' && body.space_id.trim() !== ''
+    ? body.space_id.trim()
+    : null
 
   // Build payload that matches catalog keys for enforcement.
   const enforcePayload: Record<string, unknown> = {
@@ -89,6 +93,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // AL-21: the write goes through the service-role client, so validate the space
+  // belongs to the caller's organisation (via its site) before storing it.
+  if (spaceId) {
+    const { data: space } = await admin
+      .from('spaces')
+      .select('id, site:site_id(organisation_id)')
+      .eq('id', spaceId)
+      .maybeSingle()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!space || (space.site as any)?.organisation_id !== profile.organisation_id) {
+      return NextResponse.json({ error: 'Space not found in your organisation' }, { status: 400 })
+    }
+  }
+
   const insertRow: Record<string, unknown> = {
     organisation_id: profile.organisation_id,
     created_by: user.id,
@@ -107,6 +125,7 @@ export async function POST(req: NextRequest) {
     location_notes: cleaned.location_notes ? cleaned.location_notes : null,
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
     parent_asset_id: parentAssetId,
+    space_id: spaceId,
     status: 'active',
     qr_code: qrCode,
   }

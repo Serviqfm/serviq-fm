@@ -36,6 +36,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const parentAssetId = typeof body.parent_asset_id === 'string' && body.parent_asset_id.trim() !== ''
     ? body.parent_asset_id.trim()
     : null
+  // AL-21: space assignment — only touched when the caller sends the field.
+  const hasSpaceField = Object.prototype.hasOwnProperty.call(body, 'space_id')
+  const spaceId = typeof body.space_id === 'string' && body.space_id.trim() !== ''
+    ? body.space_id.trim()
+    : null
 
   const enforcePayload: Record<string, unknown> = {
     name: body.name,
@@ -75,6 +80,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
+  // AL-21: the write goes through the service-role client, so validate the space
+  // belongs to the caller's organisation (via its site) before storing it.
+  if (hasSpaceField && spaceId) {
+    const { data: space } = await admin
+      .from('spaces')
+      .select('id, site:site_id(organisation_id)')
+      .eq('id', spaceId)
+      .maybeSingle()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!space || (space.site as any)?.organisation_id !== profile.organisation_id) {
+      return NextResponse.json({ error: 'Space not found in your organisation' }, { status: 400 })
+    }
+  }
+
   const costRaw = cleaned.purchase_cost
   const costParsed = typeof costRaw === 'string' && costRaw.trim() !== ''
     ? parseFloat(costRaw)
@@ -106,6 +125,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     updated_at: new Date().toISOString(),
   }
   if (hasParentField) updateRow.parent_asset_id = parentAssetId
+  if (hasSpaceField) updateRow.space_id = spaceId
 
   const { data, error } = await admin
     .from('assets')
