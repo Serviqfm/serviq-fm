@@ -118,6 +118,7 @@ export default function WorkOrderDetailScreen() {
     if (newStatus === 'in_progress' && !wo.started_at) updates.started_at = now
     if (newStatus === 'completed') updates.completed_at = now
     else if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
+    if (newStatus !== 'closed' && wo.closed_at) updates.closed_at = null // reopening a closed WO clears the stale close time
     await supabase.from('work_orders').update(updates).eq('id', wo.id)
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
@@ -273,7 +274,16 @@ export default function WorkOrderDetailScreen() {
     completed:   [{ next: 'in_progress', label: lang === 'ar' ? 'إعادة فتح' : 'Reopen', color: colors.warning }],
     closed:      [{ next: 'in_progress', label: lang === 'ar' ? 'إعادة فتح' : 'Reopen', color: colors.warning }],
   }
-  const actions = statusActions[wo.status] ?? []
+  // DV-25 / CORE-20: requesters get no status actions (read-only); reopening a
+  // completed/closed WO is manager/admin only.
+  const role = profile?.role
+  const isManager = role === 'admin' || role === 'manager'
+  const actions = role === 'requester'
+    ? []
+    : (statusActions[wo.status] ?? []).filter(a => {
+        const isReopen = (wo.status === 'completed' || wo.status === 'closed') && a.next === 'in_progress'
+        return isReopen ? isManager : true
+      })
   const comments = allComments.filter(c => c.comment_type === 'comment' || c.comment_type === 'status_change' || !c.comment_type)
   const timeLogs = allComments.filter(c => c.comment_type === 'time_log')
   const photos = wo.photo_urls ?? []

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { data: profile, error: profileErr } = await supabase
     .from('users')
-    .select('organisation_id')
+    .select('organisation_id, role')
     .eq('id', user.id)
     .single()
   if (profileErr) {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Load existing WO for org-scope, status fallback, and existing photo merge.
   const { data: existingWO, error: loadErr } = await admin
     .from('work_orders')
-    .select('id, organisation_id, status, photo_urls')
+    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers')
     .eq('id', id)
     .single()
   if (loadErr || !existingWO) {
@@ -66,6 +66,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
   if (existingWO.organisation_id !== profile.organisation_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // CORE-01: only admins/managers may CLOSE, and only a completed WO can be closed.
+  if (newStatus === 'closed') {
+    if (!['admin', 'manager'].includes(profile.role ?? '')) {
+      return NextResponse.json({ error: 'Only a manager or admin can close a work order' }, { status: 403 })
+    }
+    if (existingWO.status !== 'completed') {
+      return NextResponse.json({ error: 'A work order must be completed before it can be closed' }, { status: 400 })
+    }
+  }
+
+  // Completing is for managers/admins or workers on the WO (assignee or additional
+  // worker) — requesters and uninvolved users cannot force-complete.
+  if (newStatus === 'completed' && !['admin', 'manager'].includes(profile.role ?? '')) {
+    const additional: string[] = Array.isArray(existingWO.additional_workers) ? existingWO.additional_workers : []
+    const isWorker = existingWO.assigned_to === user.id || additional.includes(user.id)
+    if (profile.role === 'requester' || !isWorker) {
+      return NextResponse.json({ error: 'Only the assigned worker or a manager can complete this work order' }, { status: 403 })
+    }
   }
 
   const existingPhotos: string[] = Array.isArray(existingWO.photo_urls) ? existingWO.photo_urls : []
