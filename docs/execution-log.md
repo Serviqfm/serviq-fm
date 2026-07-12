@@ -155,3 +155,27 @@ controls confirmed, no regressions; the review's ungoverned-'completed' finding 
 policies from `supabase db pull` before writing role predicates safely). CORE-20's DB-level gating
 and CORE-23 (mobile requester experience) land there. Until then those transitions are enforced by
 UI + route checks only.
+
+## Batch 4 — Data integrity (branch `claude/batch-4-data-integrity`, stacked on PR-B)
+
+Build gate green. Adversarially verified (SQL semantics + code regression lenses) — caught and
+fixed an LPAD-truncation blocker in the invoice allocator (legacy epoch numbers would have
+permanently bricked invoice creation), a cross-org `space_id` validation gap, and the missing
+tenant-route retry. SQL is owner-run, SQL-first.
+
+- **DV-13** (twins FM-22, MKT-18 constraint clause) — `df77f39` — `batch-4-01-data-integrity.sql`:
+  dedupe + unique indexes on `(organisation_id, invoice_number)` for `invoices` + `tenant_invoices`;
+  `next_invoice_number()` (session-org, non-truncating) + fixed `next_tenant_invoice_number()`;
+  both routes now allocate via RPC with a 23505 retry. **Owner-verify:** create two invoices —
+  sequential numbers; unique index visible in the dashboard.
+- **DV-17** — `df77f39` — composite FKs on `team_members` (+ corrupt cross-org row cleanup).
+  **Owner-verify:** inserting a team_members row with a mismatched org id fails at the DB.
+- **1C-22** (DV-31 clause) — `df77f39` — `scrub_additional_worker()` called from user delete.
+- **AL-01** — `df77f39` — descendant-aware asset delete: cascade vs promote is an explicit choice
+  (single + bulk), computed from the full org hierarchy.
+- **AL-21** — `df77f39` — Space picker on asset new/edit (site-filtered, clears on site change);
+  API validates the space's org via its site. Mobile CreateAssetScreen deferred.
+- **DV-06** — **owner action**: run `supabase login && supabase link --project-ref cnpsplprnnabhrjjeqwp
+  && supabase db pull` in the repo root, commit the generated `supabase/migrations/` file. This is
+  the DR baseline and unblocks the deferred role-aware RLS work (CORE-20/CORE-23 + PR-B's residual
+  client-side transition surface). Exact steps in the PR body.
