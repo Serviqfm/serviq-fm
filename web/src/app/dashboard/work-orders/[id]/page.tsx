@@ -154,6 +154,28 @@ export default function WorkOrderDetailPage() {
     if (data) setHistory(data)
   }
 
+  async function saveAsTemplate() {
+    if (!wo) return
+    const name = window.prompt(lang === 'ar' ? 'اسم القالب؟' : 'Template name?')
+    if (name === null) return
+    if (!name.trim()) { alert(lang === 'ar' ? 'الاسم مطلوب' : 'A name is required'); return }
+    const { data: tasks } = await supabase.from('work_order_tasks').select('title, title_ar, sort_order').eq('work_order_id', id).order('sort_order')
+    const { error } = await supabase.from('work_order_templates').insert({
+      organisation_id: wo.organisation_id,
+      name: name.trim(),
+      title: wo.title ?? null,
+      description: wo.description ?? null,
+      priority: wo.priority ?? null,
+      category: wo.category ?? null,
+      asset_id: wo.asset_id ?? null,
+      assigned_to: wo.assigned_to ?? null,
+      estimated_duration_minutes: wo.estimated_duration_minutes ?? null,
+      tasks: (tasks ?? []).map((t: { title: string; title_ar: string | null }) => ({ title: t.title, ...(t.title_ar ? { title_ar: t.title_ar } : {}) })),
+    })
+    if (error) { alert((lang === 'ar' ? 'فشل حفظ القالب: ' : 'Failed to save template: ') + error.message); return }
+    alert(lang === 'ar' ? 'تم حفظ القالب.' : 'Template saved.')
+  }
+
   async function reopenWO() {
     // CORE-03: manager/admin reopen with a mandatory reason.
     const reason = window.prompt('Reason for reopening this work order?')
@@ -517,6 +539,12 @@ export default function WorkOrderDetailPage() {
                 <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>Edit</button>
               </a>
             )}
+            {/* WO-09 duplicate: prefill the create form from this WO. */}
+            <a href={'/dashboard/work-orders/new?duplicate_from=' + id}>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>{lang === 'ar' ? 'تكرار' : 'Duplicate'}</button>
+            </a>
+            {/* WO-08 convert-to-template. */}
+            <button onClick={saveAsTemplate} className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>{lang === 'ar' ? 'حفظ كقالب' : 'Save as Template'}</button>
             <button onClick={async () => {
               const res = await fetch(`/api/reports/work-order/${id}`)
               if (!res.ok) { alert('Export failed.'); return }

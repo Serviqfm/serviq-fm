@@ -13,6 +13,7 @@ export interface WorkOrder {
   title: string
   title_ar: string | null
   description: string | null
+  category: string | null
   priority: Priority
   status: WorkOrderStatus
   wo_number: number | null
@@ -80,5 +81,22 @@ export interface ChecklistTemplate {
   name: string
   name_ar: string | null
   items: ChecklistTemplateItem[]
+  created_at: string
+}
+
+export interface WorkOrderTemplate {
+  id: string
+  organisation_id: string
+  name: string
+  name_ar: string | null
+  title: string | null
+  description: string | null
+  priority: string | null
+  category: string | null
+  asset_id: string | null
+  assigned_to: string | null
+  estimated_duration_minutes: number | null
+  tasks: ChecklistTemplateItem[]
+  created_by: string | null
   created_at: string
 }
