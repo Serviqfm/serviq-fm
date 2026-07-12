@@ -101,3 +101,33 @@ acceptance is **owner-verify** (needs the SQL run, Supabase Auth config, and a d
   follow-up), plus X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy, HSTS.
   **Owner-verify:** smoke the preview (dashboard, uploads, asset QR tab, Translate button,
   PDF export, fonts) under the CSP.
+
+## Batch 3 PR-A — Broken-feature criticals (branch `claude/batch-3-broken-features`)
+
+Build gate green (web tsc/build/test 12 passing incl. new pm-utils seasonal tests; mobile tsc).
+Adversarially reviewed (4 lenses) — PM logic + fake-stats passed clean; fixed 3 findings
+(wizard zero-sites 500, WO-list vendor display, completion-notes relabel). SQL is owner-run.
+
+- **DV-05** (twins 1C-03, CORE-06 delivery-half, FM-01, MKT-01) — `8a2ddbb` — `/api/push` reads
+  `users.push_token`; dropped the dead `user_devices` read + delete. Push now delivers end to end.
+  **Device-verify pending owner** (needs a phone). DV-19 deep-link tap deferred.
+- **DV-07** (twins CORE-22, FM-13, MKT-10 core) — `8a2ddbb` — `/request` wizard → `requests`
+  approval queue (category + site now required, tracking link); no more direct `work_orders` insert.
+- **DV-11** (twins 1C-08, FM-19) + **1C-04** (twins CORE-33, FM-18) — `8a2ddbb` — PM cron reads
+  per-schedule `lead_time_days` and skips/rolls past seasonal inactive windows (wrap-around aware);
+  tested helpers in `pm-utils.ts` (`pm-utils.test.ts`). PM detail lists by `pm_schedule_id`;
+  "generate now" sets the FK + `due_at`. (PM create-form seasonal/lead fields deferred — edit form
+  already has seasonal.)
+- **DV-12** (twin FM-09) — `8a2ddbb` — `batch-3-01-work-orders-columns.sql` adds `assigned_vendor_id`
+  + migrates vendor rows; edit page routes vendor picks there; vendor tab + WO list/detail show them.
+- **DV-28** (twins CORE-32, FM-23) — `8a2ddbb` — asset PM History tab loads completed PM WOs by
+  `pm_schedule_id`.
+- **WO-01** — `8a2ddbb` — `batch-3-01-*.sql` adds `signed_off_by`; close route stores sign-off there,
+  no longer overwriting `completion_notes`.
+- **DV-20 fake-decoration clause** (twins CORE-12, FM-12 partial, MKT-08 partial) — `8a2ddbb` —
+  removed hard-coded dashboard deltas + fixed the Open-Orders mislabel. (DV-20 perf clause — count-head
+  queries / no `select('*')` — deferred to the Phase E performance batch.)
+
+**SQL (owner-run, SQL-first):** `docs/superpowers/sql/batch-3-01-work-orders-columns.sql`.
+**Known limitation:** an org that sets `assigned_to` field-config to "required" would block a
+vendor-only assignment (edge config; documented, not fixed).

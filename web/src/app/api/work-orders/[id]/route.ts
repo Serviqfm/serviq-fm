@@ -70,6 +70,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       ? costRaw
       : null
 
+  // DV-12: vendors go in their own column (not run through field-config enforcement).
+  const assignedVendorId = typeof body.assigned_vendor_id === 'string' && body.assigned_vendor_id
+    ? body.assigned_vendor_id
+    : null
+
   const updateRow: Record<string, unknown> = {
     title: cleaned.title ?? null,
     description: cleaned.description ? cleaned.description : null,
@@ -78,11 +83,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     site_id: cleaned.site_id ? cleaned.site_id : null,
     asset_id: cleaned.asset_id ? cleaned.asset_id : null,
     assigned_to: cleaned.assigned_to ? cleaned.assigned_to : null,
+    assigned_vendor_id: assignedVendorId,
     due_at: cleaned.due_at ? cleaned.due_at : null,
     sla_hours: slaParsed,
     actual_cost: costParsed,
     completion_notes: cleaned.completion_notes ? cleaned.completion_notes : null,
-    status: cleaned.assigned_to ? 'assigned' : 'new',
+    status: (cleaned.assigned_to || assignedVendorId) ? 'assigned' : 'new',
     updated_at: new Date().toISOString(),
   }
 

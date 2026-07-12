@@ -6,7 +6,7 @@ import { format, isPast } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { archiveConfirmMessage, nextDueOnDaysOfWeek } from '../pm-utils'
+import { archiveConfirmMessage, nextDueOnDaysOfWeek, applySeasonalWindow } from '../pm-utils'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function calculateNextDue(schedule: any): string {
@@ -65,21 +65,16 @@ export default function PMScheduleDetailPage() {
         .select('*, asset:asset_id(id, name), site:site_id(name), assignee:assigned_to(full_name)')
         .eq('id', id)
         .single(),
+      // Match on the real FK, not a title heuristic — cron WOs are titled "PM - …"
+      // so the old `wo.title === pm.title` filter silently hid every generated WO.
       supabase.from('work_orders')
         .select('*, assignee:assigned_to(full_name)')
-        .eq('source', 'pm_schedule')
+        .eq('pm_schedule_id', id)
         .order('created_at', { ascending: false }),
     ])
     if (pm) {
       setSchedule(pm)
-      if (wos) {
-        setWorkOrders(
-          wos.filter(wo =>
-            wo.title === pm.title &&
-            (pm.asset_id ? wo.asset_id === pm.asset_id : wo.site_id === pm.site_id)
-          )
-        )
-      }
+      if (wos) setWorkOrders(wos)
     }
     setLoading(false)
   }
@@ -100,19 +95,25 @@ export default function PMScheduleDetailPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setGenerating(false); return }
     const { error } = await supabase.from('work_orders').insert({
-      title: schedule.title,
+      title: `PM - ${schedule.title}`,
       description: schedule.description || null,
       priority: 'medium',
       status: schedule.assigned_to ? 'assigned' : 'new',
       source: 'pm_schedule',
+      pm_schedule_id: id,
       asset_id: schedule.asset_id || null,
       site_id: schedule.site_id || null,
       assigned_to: schedule.assigned_to || null,
+      due_at: schedule.next_due_at || null,
       organisation_id: profile.organisation_id,
       created_by: user.id,
     })
     if (!error) {
-      const nextDue = calculateNextDue(schedule)
+      // Roll next_due_at, resuming past any seasonal inactive window (1C-04).
+      const nextDue = applySeasonalWindow(
+        new Date(calculateNextDue(schedule)),
+        schedule.is_seasonal, schedule.seasonal_start_month, schedule.seasonal_end_month,
+      ).toISOString()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const update: any = {
         last_completed_at: new Date().toISOString(),

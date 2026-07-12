@@ -81,9 +81,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Step 1: Delete owned rows that cannot be nulled (user_devices, user_notification_preferences)
+    // Step 1: Delete owned rows that cannot be nulled. (push_token lives on the users
+    // row itself — DV-05 retired user_devices — so it is removed with the profile below.)
     await Promise.all([
-      supabaseAdmin.from('user_devices').delete().eq('user_id', userId),
       supabaseAdmin.from('user_notification_preferences').delete().eq('user_id', userId),
     ])
 

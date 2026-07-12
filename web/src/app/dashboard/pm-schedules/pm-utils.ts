@@ -37,6 +37,40 @@ export function rollNextDue(from: Date, frequency: string, daysOfWeek?: number[]
   return addDays(from, FREQ_TO_DAYS[frequency] ?? 30)
 }
 
+// --- Seasonal / inactive-window helpers (1C-04) ---
+// Months are 1-12. A window may wrap the year end, e.g. Oct(10)–Apr(4) is active
+// Oct, Nov, Dec, Jan, Feb, Mar, Apr.
+export function isMonthInSeasonalWindow(month: number, startMonth: number, endMonth: number): boolean {
+  if (startMonth <= endMonth) return month >= startMonth && month <= endMonth
+  return month >= startMonth || month <= endMonth
+}
+
+// The next date at day-1 00:00 of startMonth on/after `from` — used to resume a
+// seasonal schedule at the start of its next active window when a due date falls in
+// the inactive period.
+export function nextSeasonStart(from: Date, startMonth: number): Date {
+  const out = new Date(from)
+  out.setUTCDate(1)
+  out.setUTCHours(0, 0, 0, 0)
+  out.setUTCMonth(startMonth - 1)
+  if (out <= from) out.setUTCFullYear(out.getUTCFullYear() + 1)
+  return out
+}
+
+// If `date` falls outside the seasonal window, return the next in-window resume date;
+// otherwise return `date` unchanged. No-op when the schedule isn't seasonal.
+export function applySeasonalWindow(
+  date: Date,
+  isSeasonal: boolean | null | undefined,
+  startMonth: number | null | undefined,
+  endMonth: number | null | undefined,
+): Date {
+  if (!isSeasonal || !startMonth || !endMonth) return date
+  const month = date.getUTCMonth() + 1
+  if (isMonthInSeasonalWindow(month, startMonth, endMonth)) return date
+  return nextSeasonStart(date, startMonth)
+}
+
 export function archiveConfirmMessage(lang: string, count = 1): string {
   if (lang === 'ar') {
     return count > 1

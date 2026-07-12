@@ -66,23 +66,31 @@ export default function AssetDetailPage() {
   const [loading, setLoading] = useState(true)
   const [translatedAsset, setTranslatedAsset] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory' | 'children'>('details')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pmHistory, setPmHistory] = useState<any[]>([])
   const [childAssets, setChildAssets] = useState<ChildAsset[]>([])
   const [ancestors, setAncestors] = useState<AncestorAsset[]>([])
 
   // FIX #1 continued: Wrap fetchAll in useCallback to avoid re-renders
   const fetchAll = useCallback(async () => {
-    const [{ data: assetData }, { data: woData }, { data: pmData }, { data: childData }] = await Promise.all([
+    const [{ data: assetData }, { data: woData }, { data: pmData }, { data: childData }, { data: pmHistoryData }] = await Promise.all([
       supabase.from('assets').select('*, site:site_id(name), parent:parent_asset_id(id, name)').eq('id', assetId).single(),
       supabase.from('work_orders').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
       supabase.from('pm_schedules').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
       supabase.from('assets').select('id, name, status').eq('parent_asset_id', assetId).order('name'),
+      // DV-28: completed PM-generated work orders for this asset (real pm_schedule_id link).
+      supabase.from('work_orders')
+        .select('id, title, status, due_at, completed_at, schedule:pm_schedule_id(title, frequency), technician:assigned_to(full_name)')
+        .eq('asset_id', assetId)
+        .not('pm_schedule_id', 'is', null)
+        .in('status', ['completed', 'closed'])
+        .order('due_at', { ascending: false }),
     ])
     if (assetData) setAsset(assetData as Asset)
     if (woData) setWorkOrders(woData)
     if (pmData) setPmSchedules(pmData)
     if (childData) setChildAssets(childData as ChildAsset[])
+    if (pmHistoryData) setPmHistory(pmHistoryData)
 
     // Walk up the parent chain to build the ancestor breadcrumb (max 4 levels).
     const chain: AncestorAsset[] = []
@@ -422,12 +430,12 @@ export default function AssetDetailPage() {
                         <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.schedule?.frequency ?? '—'}</td>
                         <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.technician?.full_name ?? 'Unassigned'}</td>
                         <td className="px-3.5 py-2.5 border-b border-outline-variant">
-                          <span className={`${pm.status === 'completed' ? 'bg-primary/10 text-primary' : pm.status === 'overdue' ? 'bg-error/10 text-error' : 'bg-[#f57f17]/10 text-[#f57f17]'} px-2 py-0.5 rounded-lg text-[11px] font-medium`}>
+                          <span className={`${['completed', 'closed'].includes(pm.status) ? 'bg-primary/10 text-primary' : pm.status === 'overdue' ? 'bg-error/10 text-error' : 'bg-[#f57f17]/10 text-[#f57f17]'} px-2 py-0.5 rounded-lg text-[11px] font-medium`}>
                             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {pm.status?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) ?? '—'}
                           </span>
                         </td>
-                        <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.due_date ? new Date(pm.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                        <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.due_at ? new Date(pm.due_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
                         <td className="px-3.5 py-2.5 text-sm text-on-surface-variant border-b border-outline-variant">{pm.completed_at ? new Date(pm.completed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
                       </tr>
                     ))}

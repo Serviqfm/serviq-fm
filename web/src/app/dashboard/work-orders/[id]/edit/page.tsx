@@ -106,7 +106,7 @@ export default function EditWorkOrderPage() {
         category: wo.category ?? '',
         site_id: wo.site_id ?? '',
         asset_id: wo.asset_id ?? '',
-        assigned_to: wo.assigned_to ?? '',
+        assigned_to: wo.assigned_to ?? wo.assigned_vendor_id ?? '',
         team_id: wo.team_id ?? '',
         due_at: wo.due_at ? wo.due_at.slice(0, 16) : '',
         sla_hours: wo.sla_hours ? String(wo.sla_hours) : '',
@@ -131,6 +131,9 @@ export default function EditWorkOrderPage() {
     setSaving(true)
     setError('')
 
+    // DV-12: the assign dropdown mixes users and vendors. Route a vendor pick to
+    // assigned_vendor_id and keep assigned_to users-only.
+    const isVendor = vendors.some(v => v.id === form.assigned_to)
     const res = await fetch(`/api/work-orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -141,7 +144,8 @@ export default function EditWorkOrderPage() {
         category: form.category,
         site_id: form.site_id,
         asset_id: form.asset_id,
-        assigned_to: form.assigned_to,
+        assigned_to: isVendor ? '' : form.assigned_to,
+        assigned_vendor_id: isVendor ? form.assigned_to : '',
         due_at: form.due_at,
         sla_hours: form.sla_hours,
         completion_notes: form.completion_notes,
@@ -164,8 +168,9 @@ export default function EditWorkOrderPage() {
       additional_workers: additionalWorkers.filter(uid => uid !== form.assigned_to),
     }).eq('id', id)
 
-    // Send assignment notification via API (keeps server-side imports server-side)
-    if (form.assigned_to && updatedWO && updatedWO.length > 0) {
+    // Send assignment notification via API (keeps server-side imports server-side).
+    // Vendors have no user account, so only notify when a real user was assigned.
+    if (form.assigned_to && !isVendor && updatedWO && updatedWO.length > 0) {
       try {
         const wo = updatedWO[0]
         const woNumber = wo.wo_number
