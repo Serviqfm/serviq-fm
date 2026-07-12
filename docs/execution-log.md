@@ -179,3 +179,19 @@ tenant-route retry. SQL is owner-run, SQL-first.
   && supabase db pull` in the repo root, commit the generated `supabase/migrations/` file. This is
   the DR baseline and unblocks the deferred role-aware RLS work (CORE-20/CORE-23 + PR-B's residual
   client-side transition surface). Exact steps in the PR body.
+
+## Phase B — WO power features
+
+### PR-B1 — WO templates + duplication (branch `claude/phase-b-wo-templates-dup`)
+
+Build gate green; adversarially verified (correctness + cross-org RLS) — PASS, fixed a
+category value-string mismatch + the WorkOrder.category type gap. SQL owner-run, SQL-first.
+
+- **WO-08** — `<this commit>` — `phase-b-01-wo-templates.sql` (work_order_templates, org RLS) +
+  `work-orders/templates/` CRUD page + "create from template" (`?template=`) + "Save as Template"
+  on WO detail. **Owner-verify:** create a template, use it, and Save-as-Template a WO.
+- **WO-09** — `<this commit>` — Duplicate action on WO detail (`?duplicate_from=`) prefills the
+  create form (definitional fields + tasks + additional workers; not wo_number/status/dates/photos).
+
+No CORE- twins for either. Next in this track: Files module (WO-05 + WO-03), then Calendar +
+Saved views (WO-17 + WO-13), then CSV import/export (WO-10/11), filtering cluster (WO-14/15/16).

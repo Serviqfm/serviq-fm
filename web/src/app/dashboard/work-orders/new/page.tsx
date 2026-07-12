@@ -11,6 +11,13 @@ import { isSystemRequired } from '@/lib/field-catalog'
 const inputCls = 'w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40'
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normaliseTasks(tasks: any): { title: string; title_ar: string }[] {
+  return Array.isArray(tasks)
+    ? tasks.map((it: { title?: string; title_ar?: string }) => ({ title: it.title ?? '', title_ar: it.title_ar ?? '' }))
+    : []
+}
+
 export default function NewWorkOrderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -96,6 +103,54 @@ export default function NewWorkOrderPage() {
     if (vendorData) setVendors(vendorData)
     if (templateData) setTemplates(templateData)
     if (teamData) setTeams(teamData)
+
+    // WO-08: prefill from a work-order template (?template=). WO-09: prefill from an
+    // existing WO (?duplicate_from=). Both seed the form + tasks; the existing 3-write
+    // submit flow then recreates everything as a brand-new WO.
+    const templateId = searchParams.get('template')
+    const duplicateFrom = searchParams.get('duplicate_from')
+    if (templateId) {
+      const { data: tpl } = await supabase.from('work_order_templates').select('*').eq('id', templateId).maybeSingle()
+      if (tpl) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const asset = (assetData ?? []).find((a: any) => a.id === tpl.asset_id)
+        setForm(prev => ({
+          ...prev,
+          title: tpl.title ?? '',
+          description: tpl.description ?? '',
+          priority: tpl.priority ?? prev.priority,
+          category: tpl.category ?? '',
+          asset_id: tpl.asset_id ?? '',
+          site_id: asset?.site_id ?? prev.site_id,
+          assigned_to: tpl.assigned_to ?? '',
+          estimated_duration: tpl.estimated_duration_minutes ? String(tpl.estimated_duration_minutes) : '',
+        }))
+        setTaskRows(normaliseTasks(tpl.tasks))
+      }
+    } else if (duplicateFrom) {
+      const [{ data: src }, { data: srcTasks }] = await Promise.all([
+        supabase.from('work_orders').select('*').eq('id', duplicateFrom).maybeSingle(),
+        supabase.from('work_order_tasks').select('title, title_ar, sort_order').eq('work_order_id', duplicateFrom).order('sort_order'),
+      ])
+      if (src) {
+        // Copy definitional fields only — never wo_number/status/dates/photos (per-instance).
+        setForm(prev => ({
+          ...prev,
+          title: src.title ?? '',
+          description: src.description ?? '',
+          priority: src.priority ?? prev.priority,
+          category: src.category ?? '',
+          site_id: src.site_id ?? '',
+          asset_id: src.asset_id ?? '',
+          assigned_to: src.assigned_to ?? '',
+          team_id: src.team_id ?? '',
+          sla_hours: src.sla_hours ? String(src.sla_hours) : '',
+          estimated_duration: src.estimated_duration_minutes ? String(src.estimated_duration_minutes) : '',
+        }))
+        if (Array.isArray(src.additional_workers)) setAdditionalWorkers(src.additional_workers)
+        setTaskRows(normaliseTasks(srcTasks))
+      }
+    }
   }
 
   async function checkDuplicate(assetId: string, title: string) {
