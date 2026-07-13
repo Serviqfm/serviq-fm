@@ -9,7 +9,11 @@ export function exportCSV(filename: string, rows: Record<string, unknown>[]): vo
   const cols = Object.keys(rows[0])
   const esc = (v: unknown) => {
     if (v === null || v === undefined) return ''
-    const s = typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v))
+    let s = typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v))
+    // Neutralize CSV formula injection: a leading = + - @ (or tab/CR) makes Excel /
+    // Sheets treat the cell as a formula. A leading apostrophe forces it to text.
+    // Plain numbers (incl. negatives) are left alone so they stay numeric.
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s
     return `"${s.replace(/"/g, '""')}"`
   }
   const csv = [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n')

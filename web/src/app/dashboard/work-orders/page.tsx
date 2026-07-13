@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isAfter } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { exportCSV } from '@/lib/csv'
 
 interface Technician { id: string; full_name: string }
 
@@ -50,6 +51,20 @@ function Badge({ text, cls }: { text: string; cls: string }) {
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
+// WO-10: columns available for CSV export (the picker toggles these).
+const EXPORT_COLUMNS: { key: string; label: string; get: (w: WorkOrder) => string }[] = [
+  { key: 'wo_number',  label: 'WO #',     get: w => w.wo_number ? `WO-${String(w.wo_number).padStart(4, '0')}` : '' },
+  { key: 'title',      label: 'Title',    get: w => w.title ?? '' },
+  { key: 'status',     label: 'Status',   get: w => w.status ?? '' },
+  { key: 'priority',   label: 'Priority', get: w => w.priority ?? '' },
+  { key: 'category',   label: 'Category', get: w => w.category ?? '' },
+  { key: 'asset',      label: 'Asset',    get: w => w.asset?.name ?? '' },
+  { key: 'site',       label: 'Site',     get: w => w.site?.name ?? '' },
+  { key: 'assignee',   label: 'Assigned', get: w => w.assignee?.full_name ?? (w.vendor?.company_name ? `${w.vendor.company_name} (Vendor)` : '') },
+  { key: 'due_at',     label: 'Due',      get: w => w.due_at ? format(new Date(w.due_at), 'yyyy-MM-dd') : '' },
+  { key: 'created_at', label: 'Created',  get: w => w.created_at ? format(new Date(w.created_at), 'yyyy-MM-dd') : '' },
+]
+
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
@@ -70,6 +85,9 @@ export default function WorkOrdersPage() {
   const [savedViews, setSavedViews] = useState<any[]>([])
   const [me, setMe] = useState<{ id: string; organisation_id: string } | null>(null)
   const [urlParsed, setUrlParsed] = useState(false)
+  const [isManager, setIsManager] = useState(false)
+  const [showExport, setShowExport] = useState(false)
+  const [exportCols, setExportCols] = useState<string[]>(EXPORT_COLUMNS.map(c => c.key))
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -106,9 +124,10 @@ export default function WorkOrdersPage() {
   async function loadViews() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: profile } = await supabase.from('users').select('id, organisation_id').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('users').select('id, organisation_id, role').eq('id', user.id).single()
     if (!profile) return
     setMe(profile)
+    setIsManager(profile.role === 'admin' || profile.role === 'manager')
     const { data } = await supabase.from('saved_views').select('*').eq('user_id', user.id).eq('page', 'work-orders').order('name')
     if (data) setSavedViews(data)
   }
@@ -185,6 +204,21 @@ export default function WorkOrdersPage() {
   function toggleSelect(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   function toggleSelectAll() { setSelected(selected.length === filtered.length ? [] : filtered.map(w => w.id)) }
 
+  // WO-10: export the current view. Uses the checked rows if any, else all filtered
+  // rows (which already honour the status/priority/category/date/search filters).
+  function runExport() {
+    const cols = EXPORT_COLUMNS.filter(c => exportCols.includes(c.key))
+    if (cols.length === 0) { alert(lang === 'ar' ? 'اختر عمودًا واحدًا على الأقل' : 'Pick at least one column'); return }
+    const source = selected.length > 0 ? filtered.filter(w => selected.includes(w.id)) : filtered
+    const rows = source.map(w => {
+      const o: Record<string, string> = {}
+      cols.forEach(c => { o[c.label] = c.get(w) })
+      return o
+    })
+    exportCSV(`serviq-fm-work-orders-${format(new Date(), 'yyyy-MM-dd')}.csv`, rows)
+    setShowExport(false)
+  }
+
   const isOverdue = useCallback((wo: WorkOrder) =>
     wo.due_at && !['completed','closed'].includes(wo.status) && isAfter(new Date(), new Date(wo.due_at)), [])
 
@@ -249,6 +283,19 @@ export default function WorkOrdersPage() {
                 {lang === 'ar' ? 'قوائم المهام' : 'Checklists'}
               </button>
             </Link>
+            <button onClick={() => setShowExport(true)}
+              className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">download</span>
+              {lang === 'ar' ? 'تصدير' : 'Export'}
+            </button>
+            {isManager && (
+              <Link href='/dashboard/work-orders/import'>
+                <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+                  <span className="material-symbols-outlined text-lg">upload</span>
+                  {lang === 'ar' ? 'استيراد' : 'Import'}
+                </button>
+              </Link>
+            )}
             <Link href='/dashboard/work-orders/new'>
               <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
                 <span className="material-symbols-outlined text-lg">add</span>
@@ -496,6 +543,44 @@ export default function WorkOrdersPage() {
         )}
 
       </div>
+
+      {/* WO-10: export column picker */}
+      {showExport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowExport(false)}>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-on-surface mb-1">{lang === 'ar' ? 'تصدير إلى CSV' : 'Export to CSV'}</h2>
+            <p className="text-sm text-on-surface-variant mb-4">
+              {(() => {
+                // Accurate count = what runExport will actually write (checked rows
+                // intersected with the current filter, else all filtered rows).
+                const sel = selected.length > 0
+                const n = sel ? filtered.filter(w => selected.includes(w.id)).length : filtered.length
+                return lang === 'ar'
+                  ? `${n} ${sel ? 'صف محدد' : 'صف (بعد التصفية)'}`
+                  : `${n} ${sel ? 'selected' : 'filtered'} row${n !== 1 ? 's' : ''}`
+              })()}
+            </p>
+            <div className="grid grid-cols-2 gap-2 mb-5 max-h-64 overflow-y-auto">
+              {EXPORT_COLUMNS.map(c => (
+                <label key={c.key} className="flex items-center gap-2 text-sm text-on-surface cursor-pointer">
+                  <input type="checkbox" checked={exportCols.includes(c.key)}
+                    onChange={() => setExportCols(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev, c.key])}
+                    className="rounded" />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowExport(false)} className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button onClick={runExport} className="px-5 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary/90 transition-colors">
+                {lang === 'ar' ? 'تنزيل CSV' : 'Download CSV'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

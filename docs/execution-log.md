@@ -263,3 +263,23 @@ confirmed defects, all fixed; round 2 confirmed fixes hold with zero regressions
   (owner declined) — changes are conditional UI rendering + a role check, no tested logic touched.
   Two benign spec-parity notes left as-is (manager reopen destination; trigger stricter than /close on
   already-closed WOs).
+
+### WO CSV import/export (branch `claude/wo-10-11-csv-import-export`, off `main`)
+
+No SQL, no deps. Build gate: web tsc ✓, web build ✓ (both new routes in tree), mobile tsc ✓. Adversarial
+review (3 lenses) — 1 medium + several low/nit correctness bugs, all fixed except one documented override.
+
+- **WO-10** — `<this commit>` — Export button + column-picker modal on the WO list: CSV of the currently
+  *filtered* rows (or only *checked* rows when any selected), reusing `lib/csv.ts`. `exportCSV` also
+  hardened against CSV formula injection (leading `=+-@` cells prefixed `'`; plain numbers untouched).
+  **Owner-verify:** filter to completed → export = completed only; untick columns → headers change;
+  check 3 rows → 3 data rows.
+- **WO-11** — `<this commit>` — Import page (`/dashboard/work-orders/import`, manager-only) using robust
+  `parseCSV` + new `POST /api/work-orders/import` (service_role, admin/manager-gated). Template download,
+  name/email→id resolution (unmatched/ambiguous → warning, not error), strict per-row validation, and a
+  `wo_number`-match update path (partial: only filled columns change; accepts a `WO-` prefix). Review
+  fixes: strict numeric parse (no `"1,250"`→`1`), assignee limited to technicians/managers, date-only
+  due stored at local noon, ambiguous-name/dup-wo_number handling, malformed-body guard.
+  **Owner-verify:** import a few rows (blank `wo_number`) → created; a bad-category row errors, others
+  import; put an existing WO number → that WO updates. Deferred: per-row field-config enforcement
+  (import is a manager override); column-picker persistence + extra export columns land with WO-14/WO-30.
