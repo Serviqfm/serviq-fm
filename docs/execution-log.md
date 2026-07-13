@@ -383,3 +383,37 @@ No SQL (uses existing `work_orders.completion_notes` column), no deps. Build gat
 
 Deferred to follow-ups: WO-06/07 (labor time + costs, need SQL), WO-19 (mobile signature),
 WO-23 (feedback rating — tokenized public email/page surface), MKT-15 (failure-code picklists + report).
+
+## Wave 2 — custom fields · dispatch · PM meters · Asset Log detail (2026-07-14)
+
+Four parallel tracks, disjoint files, build-gated. New RLS tables carry WITH CHECK on
+insert AND update (Wave-1 lesson). T5 + T8 SQL got a full adversarial review before owner-run.
+
+### T5 — WO custom fields + planned start (PR #27, `claude/t5-wo-custom-fields`)
+- **WO-26** — org-defined custom fields on WOs, JSONB design: `custom_field_definitions` table
+  (org RLS, insert+update WITH CHECK) + `work_orders.custom_fields JSONB`; Settings → Custom Fields
+  admin CRUD; rendered on WO new/edit and shown on detail. **WO-31** — `work_orders.start_at` planned
+  start on new/edit/detail. **SQL:** `t5-01-wo-custom-fields.sql` (+ `.test.sql`). Review: clean.
+  Deferred: WO-04 (category-as-table), WO-25 (custom statuses — touches CORE-20 triggers), FM-20.
+
+### T6 — Dispatch board (PR #25, `claude/t6-dispatch-board`)
+- **WO-18 / FM-15 / MKT-06** — new `/dashboard/work-orders/board`: status-column kanban of active WOs,
+  drag-to-advance, per-card technician reassign (managers), CORE-21 tech scoping, optimistic + audit.
+  No SQL (reuses work_orders + existing RLS). Board nav button on the calendar page. Deferred: WO-24
+  (linking), CORE-30.
+
+### T8 — PM meters + hybrid trigger (PR #26, `claude/t8-pm-meters`)
+- **1C-11 / MKT-04** — `meters` + `meter_readings` (org RLS, insert+update WITH CHECK); `pm_schedules`
+  gains meter_id/meter_interval/last_trigger_reading; `generate_due_pm_work_orders()` SECURITY DEFINER
+  (search_path pinned, service_role-only) = nightly hybrid trigger (calendar-due OR meter-threshold,
+  whichever first); `/dashboard/meters` page; `/api/cron/pm-generate` meter pass (CRON_SECRET-gated,
+  fails closed). **SQL:** `t8-01-meters-pm.sql` (+ `.test.sql`). **Review caught a CRITICAL** — the meter
+  arm advanced the marker on any open WO, swallowing meter crossings on hybrid schedules; **fixed** —
+  one open-WO de-dupe, no marker advance on skip, calendar service resets the meter clock. Deferred:
+  1C-09/1C-10 (floating/calendar recurrence), seasonal/lifecycle.
+
+### T3b — Asset Log item forms + detail (PR #28, `claude/t3b-asset-log-detail`)
+- **AG-4 / AG-5** — asset-log item create/edit forms (JSONB custom_fields) + item detail page with tabs
+  (Details / Movements / Repairs / Condition) + lifecycle actions, on the merged #24 foundation; the
+  move action uses the authenticated client (RPC needs auth.uid()). No new migration. Deferred: AG-6
+  (QR + bulk PDF), AG-8/9 (mobile).
