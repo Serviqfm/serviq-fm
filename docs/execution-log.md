@@ -195,3 +195,18 @@ category value-string mismatch + the WorkOrder.category type gap. SQL owner-run,
 
 No CORE- twins for either. Next in this track: Files module (WO-05 + WO-03), then Calendar +
 Saved views (WO-17 + WO-13), then CSV import/export (WO-10/11), filtering cluster (WO-14/15/16).
+
+### PR-B2 — Files module + upload validation (branch `claude/phase-b-wo-files`, stacked on PR-B1)
+
+Build gate green; adversarially verified (RLS + correctness) — no cross-org leak, no upload
+regression; fixed the stale size-limit message + completed storage-object cleanup on delete.
+
+- **WO-05** — `<this commit>` — `phase-b-02-files.sql` (files + file_attachments, org RLS) +
+  global `dashboard/files/` page + `WorkOrderFilesTab` (Files tab on WO detail: upload / attach
+  existing / detach; detach keeps the record) + `DELETE /api/files/[id]` (removes DB row +
+  storage object). Sidebar "Files" entry. **Owner-verify:** upload a PDF on a WO's Files tab →
+  it shows there AND on /dashboard/files; detach keeps the global record; delete removes it.
+  Deferred (noted): asset/site Files tabs (infra is polymorphic — trivial follow-up), auto-filing
+  generated invoices, tags, and signed direct-to-storage uploads for large video.
+- **WO-03** — `<this commit>` — /api/upload allowlist widened to images+PDF+MP4/MOV, cap 40 MB;
+  the public requests bucket stays image/PDF-only via its Batch-1 bucket-level policy.
