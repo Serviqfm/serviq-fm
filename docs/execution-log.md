@@ -231,3 +231,35 @@ gated on URL parsing). SQL owner-run, SQL-first.
   URL↔filter two-way sync on the WO list + Saved Views bar (apply/save/delete).
   **Owner-verify:** set filters → copy URL to another tab (same filters); Save current view →
   reselect it later. Unblocks: WO-14 column chooser persistence + WO-18 dispatch board.
+
+## Security — role-aware DB enforcement (branch `claude/core-20-23-role-aware`, off `main`)
+
+Pure-SQL security backstop — no app code. Unblocked by reading the live RLS policies directly
+(a `pg_policies` dump from the SQL editor) instead of the full `supabase db pull`, since the
+CLI wasn't installed. **DV-06 (the full `supabase/migrations/` DR baseline) is still not done**
+(needs the Supabase CLI); it is no longer a blocker for this work. Two rounds of parallel
+adversarial review (bypass / lockout / SQL-correctness / spec-fidelity) — round 1 caught 4
+confirmed defects, all fixed; round 2 confirmed fixes hold with zero regressions.
+
+- **CORE-20** — `<this commit>` — `core-20-23-role-aware-enforcement.sql`: `BEFORE UPDATE` trigger
+  `enforce_wo_transition` on `work_orders`. Enforces (on the authenticated / direct-PostgREST path
+  only — service_role routes + no-JWT contexts pass): requester read-only; close/reopen = admin/manager;
+  complete = admin/manager or a worker; technicians only on WOs assigned to them; non-managers can't
+  self-assign or self-add to `additional_workers`; closed WOs locked except manager reopen. Mobile
+  writes status straight to PostgREST, so route checks (CORE-01/02/03) were bypassed there — this is
+  the durable gate. **Owner-verify:** run `core-20-23-role-aware-enforcement.test.sql` (BEGIN/ROLLBACK
+  harness, simulates JWTs, prints PASS/FAIL) → all PASS; on mobile a technician can no longer
+  close/complete a WO that isn't theirs.
+- **CORE-23** (privilege-escalation fix, was untracked/Critical) — `<this commit>` — trigger
+  `enforce_user_privilege_lock` on `users`: on the authenticated path a user may only edit their OWN
+  row and never `role`/`organisation_id`/`is_active`, and cannot re-enable a `disabled` account
+  (self-service deletion via `request_account_deletion` still works). Closes: any org member could
+  `users.update({role:'admin'})` on themselves via PostgREST.
+- **Collusion complete-fix** — `<this commit>` — closed the 2-account residual: the trigger now
+  blanket-blocks *any* non-manager change to a WO's `additional_workers` set (order-insensitive mutual
+  containment, so an unchanged re-save still passes), and the web new/edit pages hide the Team /
+  Additional-Workers fields for non-managers and never write them (`new/page.tsx`, `[id]/edit/page.tsx`
+  gated on `isManager`). Build gate: web tsc ✓, web build ✓, mobile tsc ✓; web unit tests not run
+  (owner declined) — changes are conditional UI rendering + a role check, no tested logic touched.
+  Two benign spec-parity notes left as-is (manager reopen destination; trigger stricter than /close on
+  already-closed WOs).

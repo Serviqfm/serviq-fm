@@ -46,6 +46,7 @@ export default function NewWorkOrderPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [teams, setTeams] = useState<any[]>([])
   const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
+  const [isManager, setIsManager] = useState(false)
   const [taskRows, setTaskRows] = useState<{ title: string; title_ar: string }[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
@@ -86,9 +87,10 @@ export default function NewWorkOrderPage() {
   async function loadFormData() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
     if (!profile) return
     const orgId = profile.organisation_id
+    setIsManager(profile.role === 'admin' || profile.role === 'manager')
     const [{ data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }, { data: templateData }, { data: teamData }] = await Promise.all([
       supabase.from('assets').select('id, name, site_id').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
@@ -274,9 +276,14 @@ export default function NewWorkOrderPage() {
       const extras: Record<string, unknown> = {}
       const estMin = parseInt(form.estimated_duration)
       if (!isNaN(estMin) && estMin > 0) extras.estimated_duration_minutes = estMin
-      if (form.team_id) extras.team_id = form.team_id
-      const workerIds = additionalWorkers.filter(uid => uid !== form.assigned_to)
-      if (workerIds.length > 0) extras.additional_workers = workerIds
+      // CORE-20: team / additional-worker assignment is manager-only. Non-managers
+      // never see these fields and never write them (the DB trigger also blocks
+      // non-manager worker-list changes as the durable backstop).
+      if (isManager) {
+        if (form.team_id) extras.team_id = form.team_id
+        const workerIds = additionalWorkers.filter(uid => uid !== form.assigned_to)
+        if (workerIds.length > 0) extras.additional_workers = workerIds
+      }
       if (Object.keys(extras).length > 0) {
         await supabase.from('work_orders').update(extras).eq('id', newWO.id)
       }
@@ -486,7 +493,7 @@ export default function NewWorkOrderPage() {
               )}
             </div>
 
-            {teams.length > 0 && (
+            {isManager && teams.length > 0 && (
               <div>
                 <label className={labelCls}>
                   {lang === 'ar' ? 'الفريق' : 'Team'}
@@ -503,7 +510,7 @@ export default function NewWorkOrderPage() {
               </div>
             )}
 
-            {technicians.filter(tech => tech.id !== form.assigned_to).length > 0 && (
+            {isManager && technicians.filter(tech => tech.id !== form.assigned_to).length > 0 && (
               <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
                 <label className={labelCls}>
                   {lang === 'ar' ? 'عمال إضافيون' : 'Additional Workers'}
