@@ -159,6 +159,12 @@ export default function WorkOrdersPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Link href='/dashboard/work-orders/calendar'>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+                <span className="material-symbols-outlined text-lg">calendar_month</span>
+                {lang === 'ar' ? 'التقويم' : 'Calendar'}
+              </button>
+            </Link>
             <Link href='/dashboard/work-orders/templates'>
               <button className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
                 <span className="material-symbols-outlined text-lg">description</span>

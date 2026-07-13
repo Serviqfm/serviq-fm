@@ -210,3 +210,14 @@ regression; fixed the stale size-limit message + completed storage-object cleanu
   generated invoices, tags, and signed direct-to-storage uploads for large video.
 - **WO-03** — `<this commit>` — /api/upload allowlist widened to images+PDF+MP4/MOV, cap 40 MB;
   the public requests bucket stays image/PDF-only via its Batch-1 bucket-level policy.
+
+### PR-B3 — WO calendar with drag-to-reschedule (branch `claude/phase-b-wo-calendar`, stacked on PR-B2)
+
+No SQL. Build gate green; adversarially verified (correctness + security) — PASS; fixed the
+best-effort audit try/catch + chip WO-number padding.
+
+- **WO-17** — `<this commit>` — `/dashboard/work-orders/calendar`: month grid of open WOs by
+  `due_at` (date-fns CSS grid, no new deps), HTML5 drag-to-reschedule with optimistic update,
+  refetch-revert, and audit trail; technician scoping matches CORE-21; Calendar button on the list.
+  **Owner-verify:** drag a WO chip to another day → due date persists + a "Rescheduled" row in the
+  WO History tab. Deferred: weekly/day intraday views; WO-18 dispatch board (Phase 2, needs WO-13).
