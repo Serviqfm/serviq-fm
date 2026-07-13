@@ -14,6 +14,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'work_orders', href: '/dashboard/work-orders',  en: 'Work Orders',  ar: 'أوامر العمل',   icon: 'assignment',     exact: false },
   { key: 'requests',    href: '/dashboard/requests',     en: 'Requests',     ar: 'الطلبات',        icon: 'inbox',          exact: false, roles: ['admin', 'manager'] },
   { key: 'assets',      href: '/dashboard/assets',       en: 'Assets',       ar: 'الأصول',         icon: 'inventory_2',    exact: false },
+  { key: 'asset_log',   href: '/dashboard/asset-log',    en: 'Asset Log',    ar: 'سجل الأصول',     icon: 'list_alt',       exact: false },
   { key: 'pm',          href: '/dashboard/pm-schedules', en: 'PM Schedules', ar: 'جدول الصيانة',  icon: 'event_repeat',   exact: false },
   { key: 'sites',       href: '/dashboard/sites',        en: 'Sites',        ar: 'المواقع',        icon: 'location_city',  exact: false, roles: ['admin', 'manager'] },
   { key: 'vendors',     href: '/dashboard/vendors',      en: 'Vendors',      ar: 'الموردون',       icon: 'business',       exact: false, roles: ['admin', 'manager'] },

@@ -332,3 +332,35 @@ Build gate: web tsc ✓, web build ✓ (new `/dashboard/sites/[id]` route in tre
 
 Deferred to follow-ups: AL-14 (nested sub-locations), AL-17/AL-19/AL-20 (floor plans, import wizard
 upgrades, re-parent spaces), MKT-25 (floor-plan pin-drop).
+
+### Asset Log module foundation (branch `claude/t3-asset-log`, off `main`)
+
+New non-MEP register module (spaces-only, separate from MEP `assets`). First PR = foundation only;
+item detail/create-edit/QR/mobile (AG-4/5/6/8/9), reports (AG-10), warranty cron (AG-11), split
+(AG-12), and CSV (AG-7) deferred to follow-ups. Build gate: web tsc ✓, web build ✓ (all
+`/api/asset-log/*` + `/dashboard/asset-log` in tree). Mobile untouched.
+
+- **AG-1** — `<this commit>` — Schema migration `docs/superpowers/sql/sprint-l-01-asset-log.sql`
+  (**owner-run**): 5 tables (`asset_log_types`, `asset_log_items`, `asset_log_movements`,
+  `asset_log_repairs`, `asset_log_condition_reviews`) with all CHECK constraints (statuses,
+  1–5 ratings, unit+qty=1) + FK indexes + the standard 4-policy org RLS on every table, plus the
+  SECURITY DEFINER `move_asset_log_item` RPC (org-verified internally, `SET search_path=public`,
+  EXECUTE to authenticated only). Idempotent. Verified locally: SQL parses, styled after
+  sprint-k-03. Live acceptance (cross-org RLS deny, atomic move, unit CHECK) via the paired
+  `sprint-l-01-asset-log.test.sql` rollback harness after the owner runs it.
+- **AG-2** — `<this commit>` — Write routes under `web/src/app/api/asset-log/**`: POST create
+  (seeds 5 default types on first use, writes the initial movement row when a space is set),
+  PATCH/DELETE `[id]` (DELETE admin-only + blocked unless `disposed`), POST `[id]/decommission`
+  (+ re-commission), POST `[id]/repairs` (+ optional status flip). Standard auth→profile-org→role
+  gate→service-role write + `audit_logs` (`entity_type='asset_log_item'`), deduped through
+  `_helpers.ts`. Helper `web/src/lib/asset-log.ts` (straight-line current-value calc + status maps,
+  with a runnable self-check). **Owner-verify:** requester gets 403 on writes; DELETE a non-disposed
+  item → 400; decommission stamps date/by/reason and flips to `disposed`.
+- **AG-3** — `<this commit>` — Sidebar "Asset Log" nav item (below Assets) + list page
+  `web/src/app/dashboard/asset-log/page.tsx`: 5 stat cards, RLS-scoped client fetch, table
+  (AL-####, name+AR, type, site→space, qty, status, condition stars + not-usable chip, current
+  value, warranty badges), filters (search, type, status chips, site→space cascade, usable /
+  warranty-expiring / review-due / include-disposed toggles; disposed hidden by default). ~40 EN/AR
+  keys in `context/LanguageContext.tsx`. Bulk QR multi-select intentionally deferred with AG-6
+  (its export route). **Owner-verify:** list shows only caller-org items, hides disposed by default,
+  filters combine with search, renders in Arabic RTL.
