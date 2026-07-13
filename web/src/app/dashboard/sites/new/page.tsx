@@ -18,6 +18,8 @@ export default function NewSitePage() {
     name_ar: '',
     address: '',
     city: '',
+    latitude: '',
+    longitude: '',
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -36,6 +38,8 @@ export default function NewSitePage() {
         name_ar: form.name_ar,
         address: form.address,
         city: form.city,
+        latitude: form.latitude,
+        longitude: form.longitude,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -83,6 +87,22 @@ export default function NewSitePage() {
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'العنوان' : 'Address'}{reqMark('address')}</label>
             <input name='address' value={form.address} onChange={handleChange} required={isReq('address')} placeholder='e.g. King Fahd Road, Al Olaya District' style={fieldStyle} />
+          </div>
+        )}
+        {(!isHidden('latitude') || !isHidden('longitude')) && (
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            {!isHidden('latitude') && (
+              <div style={{ flex: 1 }}>
+                <label style={labelStyle}>{lang === 'ar' ? 'خط العرض' : 'Latitude'}{reqMark('latitude')}</label>
+                <input name='latitude' type='number' step='any' value={form.latitude} onChange={handleChange} required={isReq('latitude')} placeholder='24.7136' style={fieldStyle} />
+              </div>
+            )}
+            {!isHidden('longitude') && (
+              <div style={{ flex: 1 }}>
+                <label style={labelStyle}>{lang === 'ar' ? 'خط الطول' : 'Longitude'}{reqMark('longitude')}</label>
+                <input name='longitude' type='number' step='any' value={form.longitude} onChange={handleChange} required={isReq('longitude')} placeholder='46.6753' style={fieldStyle} />
+              </div>
+            )}
           </div>
         )}
         <div style={{ background: '#f0f7ff', border: '1px solid #b3d4f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#1565c0' }}>

@@ -17,18 +17,28 @@ export default function EditSitePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name: '', name_ar: '', city: '', address: '', invoicing_enabled: false })
+  const [form, setForm] = useState({ name: '', name_ar: '', city: '', address: '', latitude: '', longitude: '', assigned_team_id: '', invoicing_enabled: false })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [teams, setTeams] = useState<any[]>([])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadSite() }, [id])
 
   async function loadSite() {
     const { data } = await supabase.from('sites').select('*').eq('id', id).single()
-    if (data) setForm({ name: data.name ?? '', name_ar: data.name_ar ?? '', city: data.city ?? '', address: data.address ?? '', invoicing_enabled: data.invoicing_enabled ?? false })
+    if (data) {
+      setForm({
+        name: data.name ?? '', name_ar: data.name_ar ?? '', city: data.city ?? '', address: data.address ?? '',
+        latitude: data.latitude != null ? String(data.latitude) : '', longitude: data.longitude != null ? String(data.longitude) : '',
+        assigned_team_id: data.assigned_team_id ?? '', invoicing_enabled: data.invoicing_enabled ?? false,
+      })
+      const { data: teamRows } = await supabase.from('teams').select('id, name, name_ar').eq('organisation_id', data.organisation_id).order('name')
+      setTeams(teamRows ?? [])
+    }
     setLoading(false)
   }
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
@@ -44,6 +54,9 @@ export default function EditSitePage() {
         name_ar: form.name_ar,
         city: form.city,
         address: form.address,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        assigned_team_id: form.assigned_team_id,
         invoicing_enabled: form.invoicing_enabled,
       }),
     })
@@ -107,6 +120,42 @@ export default function EditSitePage() {
                 </label>
                 <input name='address' value={form.address} onChange={handleChange} required={isReq('address')}
                   className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+              </div>
+            )}
+            {(!isHidden('latitude') || !isHidden('longitude')) && (
+              <div className="grid grid-cols-2 gap-4">
+                {!isHidden('latitude') && (
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'خط العرض' : 'Latitude'}{isReq('latitude') && <span className="text-error"> *</span>}
+                    </label>
+                    <input name='latitude' type='number' step='any' value={form.latitude} onChange={handleChange} required={isReq('latitude')} placeholder='24.7136'
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                  </div>
+                )}
+                {!isHidden('longitude') && (
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'خط الطول' : 'Longitude'}{isReq('longitude') && <span className="text-error"> *</span>}
+                    </label>
+                    <input name='longitude' type='number' step='any' value={form.longitude} onChange={handleChange} required={isReq('longitude')} placeholder='46.6753'
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                  </div>
+                )}
+              </div>
+            )}
+            {!isHidden('assigned_team_id') && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                  {lang === 'ar' ? 'الفريق المسؤول' : 'Assigned Team'}{isReq('assigned_team_id') && <span className="text-error"> *</span>}
+                </label>
+                <select name='assigned_team_id' value={form.assigned_team_id} onChange={handleChange} required={isReq('assigned_team_id')}
+                  className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                  <option value=''>{lang === 'ar' ? '— لا يوجد —' : '— None —'}</option>
+                  {teams.map(tm => (
+                    <option key={tm.id} value={tm.id}>{lang === 'ar' && tm.name_ar ? tm.name_ar : tm.name}</option>
+                  ))}
+                </select>
               </div>
             )}
             {!isHidden('invoicing_enabled') && (

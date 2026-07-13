@@ -310,3 +310,25 @@ One SQL file (`wo-15-bookmarks.sql`, owner-run). Build gate: web tsc ✓, web bu
 
 Deferred from track: WO-29 (asset-dropdown-by-site lives on the new/edit *forms*, not the list),
 WO-12 (archive — needs `archived_at` migration + detail changes).
+
+### T4 — Site detail page + GPS/team assignment (branch `claude/t4-locations`, off `main`)
+
+Owner-run SQL: `docs/superpowers/sql/t4-01-site-gps-assignment.sql` (adds `sites.latitude`,
+`sites.longitude`, `sites.assigned_team_id`; app tolerates its absence — reads null until applied).
+Build gate: web tsc ✓, web build ✓ (new `/dashboard/sites/[id]` route in tree).
+
+- **AL-13** — `<this commit>` — Site detail page `dashboard/sites/[id]/page.tsx` with tabs
+  Details / Work Orders / Assets / Parts / Files. Each list tab queries by `site_id`
+  (`work_orders`, `assets`, `inventory_items`); Files reuses the polymorphic `file_attachments`
+  table via a new generic `EntityFilesTab` (extracted from `WorkOrderFilesTab`, which is now a thin
+  wrapper) with `entity_type='site'` — no new files table needed. Site cards link to it (title + View).
+  **Owner-verify:** open a site → each tab lists only that site's records; upload a file on Files →
+  it attaches to the site and appears in the Files library.
+- **AL-15** — `<this commit>` — GPS latitude/longitude on site create + edit forms and a team
+  assignment select on edit (teams from `sprint-k-05-teams`); Details tab shows coordinates
+  (Google-Maps link) and the assigned team. Coordinates parsed server-side (finite-or-null) in the
+  sites POST/PATCH allowlists; fields added to the field-catalog (optional by default).
+  **Owner-verify (after SQL):** set lat/long + a team on a site → they persist and show on the detail page.
+
+Deferred to follow-ups: AL-14 (nested sub-locations), AL-17/AL-19/AL-20 (floor plans, import wizard
+upgrades, re-parent spaces), MKT-25 (floor-plan pin-drop).
