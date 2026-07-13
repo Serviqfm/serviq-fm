@@ -177,18 +177,15 @@ BEGIN
       CONTINUE;
     END IF;
 
-    -- De-dupe: skip if an open WO already exists for this schedule's current cycle.
+    -- De-dupe: at most one open PM WO per schedule. Do NOT advance any marker here —
+    -- advancing the meter marker on the mere presence of a (possibly calendar-sourced)
+    -- open WO would silently swallow a real meter crossing (the service never fires).
     IF EXISTS (
       SELECT 1 FROM work_orders
        WHERE pm_schedule_id = pm.id
-         AND (due_at IS NULL OR due_at >= COALESCE(pm.next_due_at, now()))
+         AND status NOT IN ('completed', 'closed')
        LIMIT 1
     ) THEN
-      -- Already generated for this cycle; still advance the meter marker so we don't
-      -- re-fire on every run once a meter WO exists.
-      IF v_meter_due THEN
-        UPDATE pm_schedules SET last_trigger_reading = v_reading WHERE id = pm.id;
-      END IF;
       CONTINUE;
     END IF;
 
@@ -211,7 +208,7 @@ BEGIN
            THEN CEIL(pm.estimated_duration_minutes / 60.0)::int ELSE NULL END
     );
 
-    -- Advance whichever arm fired.
+    -- One service resets BOTH configured clocks (hybrid = whichever fired first).
     IF v_calendar_due THEN
       v_days := CASE pm.frequency
         WHEN 'daily' THEN 1 WHEN 'weekly' THEN 7 WHEN 'fortnightly' THEN 14
@@ -224,7 +221,9 @@ BEGIN
         UPDATE pm_schedules SET next_due_at = v_next WHERE id = pm.id;
       END IF;
     END IF;
-    IF v_meter_due THEN
+    -- Reset the usage clock whenever a meter is configured and a WO was generated, so a
+    -- calendar-triggered service also consumes the current meter crossing (no double-fire).
+    IF pm.meter_id IS NOT NULL AND v_reading IS NOT NULL THEN
       UPDATE pm_schedules SET last_trigger_reading = v_reading WHERE id = pm.id;
     END IF;
 

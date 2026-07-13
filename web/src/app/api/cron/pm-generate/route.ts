@@ -167,6 +167,12 @@ async function run() {
       const update: Record<string, unknown> = { next_due_at: nextDueDate.toISOString() }
       // Rolled past the end date: this was the last cycle — deactivate.
       if (pm.end_date && nextDueDate > new Date(pm.end_date)) update.is_active = false
+      // Hybrid: a calendar service also consumes the current meter crossing, so the meter
+      // pass won't generate a duplicate WO for the same cycle after this one completes.
+      if (pm.meter_id) {
+        const { data: m } = await admin.from('meters').select('current_reading').eq('id', pm.meter_id).single()
+        if (m) update.last_trigger_reading = Number(m.current_reading)
+      }
       await admin.from('pm_schedules').update(update).eq('id', pm.id)
       generated++
     } catch (e) {
@@ -210,18 +216,15 @@ async function runMeterPass(admin: any): Promise<number> {
       const threshold = (pm.last_trigger_reading ?? 0) + pm.meter_interval
       if (reading < threshold) continue
 
-      // De-dupe: an open WO already exists for this schedule this cycle.
+      // De-dupe: at most one open PM WO per schedule. Do NOT advance the marker on a
+      // skip — if the open WO is calendar-sourced, advancing here swallows this crossing.
       const { data: existing } = await admin
         .from('work_orders')
         .select('id')
         .eq('pm_schedule_id', pm.id)
-        .is('completed_at', null)
+        .not('status', 'in', '("completed","closed")')
         .limit(1)
-      if (existing && existing.length > 0) {
-        // Advance the marker so we don't re-scan the same crossing every run.
-        await admin.from('pm_schedules').update({ last_trigger_reading: reading }).eq('id', pm.id)
-        continue
-      }
+      if (existing && existing.length > 0) continue
 
       const { error: insErr } = await admin.from('work_orders').insert({
         organisation_id: pm.organisation_id,
