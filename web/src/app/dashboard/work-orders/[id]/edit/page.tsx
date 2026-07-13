@@ -29,6 +29,7 @@ export default function EditWorkOrderPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [teams, setTeams] = useState<any[]>([])
   const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
+  const [isManager, setIsManager] = useState(false)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -62,13 +63,14 @@ export default function EditWorkOrderPage() {
         return
       }
 
-      const { data: profile, error: profileErr } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      const { data: profile, error: profileErr } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
       if (profileErr || !profile) {
         setError('Failed to load user profile')
         setLoading(false)
         return
       }
       const orgId = profile.organisation_id
+      setIsManager(profile.role === 'admin' || profile.role === 'manager')
 
       const [woResult, assetResult, siteResult, techResult, vendorResult, teamResult] = await Promise.all([
         supabase.from('work_orders').select('*').eq('id', id).single(),
@@ -161,12 +163,16 @@ export default function EditWorkOrderPage() {
     const updatedWO = result.work_order ? [result.work_order] : []
 
     // Team and additional workers are not in the PATCH whitelist — save them
-    // client-side after the PATCH succeeds (org-scoped RLS update). Always
-    // write both so clearing a selection also persists.
-    await supabase.from('work_orders').update({
-      team_id: form.team_id ? form.team_id : null,
-      additional_workers: additionalWorkers.filter(uid => uid !== form.assigned_to),
-    }).eq('id', id)
+    // client-side after the PATCH succeeds (org-scoped RLS update). CORE-20:
+    // assignment is manager-only, so only managers/admins write these (the fields
+    // are hidden for everyone else, and the DB trigger blocks non-manager
+    // worker-list changes as the durable backstop).
+    if (isManager) {
+      await supabase.from('work_orders').update({
+        team_id: form.team_id ? form.team_id : null,
+        additional_workers: additionalWorkers.filter(uid => uid !== form.assigned_to),
+      }).eq('id', id)
+    }
 
     // Send assignment notification via API (keeps server-side imports server-side).
     // Vendors have no user account, so only notify when a real user was assigned.
@@ -304,7 +310,7 @@ export default function EditWorkOrderPage() {
             </div>
           )}
         </div>
-        {teams.length > 0 && (
+        {isManager && teams.length > 0 && (
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'الفريق (اختياري)' : 'Team (optional)'}</label>
             <select name='team_id' value={form.team_id} onChange={handleChange} style={fieldStyle}>
@@ -315,7 +321,7 @@ export default function EditWorkOrderPage() {
             </select>
           </div>
         )}
-        {technicians.filter(tech => tech.id !== form.assigned_to).length > 0 && (
+        {isManager && technicians.filter(tech => tech.id !== form.assigned_to).length > 0 && (
           <div>
             <label style={labelStyle}>
               {lang === 'ar' ? 'عمال إضافيون' : 'Additional Workers'}

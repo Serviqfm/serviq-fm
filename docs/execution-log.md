@@ -245,9 +245,11 @@ confirmed defects, all fixed; round 2 confirmed fixes hold with zero regressions
   row and never `role`/`organisation_id`/`is_active`, and cannot re-enable a `disabled` account
   (self-service deletion via `request_account_deletion` still works). Closes: any org member could
   `users.update({role:'admin'})` on themselves via PostgREST.
-- **Known residual (documented):** 2-account collusion — a non-manager can add a *colleague* to a WO's
-  `additional_workers` (single-actor self-add is blocked), after which the colleague can act on it.
-  Complete fix (separate follow-up): move the web new/edit `additional_workers`/`team_id` writes into
-  the service-role route (or gate those fields to managers), then blanket-lock non-manager worker-set
-  changes in the trigger. Two benign spec-parity notes left as-is (manager reopen destination; trigger
-  stricter than /close on already-closed WOs).
+- **Collusion complete-fix** — `<this commit>` — closed the 2-account residual: the trigger now
+  blanket-blocks *any* non-manager change to a WO's `additional_workers` set (order-insensitive mutual
+  containment, so an unchanged re-save still passes), and the web new/edit pages hide the Team /
+  Additional-Workers fields for non-managers and never write them (`new/page.tsx`, `[id]/edit/page.tsx`
+  gated on `isManager`). Build gate: web tsc ✓, web build ✓, mobile tsc ✓; web unit tests not run
+  (owner declined) — changes are conditional UI rendering + a role check, no tested logic touched.
+  Two benign spec-parity notes left as-is (manager reopen destination; trigger stricter than /close on
+  already-closed WOs).

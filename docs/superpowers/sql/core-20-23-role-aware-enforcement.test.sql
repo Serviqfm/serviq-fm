@@ -52,6 +52,16 @@ BEGIN
       RAISE NOTICE 'PASS 2: worker self-add blocked';
     END;
 
+    -- 2b) Collusion: adding a COLLEAGUE (not yourself) to the worker list -> BLOCK
+    BEGIN
+      UPDATE public.work_orders
+         SET additional_workers = array_append(COALESCE(additional_workers,'{}'), gen_random_uuid())
+       WHERE id = v_wo;
+      RAISE WARNING 'FAIL 2b: technician added a colleague to additional_workers (collusion)';
+    EXCEPTION WHEN insufficient_privilege THEN
+      RAISE NOTICE 'PASS 2b: worker colleague-add blocked (collusion closed)';
+    END;
+
     -- 3) Self-assign -> BLOCK
     BEGIN
       UPDATE public.work_orders SET assigned_to = v_tech WHERE id = v_wo;

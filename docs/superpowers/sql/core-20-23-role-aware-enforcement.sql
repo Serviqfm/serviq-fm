@@ -57,19 +57,21 @@ BEGIN
 
   -- CORE-20 root guard: "worker" status (assigned_to / additional_workers) is what
   -- authorizes starting or completing a WO, so a non-manager must not be able to
-  -- self-grant it. Field-only edits are NOT status changes, so without this a
-  -- technician could add themselves to a WO in one call, then act on it in the next.
-  -- assigned_to changes on the direct path have no legitimate non-manager flow
-  -- (the web sets it via the service-role PATCH route / manager bulk-assign), and
-  -- self-adding to the worker list is never legitimate.
+  -- grant it — to themselves OR to a colleague (the collusion path). Field-only
+  -- edits are NOT status changes, so without this a technician could rewrite the
+  -- worker list in one call, then someone on it acts on the WO in the next.
+  -- Assignment is a manager function: the web hides these fields for non-managers,
+  -- sets assigned_to via the service-role PATCH route, and this is the durable gate.
   IF v_role NOT IN ('admin', 'manager') THEN
     IF NEW.assigned_to IS DISTINCT FROM OLD.assigned_to THEN
       RAISE EXCEPTION 'Only a manager or admin can assign a work order'
         USING ERRCODE = '42501';
     END IF;
-    IF (v_uid = ANY (COALESCE(NEW.additional_workers, ARRAY[]::uuid[])))
-       AND NOT (v_uid = ANY (COALESCE(OLD.additional_workers, ARRAY[]::uuid[]))) THEN
-      RAISE EXCEPTION 'You cannot add yourself as a worker on a work order'
+    -- Any change to the worker SET is blocked. Mutual containment is order- and
+    -- duplicate-insensitive, so a no-op re-save of the same members still passes.
+    IF NOT (COALESCE(NEW.additional_workers, ARRAY[]::uuid[]) @> COALESCE(OLD.additional_workers, ARRAY[]::uuid[])
+            AND COALESCE(NEW.additional_workers, ARRAY[]::uuid[]) <@ COALESCE(OLD.additional_workers, ARRAY[]::uuid[])) THEN
+      RAISE EXCEPTION 'Only a manager or admin can change the workers on a work order'
         USING ERRCODE = '42501';
     END IF;
   END IF;
