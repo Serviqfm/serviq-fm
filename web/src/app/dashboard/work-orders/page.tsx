@@ -66,11 +66,83 @@ export default function WorkOrdersPage() {
   const [bulkAssigning, setBulkAssigning] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [savedViews, setSavedViews] = useState<any[]>([])
+  const [me, setMe] = useState<{ id: string; organisation_id: string } | null>(null)
+  const [urlParsed, setUrlParsed] = useState(false)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
+  // WO-13: seed filters from the URL once (shareable filter links), then keep the URL
+  // in sync below. window.history avoids Next's useSearchParams Suspense requirement.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('status')) setStatusFilter(p.get('status')!)
+    if (p.get('priority')) setPriorityFilter(p.get('priority')!)
+    if (p.get('category')) setCategoryFilter(p.get('category')!)
+    if (p.get('technician')) setTechnicianFilter(p.get('technician')!)
+    if (p.get('from')) setDateFrom(p.get('from')!)
+    if (p.get('to')) setDateTo(p.get('to')!)
+    if (p.get('q')) setSearch(p.get('q')!)
+    setUrlParsed(true)
+    loadViews()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchWorkOrders(); fetchTechnicians() }, [statusFilter, priorityFilter, categoryFilter, technicianFilter])
+  }, [])
+
+  useEffect(() => {
+    if (!urlParsed) return
+    const p = new URLSearchParams()
+    if (statusFilter !== 'all') p.set('status', statusFilter)
+    if (priorityFilter !== 'all') p.set('priority', priorityFilter)
+    if (categoryFilter !== 'all') p.set('category', categoryFilter)
+    if (technicianFilter !== 'all') p.set('technician', technicianFilter)
+    if (dateFrom) p.set('from', dateFrom)
+    if (dateTo) p.set('to', dateTo)
+    if (search) p.set('q', search)
+    const qs = p.toString()
+    window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+  }, [urlParsed, statusFilter, priorityFilter, categoryFilter, technicianFilter, dateFrom, dateTo, search])
+
+  async function loadViews() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: profile } = await supabase.from('users').select('id, organisation_id').eq('id', user.id).single()
+    if (!profile) return
+    setMe(profile)
+    const { data } = await supabase.from('saved_views').select('*').eq('user_id', user.id).eq('page', 'work-orders').order('name')
+    if (data) setSavedViews(data)
+  }
+
+  async function saveCurrentView() {
+    if (!me) return
+    const name = window.prompt(lang === 'ar' ? 'اسم العرض؟' : 'View name?')
+    if (!name?.trim()) return
+    const filters = { status: statusFilter, priority: priorityFilter, category: categoryFilter, technician: technicianFilter, from: dateFrom, to: dateTo, q: search }
+    const { error } = await supabase.from('saved_views').upsert(
+      { organisation_id: me.organisation_id, user_id: me.id, page: 'work-orders', name: name.trim(), filters },
+      { onConflict: 'user_id,page,name' },
+    )
+    if (error) { alert(error.message); return }
+    await loadViews()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyView(v: any) {
+    const f = v.filters ?? {}
+    setStatusFilter(f.status ?? 'all')
+    setPriorityFilter(f.priority ?? 'all')
+    setCategoryFilter(f.category ?? 'all')
+    setTechnicianFilter(f.technician ?? 'all')
+    setDateFrom(f.from ?? '')
+    setDateTo(f.to ?? '')
+    setSearch(f.q ?? '')
+    setCurrentPage(1)
+  }
+
+  // Gated on urlParsed so the mount fetch runs once with the URL-seeded filters
+  // (no unfiltered-first-response race).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!urlParsed) return; fetchWorkOrders(); fetchTechnicians() }, [urlParsed, statusFilter, priorityFilter, categoryFilter, technicianFilter])
 
   async function fetchTechnicians() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -228,6 +300,32 @@ export default function WorkOrdersPage() {
 
         {/* Filters */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-4 space-y-3">
+          {/* WO-13: saved views — apply / save / delete; the URL always mirrors the filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value=""
+              onChange={e => { const v = savedViews.find(sv => sv.id === e.target.value); if (v) applyView(v) }}
+              className={`${inputCls} cursor-pointer`}
+              aria-label="Saved views"
+            >
+              <option value="">{lang === 'ar' ? 'العروض المحفوظة…' : 'Saved views…'}</option>
+              {savedViews.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+            <button onClick={saveCurrentView}
+              className="border border-outline-variant text-on-surface-variant px-3 py-2 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors">
+              {lang === 'ar' ? 'حفظ العرض الحالي' : 'Save current view'}
+            </button>
+            {savedViews.length > 0 && (
+              <button onClick={async () => {
+                const name = window.prompt(lang === 'ar' ? 'اسم العرض المراد حذفه؟' : 'Name of the view to delete?')
+                if (!name?.trim()) return
+                await supabase.from('saved_views').delete().eq('user_id', me?.id ?? '').eq('page', 'work-orders').eq('name', name.trim())
+                await loadViews()
+              }} className="border border-outline-variant text-error px-3 py-2 rounded-xl text-xs font-semibold hover:bg-error/10 transition-colors">
+                {lang === 'ar' ? 'حذف عرض' : 'Delete a view'}
+              </button>
+            )}
+          </div>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('wo.search')} aria-label="Search work orders"
