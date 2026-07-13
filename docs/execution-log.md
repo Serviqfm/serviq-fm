@@ -221,3 +221,33 @@ best-effort audit try/catch + chip WO-number padding.
   refetch-revert, and audit trail; technician scoping matches CORE-21; Calendar button on the list.
   **Owner-verify:** drag a WO chip to another day → due date persists + a "Rescheduled" row in the
   WO History tab. Deferred: weekly/day intraday views; WO-18 dispatch board (Phase 2, needs WO-13).
+
+## Security — role-aware DB enforcement (branch `claude/core-20-23-role-aware`, off `main`)
+
+Pure-SQL security backstop — no app code. Unblocked by reading the live RLS policies directly
+(a `pg_policies` dump from the SQL editor) instead of the full `supabase db pull`, since the
+CLI wasn't installed. **DV-06 (the full `supabase/migrations/` DR baseline) is still not done**
+(needs the Supabase CLI); it is no longer a blocker for this work. Two rounds of parallel
+adversarial review (bypass / lockout / SQL-correctness / spec-fidelity) — round 1 caught 4
+confirmed defects, all fixed; round 2 confirmed fixes hold with zero regressions.
+
+- **CORE-20** — `<this commit>` — `core-20-23-role-aware-enforcement.sql`: `BEFORE UPDATE` trigger
+  `enforce_wo_transition` on `work_orders`. Enforces (on the authenticated / direct-PostgREST path
+  only — service_role routes + no-JWT contexts pass): requester read-only; close/reopen = admin/manager;
+  complete = admin/manager or a worker; technicians only on WOs assigned to them; non-managers can't
+  self-assign or self-add to `additional_workers`; closed WOs locked except manager reopen. Mobile
+  writes status straight to PostgREST, so route checks (CORE-01/02/03) were bypassed there — this is
+  the durable gate. **Owner-verify:** run `core-20-23-role-aware-enforcement.test.sql` (BEGIN/ROLLBACK
+  harness, simulates JWTs, prints PASS/FAIL) → all PASS; on mobile a technician can no longer
+  close/complete a WO that isn't theirs.
+- **CORE-23** (privilege-escalation fix, was untracked/Critical) — `<this commit>` — trigger
+  `enforce_user_privilege_lock` on `users`: on the authenticated path a user may only edit their OWN
+  row and never `role`/`organisation_id`/`is_active`, and cannot re-enable a `disabled` account
+  (self-service deletion via `request_account_deletion` still works). Closes: any org member could
+  `users.update({role:'admin'})` on themselves via PostgREST.
+- **Known residual (documented):** 2-account collusion — a non-manager can add a *colleague* to a WO's
+  `additional_workers` (single-actor self-add is blocked), after which the colleague can act on it.
+  Complete fix (separate follow-up): move the web new/edit `additional_workers`/`team_id` writes into
+  the service-role route (or gate those fields to managers), then blanket-lock non-manager worker-set
+  changes in the trigger. Two benign spec-parity notes left as-is (manager reopen destination; trigger
+  stricter than /close on already-closed WOs).
