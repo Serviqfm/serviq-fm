@@ -12,6 +12,7 @@ import TranslateButton from '@/components/TranslateButton'
 import { sendPushNotification } from '@/lib/push'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import WorkOrderFilesTab from '@/components/work-orders/WorkOrderFilesTab'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
@@ -28,7 +29,7 @@ export default function WorkOrderDetailPage() {
   const [history, setHistory] = useState<any[]>([])
   const { lang } = useLanguage()
   const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
-  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'parts' | 'activity' | 'space_assets'>('comments')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'files' | 'parts' | 'activity' | 'space_assets'>('comments')
   const [tasks, setTasks] = useState<WorkOrderTask[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [addingTask, setAddingTask] = useState(false)
@@ -761,6 +762,7 @@ export default function WorkOrderDetailPage() {
               { key: 'tasks', label: `${lang === 'ar' ? 'المهام' : 'Tasks'} (${tasks.filter(t2 => t2.is_done).length}/${tasks.length})` },
               { key: 'comments', label: `Comments (${comments.length})` },
               { key: 'photos', label: `Photos (${allPhotos.length + closeoutPreviewUrls.length})` },
+              { key: 'files', label: lang === 'ar' ? 'الملفات' : 'Files' },
               { key: 'history', label: `History (${history.length})` },
               { key: 'parts', label: 'Parts Used' },
               { key: 'activity', label: `Activity Log (${activities.length})` },
@@ -910,6 +912,10 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'files' && wo && (
+          <WorkOrderFilesTab woId={String(id)} orgId={wo.organisation_id} />
         )}
 
         {activeTab === 'history' && (
