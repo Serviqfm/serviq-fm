@@ -50,6 +50,8 @@ export default function WorkOrderDetailPage() {
   const [closeoutPreviewUrls, setCloseoutPreviewUrls] = useState<string[]>([])
   const [signoffName, setSignoffName] = useState('')
   const [showSignoff, setShowSignoff] = useState(false)
+  // WO-30: close-out notes captured when marking a WO Completed.
+  const [closeoutNotes, setCloseoutNotes] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [existingInvoice, setExistingInvoice] = useState<any>(null)
   const [additionalWorkerNames, setAdditionalWorkerNames] = useState<string[]>([])
@@ -205,6 +207,10 @@ export default function WorkOrderDetailPage() {
       setActiveTab('photos')
       return
     }
+    if (newStatus === 'completed' && isCloseReq('completion_notes') && !closeoutNotes.trim()) {
+      alert('Please enter close-out notes before marking as completed.')
+      return
+    }
     await doStatusUpdate(newStatus)
   }
 
@@ -246,6 +252,7 @@ export default function WorkOrderDetailPage() {
           status: newStatus,
           closeout_photo_urls: closeoutPhotoUrls,
           signoff,
+          completion_notes: closeoutNotes.trim() || undefined,
         }),
       })
       if (!res.ok) {
@@ -343,6 +350,7 @@ export default function WorkOrderDetailPage() {
 
     setShowSignoff(false)
     setSignoffName('')
+    setCloseoutNotes('')
     await fetchWorkOrder()
     await fetchHistory()
     setUpdating(false)
@@ -691,6 +699,24 @@ export default function WorkOrderDetailPage() {
           <div className="bg-surface-container-low rounded-xl px-4 py-3 border border-primary/20">
             <p className="text-xs text-primary mb-1.5">{lang === 'ar' ? 'ملاحظات الإنجاز' : 'Completion Notes'}</p>
             <p className="text-sm m-0 text-on-surface">{wo.completion_notes}</p>
+          </div>
+        )}
+
+        {/* WO-30: close-out notes captured at completion (configurable via Form Fields > Close Work Order). */}
+        {!['completed', 'closed'].includes(wo.status) && !isCloseHidden('completion_notes') && (
+          <div className="bg-surface-container-low rounded-xl px-4 py-3 border border-outline-variant/40">
+            <label className="text-xs text-on-surface-variant mb-1.5 block">
+              {lang === 'ar' ? 'ملاحظات الإغلاق' : 'Close-out notes'}
+              {isCloseReq('completion_notes') && <span className="text-error"> *</span>}
+              <span className="text-on-surface-variant/60"> {lang === 'ar' ? '(تُحفظ عند الإنجاز)' : '(saved when marking Completed)'}</span>
+            </label>
+            <textarea
+              value={closeoutNotes}
+              onChange={e => setCloseoutNotes(e.target.value)}
+              rows={3}
+              placeholder={lang === 'ar' ? 'ماذا تم إنجازه؟' : 'What was done to resolve this?'}
+              className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40"
+            />
           </div>
         )}
 

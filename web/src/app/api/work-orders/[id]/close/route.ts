@@ -39,6 +39,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     status?: WorkOrderStatus
     closeout_photo_urls?: string[]
     signoff?: string
+    completion_notes?: string
   }
 
   const newStatus = body.status
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Load existing WO for org-scope, status fallback, and existing photo merge.
   const { data: existingWO, error: loadErr } = await admin
     .from('work_orders')
-    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers')
+    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers, completion_notes')
     .eq('id', id)
     .single()
   if (loadErr || !existingWO) {
@@ -93,8 +94,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   // Field-config enforcement: 'closeout_photos required' is satisfied by EITHER newly uploaded
   // close-out photos OR photos already attached to the work order from earlier (the Photos tab).
+  // WO-30: close-out notes captured at completion. Trim so whitespace doesn't
+  // satisfy a "required" field rule. When merely closing an already-completed
+  // WO, notes were captured at completion — fall back to the stored value so a
+  // required-notes rule isn't re-imposed on the close step.
+  const submittedNotes = typeof body.completion_notes === 'string' ? body.completion_notes.trim() : ''
+  const closeoutNotes = submittedNotes || (newStatus === 'closed' ? (existingWO.completion_notes ?? '').trim() : '')
+
   const enforcePayload: Record<string, unknown> = {
     closeout_photos: allPhotos.length > 0 ? allPhotos : '',
+    completion_notes: closeoutNotes,
   }
   const enforcement = await enforceFieldConfig(profile.organisation_id, 'work_orders_close', enforcePayload)
   if ('error' in enforcement) {
@@ -107,6 +116,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}),
     ...(newStatus === 'closed' ? { closed_at: new Date().toISOString() } : {}),
     ...(closeoutPhotoUrls.length > 0 ? { photo_urls: allPhotos } : {}),
+    // WO-30: persist close-out notes entered at completion. Only write when
+    // provided so we never blank out notes captured earlier (mobile/edit).
+    ...(closeoutNotes ? { completion_notes: closeoutNotes } : {}),
     // WO-01: store the sign-off in its own column instead of overwriting the
     // technician's completion_notes.
     ...(body.signoff ? { signed_off_by: body.signoff } : {}),
