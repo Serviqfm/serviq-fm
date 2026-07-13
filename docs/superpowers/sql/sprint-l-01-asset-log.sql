@@ -7,6 +7,17 @@
 -- (repo convention — no PG enum types). Every table gets the standard 4-policy org
 -- RLS in the same file that creates it (this repo has shipped RLS-less tables before).
 --
+-- Security posture (adversarial review): UPDATE policies carry a WITH CHECK on
+-- organisation_id so an authenticated caller cannot move a row into another org (the
+-- cross-tenant escape core-20-23 backstops for `users`). All asset-log WRITES flow
+-- through the service-role API routes under web/src/app/api/asset-log/, which scope
+-- FK references (space/site/type/supplier/item) to the caller's org in app code.
+-- Known low-risk residual: a direct-PostgREST INSERT could still reference another
+-- org's space/type/item on its own row (integrity poisoning, NOT read exfiltration —
+-- SELECT stays org-scoped). Close it with EXISTS-based WITH CHECK FK sub-conditions
+-- when mobile gains direct asset-log writes (AG-8/9); until then no client writes
+-- asset-log tables directly.
+--
 -- Acceptance (owner, after running):
 --   * anon-key SELECT/INSERT on every asset_log_* table returns/denies cross-org.
 --   * move_asset_log_item moves an item + writes a movement row atomically and
@@ -44,7 +55,8 @@ CREATE POLICY asset_log_types_org_insert ON asset_log_types
   FOR INSERT WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_types_org_update ON asset_log_types;
 CREATE POLICY asset_log_types_org_update ON asset_log_types
-  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
+  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_types_org_delete ON asset_log_types;
 CREATE POLICY asset_log_types_org_delete ON asset_log_types
   FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
@@ -127,7 +139,8 @@ CREATE POLICY asset_log_items_org_insert ON asset_log_items
   FOR INSERT WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_items_org_update ON asset_log_items;
 CREATE POLICY asset_log_items_org_update ON asset_log_items
-  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
+  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_items_org_delete ON asset_log_items;
 CREATE POLICY asset_log_items_org_delete ON asset_log_items
   FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
@@ -162,7 +175,8 @@ CREATE POLICY asset_log_movements_org_insert ON asset_log_movements
   FOR INSERT WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_movements_org_update ON asset_log_movements;
 CREATE POLICY asset_log_movements_org_update ON asset_log_movements
-  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
+  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_movements_org_delete ON asset_log_movements;
 CREATE POLICY asset_log_movements_org_delete ON asset_log_movements
   FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
@@ -196,7 +210,8 @@ CREATE POLICY asset_log_repairs_org_insert ON asset_log_repairs
   FOR INSERT WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_repairs_org_update ON asset_log_repairs;
 CREATE POLICY asset_log_repairs_org_update ON asset_log_repairs
-  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
+  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_repairs_org_delete ON asset_log_repairs;
 CREATE POLICY asset_log_repairs_org_delete ON asset_log_repairs
   FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
@@ -229,7 +244,8 @@ CREATE POLICY asset_log_reviews_org_insert ON asset_log_condition_reviews
   FOR INSERT WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_reviews_org_update ON asset_log_condition_reviews;
 CREATE POLICY asset_log_reviews_org_update ON asset_log_condition_reviews
-  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
+  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
 DROP POLICY IF EXISTS asset_log_reviews_org_delete ON asset_log_condition_reviews;
 CREATE POLICY asset_log_reviews_org_delete ON asset_log_condition_reviews
   FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid()));
