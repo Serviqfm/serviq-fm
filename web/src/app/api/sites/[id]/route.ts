@@ -7,6 +7,12 @@ import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 
 export const dynamic = 'force-dynamic'
 
+function toCoord(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = typeof v === 'number' ? v : parseFloat(String(v))
+  return Number.isFinite(n) ? n : null
+}
+
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   if (!id) return NextResponse.json({ error: 'Missing site id' }, { status: 400 })
@@ -35,6 +41,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     name_ar: body.name_ar,
     city: body.city,
     address: body.address,
+    latitude: body.latitude,
+    longitude: body.longitude,
+    assigned_team_id: body.assigned_team_id,
     invoicing_enabled: body.invoicing_enabled,
   }
 
@@ -56,6 +65,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     city: cleaned.city ? cleaned.city : null,
     address: cleaned.address ? cleaned.address : null,
   }
+
+  if ('latitude' in cleaned) updateRow.latitude = toCoord(cleaned.latitude)
+  if ('longitude' in cleaned) updateRow.longitude = toCoord(cleaned.longitude)
+  if ('assigned_team_id' in cleaned) updateRow.assigned_team_id = cleaned.assigned_team_id || null
 
   // invoicing_enabled is a boolean — only include if it was in the cleaned payload
   if ('invoicing_enabled' in cleaned) {

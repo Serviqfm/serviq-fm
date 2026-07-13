@@ -7,6 +7,14 @@ import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 
 export const dynamic = 'force-dynamic'
 
+// Parse a lat/long value from the form (string or number) into a finite number,
+// or null when blank/invalid. Keeps a bad coordinate out of the DB.
+function toCoord(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = typeof v === 'number' ? v : parseFloat(String(v))
+  return Number.isFinite(n) ? n : null
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -32,6 +40,8 @@ export async function POST(req: NextRequest) {
     name_ar: body.name_ar,
     city: body.city,
     address: body.address,
+    latitude: body.latitude,
+    longitude: body.longitude,
   }
 
   const enforcement = await enforceFieldConfig(profile.organisation_id, 'sites_new', enforcePayload)
@@ -52,6 +62,8 @@ export async function POST(req: NextRequest) {
     name_ar: cleaned.name_ar ? cleaned.name_ar : null,
     city: cleaned.city ? cleaned.city : null,
     address: cleaned.address ? cleaned.address : null,
+    latitude: toCoord(cleaned.latitude),
+    longitude: toCoord(cleaned.longitude),
     is_active: true,
   }
 

@@ -132,7 +132,7 @@ export default function SitesPage() {
             {filtered.map(site => (
               <div key={site.id} className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-[15px] font-semibold text-on-surface">{site.name}</h3>
+                  <Link href={`/dashboard/sites/${site.id}`} className="text-[15px] font-semibold text-on-surface hover:text-primary transition-colors">{site.name}</Link>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${site.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
                     {site.is_active ? t('common.active') : t('common.inactive')}
                   </span>
@@ -144,6 +144,9 @@ export default function SitesPage() {
                   {lang === 'ar' ? 'أُضيف ' : 'Added '}{format(new Date(site.created_at), 'dd MMM yyyy')}
                 </p>
                 <div className="flex gap-2 flex-wrap">
+                  <Link href={`/dashboard/sites/${site.id}`}>
+                    <button className="border border-outline-variant text-on-surface-variant px-3 py-1 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors">{lang === 'ar' ? 'عرض' : 'View'}</button>
+                  </Link>
                   <Link href={`/dashboard/sites/${site.id}/spaces`}>
                     <button className="border border-outline-variant text-on-surface-variant px-3 py-1 rounded-xl text-xs font-semibold hover:bg-surface-container-low transition-colors">Spaces</button>
                   </Link>
