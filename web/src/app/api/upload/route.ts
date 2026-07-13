@@ -13,11 +13,17 @@ export const maxDuration = 60
 // POST /api/upload?bucket=work-order-media&prefix=<orgId>/<woId>
 // multipart form field: 'file'
 const ALLOWED_BUCKETS = new Set(['work-order-media', 'media', 'requests'])
-// DV-10: only images + PDF, capped at 25 MiB (matches the requests-bucket policy).
+// DV-10 allowlist, widened for the Files module (WO-05/WO-03): images, PDF, and MP4/MOV
+// video. Still rejects executables/archives/scripts. The public `requests` bucket keeps
+// its stricter bucket-level image/PDF policy (Batch 1), so video can't reach it.
 const ALLOWED_UPLOAD_MIME = new Set([
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'application/pdf',
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'application/pdf',
+  'video/mp4', 'video/quicktime',
 ])
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+// 40 MB (WO-03). Note: uploads stream through a serverless function, so very large
+// videos are rejected here by design — signed direct-to-storage uploads are a follow-up.
+const MAX_UPLOAD_BYTES = 40 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabaseClient()
@@ -43,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   // DV-10: reject oversized or non-allowed types before reading the file into memory.
   if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 })
+    return NextResponse.json({ error: `File too large (max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB)` }, { status: 413 })
   }
   if (!ALLOWED_UPLOAD_MIME.has(file.type)) {
     return NextResponse.json({ error: `Unsupported file type: ${file.type || 'unknown'}` }, { status: 415 })
