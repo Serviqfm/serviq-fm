@@ -20,11 +20,18 @@ interface WorkOrder {
   updated_at?: string
   completed_at?: string
   due_at?: string
+  started_at?: string
+  requester_name?: string
+  completion_notes?: string
+  estimated_duration_minutes?: number
   assigned_to?: string
   asset_id?: string
   site_id?: string
+  team_id?: string
   asset?: { name: string }
   site?: { name: string }
+  team?: { name: string }
+  creator?: { full_name: string }
   assignee?: { full_name: string }
   vendor?: { company_name: string } | null
 }
@@ -51,25 +58,47 @@ function Badge({ text, cls }: { text: string; cls: string }) {
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
-// WO-10: columns available for CSV export (the picker toggles these).
-const EXPORT_COLUMNS: { key: string; label: string; get: (w: WorkOrder) => string }[] = [
-  { key: 'wo_number',  label: 'WO #',     get: w => w.wo_number ? `WO-${String(w.wo_number).padStart(4, '0')}` : '' },
-  { key: 'title',      label: 'Title',    get: w => w.title ?? '' },
-  { key: 'status',     label: 'Status',   get: w => w.status ?? '' },
-  { key: 'priority',   label: 'Priority', get: w => w.priority ?? '' },
-  { key: 'category',   label: 'Category', get: w => w.category ?? '' },
-  { key: 'asset',      label: 'Asset',    get: w => w.asset?.name ?? '' },
-  { key: 'site',       label: 'Site',     get: w => w.site?.name ?? '' },
-  { key: 'assignee',   label: 'Assigned', get: w => w.assignee?.full_name ?? (w.vendor?.company_name ? `${w.vendor.company_name} (Vendor)` : '') },
-  { key: 'due_at',     label: 'Due',      get: w => w.due_at ? format(new Date(w.due_at), 'yyyy-MM-dd') : '' },
-  { key: 'created_at', label: 'Created',  get: w => w.created_at ? format(new Date(w.created_at), 'yyyy-MM-dd') : '' },
+function daysSince(iso?: string) {
+  if (!iso) return ''
+  return String(Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)))
+}
+
+// WO-14/WO-10/WO-30: one column model drives the table (chooser toggles which show)
+// AND the CSV export picker. `get` returns the display/export string; `always` cols
+// can't be hidden. Values come from work_orders columns/joins added in prior sprints.
+const LIST_COLUMNS: { key: string; label: string; always?: boolean; get: (w: WorkOrder) => string }[] = [
+  { key: 'wo_number',  label: 'WO #',      always: true, get: w => w.wo_number ? `WO-${String(w.wo_number).padStart(4, '0')}` : '' },
+  { key: 'title',      label: 'Title',     always: true, get: w => w.title ?? '' },
+  { key: 'asset',      label: 'Asset',     get: w => w.asset?.name ?? '' },
+  { key: 'site',       label: 'Site',      get: w => w.site?.name ?? '' },
+  { key: 'category',   label: 'Category',  get: w => w.category ?? '' },
+  { key: 'priority',   label: 'Priority',  get: w => w.priority ?? '' },
+  { key: 'status',     label: 'Status',    get: w => w.status ?? '' },
+  { key: 'assignee',   label: 'Assigned',  get: w => w.assignee?.full_name ?? (w.vendor?.company_name ? `${w.vendor.company_name} (Vendor)` : '') },
+  { key: 'team',       label: 'Team',      get: w => w.team?.name ?? '' },
+  { key: 'due_at',     label: 'Due',       get: w => w.due_at ? format(new Date(w.due_at), 'yyyy-MM-dd') : '' },
+  { key: 'created_at', label: 'Created',   get: w => w.created_at ? format(new Date(w.created_at), 'yyyy-MM-dd') : '' },
+  { key: 'started_at', label: 'Start Date',get: w => w.started_at ? format(new Date(w.started_at), 'yyyy-MM-dd') : '' },
+  { key: 'updated_at', label: 'Last Updated', get: w => w.updated_at ? format(new Date(w.updated_at), 'yyyy-MM-dd') : '' },
+  { key: 'creator',    label: 'Created By', get: w => w.creator?.full_name ?? '' },
+  { key: 'requester_name', label: 'Requested By', get: w => w.requester_name ?? '' },
+  { key: 'est_duration', label: 'Est. Duration', get: w => w.estimated_duration_minutes ? `${(w.estimated_duration_minutes / 60).toFixed(1)}h` : '' },
+  { key: 'days_since', label: 'Days Since Created', get: w => daysSince(w.created_at) },
+  { key: 'completion_notes', label: 'Close-out Notes', get: w => w.completion_notes ?? '' },
 ]
+
+// Columns shown in the table by default (matches the original layout). The chooser
+// persists deviations from this in localStorage per browser (WO-14).
+const DEFAULT_VISIBLE = ['wo_number','title','asset','site','category','priority','status','assignee','due_at','created_at']
+const VISIBLE_COLS_KEY = 'wo-list-visible-cols'
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('all')
+  // WO-16: default view excludes completed/closed. 'open' is a virtual filter
+  // (any status not completed/closed); real statuses filter server-side.
+  const [statusFilter, setStatusFilter] = useState('open')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [technicianFilter, setTechnicianFilter] = useState('all')
@@ -87,7 +116,15 @@ export default function WorkOrdersPage() {
   const [urlParsed, setUrlParsed] = useState(false)
   const [isManager, setIsManager] = useState(false)
   const [showExport, setShowExport] = useState(false)
-  const [exportCols, setExportCols] = useState<string[]>(EXPORT_COLUMNS.map(c => c.key))
+  const [exportCols, setExportCols] = useState<string[]>(LIST_COLUMNS.map(c => c.key))
+  // WO-14: which table columns are visible (persisted per-browser in localStorage).
+  const [visibleCols, setVisibleCols] = useState<string[]>(DEFAULT_VISIBLE)
+  const [showColumns, setShowColumns] = useState(false)
+  // WO-15: this user's bookmarked WO ids + the "bookmarked only" chip.
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false)
+  // WO-16: "unassigned only" quick filter (client-side; assignee null & no vendor).
+  const [unassignedOnly, setUnassignedOnly] = useState(false)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -103,9 +140,41 @@ export default function WorkOrdersPage() {
     if (p.get('to')) setDateTo(p.get('to')!)
     if (p.get('q')) setSearch(p.get('q')!)
     setUrlParsed(true)
+    // WO-14: restore column choice for this browser.
+    try {
+      const saved = JSON.parse(localStorage.getItem(VISIBLE_COLS_KEY) || 'null')
+      if (Array.isArray(saved) && saved.length) setVisibleCols(saved)
+    } catch { /* ignore malformed */ }
     loadViews()
+    loadBookmarks()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // WO-14: persist column choice whenever it changes.
+  useEffect(() => { localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(visibleCols)) }, [visibleCols])
+
+  // WO-15: pull this user's bookmarks. Table may not exist yet (migration owner-run);
+  // the error is swallowed so the list still loads with zero bookmarks.
+  async function loadBookmarks() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from('wo_bookmarks').select('work_order_id').eq('user_id', user.id)
+    if (data) setBookmarks(new Set(data.map(b => b.work_order_id)))
+  }
+
+  async function toggleBookmark(woId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const next = new Set(bookmarks)
+    if (bookmarks.has(woId)) {
+      next.delete(woId)
+      await supabase.from('wo_bookmarks').delete().eq('user_id', user.id).eq('work_order_id', woId)
+    } else {
+      next.add(woId)
+      await supabase.from('wo_bookmarks').insert({ user_id: user.id, work_order_id: woId })
+    }
+    setBookmarks(next)
+  }
 
   useEffect(() => {
     if (!urlParsed) return
@@ -179,11 +248,13 @@ export default function WorkOrdersPage() {
     const { data: me } = user
       ? await supabase.from('users').select('id, role').eq('id', user.id).single()
       : { data: null }
-    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').order('created_at', { ascending: false })
+    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').order('created_at', { ascending: false })
     if (me?.role === 'technician') {
       query = query.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
     }
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter)
+    // WO-16: 'open' = everything except completed/closed (the default landing view).
+    if (statusFilter === 'open') query = query.not('status', 'in', '(completed,closed)')
+    else if (statusFilter !== 'all') query = query.eq('status', statusFilter)
     if (priorityFilter !== 'all') query = query.eq('priority', priorityFilter)
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)
     if (technicianFilter !== 'all') query = query.eq('assigned_to', technicianFilter)
@@ -207,7 +278,7 @@ export default function WorkOrdersPage() {
   // WO-10: export the current view. Uses the checked rows if any, else all filtered
   // rows (which already honour the status/priority/category/date/search filters).
   function runExport() {
-    const cols = EXPORT_COLUMNS.filter(c => exportCols.includes(c.key))
+    const cols = LIST_COLUMNS.filter(c => exportCols.includes(c.key))
     if (cols.length === 0) { alert(lang === 'ar' ? 'اختر عمودًا واحدًا على الأقل' : 'Pick at least one column'); return }
     const source = selected.length > 0 ? filtered.filter(w => selected.includes(w.id)) : filtered
     const rows = source.map(w => {
@@ -227,9 +298,14 @@ export default function WorkOrdersPage() {
     return (
       (wo.title.toLowerCase().includes(search.toLowerCase()) || wo.asset?.name?.toLowerCase().includes(search.toLowerCase()) || wo.site?.name?.toLowerCase().includes(search.toLowerCase()) || woNum.toLowerCase().includes(search.toLowerCase())) &&
       (!dateFrom || new Date(wo.created_at) >= new Date(dateFrom)) &&
-      (!dateTo || new Date(wo.created_at) <= new Date(dateTo + 'T23:59:59'))
+      (!dateTo || new Date(wo.created_at) <= new Date(dateTo + 'T23:59:59')) &&
+      (!bookmarkedOnly || bookmarks.has(wo.id)) &&          // WO-15
+      (!unassignedOnly || (!wo.assigned_to && !wo.vendor))  // WO-16
     )
   })
+
+  // WO-14: columns to render, in LIST_COLUMNS order, honouring the chooser.
+  const shownCols = LIST_COLUMNS.filter(c => c.always || visibleCols.includes(c.key))
 
   const stats = useMemo(() => {
     const completedOrders = workOrders.filter(wo => wo.status === 'completed')
@@ -283,6 +359,11 @@ export default function WorkOrdersPage() {
                 {lang === 'ar' ? 'قوائم المهام' : 'Checklists'}
               </button>
             </Link>
+            <button onClick={() => setShowColumns(true)}
+              className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">view_column</span>
+              {lang === 'ar' ? 'الأعمدة' : 'Columns'}
+            </button>
             <button onClick={() => setShowExport(true)}
               className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
               <span className="material-symbols-outlined text-lg">download</span>
@@ -379,16 +460,30 @@ export default function WorkOrdersPage() {
             className={`${inputCls} w-full`}
           />
 
-          {/* Status filter */}
+          {/* Status filter — 'open' is the default (excludes completed/closed) per WO-16 */}
           <div className="flex flex-wrap gap-2">
-            {['all','new','assigned','in_progress','on_hold','completed','closed'].map(s => (
+            {['open','all','new','assigned','in_progress','on_hold','completed','closed'].map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                   statusFilter === s ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-low text-on-surface-variant border-outline-variant/40 hover:border-primary/50 hover:text-primary'
                 }`}>
-                {s === 'all' ? t('common.all') : s.replace('_', ' ')}
+                {s === 'all' ? t('common.all') : s === 'open' ? (lang === 'ar' ? 'مفتوح' : 'Open') : s.replace('_', ' ')}
               </button>
             ))}
+            {/* WO-16: Unassigned quick filter + WO-15: Bookmarked quick filter */}
+            <button onClick={() => setUnassignedOnly(v => !v)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                unassignedOnly ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-low text-on-surface-variant border-outline-variant/40 hover:border-primary/50 hover:text-primary'
+              }`}>
+              {lang === 'ar' ? 'غير مُسند' : 'Unassigned'}
+            </button>
+            <button onClick={() => setBookmarkedOnly(v => !v)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1 ${
+                bookmarkedOnly ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-low text-on-surface-variant border-outline-variant/40 hover:border-primary/50 hover:text-primary'
+              }`}>
+              <span className="material-symbols-outlined text-sm">star</span>
+              {lang === 'ar' ? 'المفضلة' : 'Bookmarked'}
+            </button>
           </div>
 
           {/* Priority + secondary filters */}
@@ -421,8 +516,8 @@ export default function WorkOrdersPage() {
               <input type='date' value={dateTo} onChange={e => setDateTo(e.target.value)} className={`${inputCls} cursor-pointer`} />
             </div>
 
-            {(categoryFilter !== 'all' || technicianFilter !== 'all' || dateFrom || dateTo) && (
-              <button onClick={() => { setCategoryFilter('all'); setTechnicianFilter('all'); setDateFrom(''); setDateTo('') }}
+            {(categoryFilter !== 'all' || technicianFilter !== 'all' || dateFrom || dateTo || bookmarkedOnly || unassignedOnly) && (
+              <button onClick={() => { setCategoryFilter('all'); setTechnicianFilter('all'); setDateFrom(''); setDateTo(''); setBookmarkedOnly(false); setUnassignedOnly(false) }}
                 className="px-3 py-1.5 rounded-xl border border-error/30 text-error text-xs font-semibold hover:bg-error/5 transition-colors">
                 Clear Filters
               </button>
@@ -466,8 +561,9 @@ export default function WorkOrdersPage() {
                     <th className="p-3 w-10">
                       <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} className="rounded" />
                     </th>
-                    {['WO #','Title','Asset','Site','Category','Priority','Status','Assigned','Due','Created'].map(h => (
-                      <th key={h} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{h}</th>
+                    <th className="p-3 w-10" aria-label="Bookmark" />
+                    {shownCols.map(c => (
+                      <th key={c.key} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{c.label}</th>
                     ))}
                   </tr>
                 </thead>
@@ -475,36 +571,46 @@ export default function WorkOrdersPage() {
                   {paginatedItems.map(wo => {
                     const overdue = isOverdue(wo)
                     const isSelected = selected.includes(wo.id)
+                    const marked = bookmarks.has(wo.id)
                     return (
                       <tr key={wo.id} className={`transition-colors hover:bg-surface-container-low ${isSelected ? 'bg-primary/5' : overdue ? 'bg-error/5' : ''}`}>
                         <td className="p-3">
                           <input type='checkbox' checked={isSelected} onChange={() => toggleSelect(wo.id)} className="rounded" />
                         </td>
-                        <td className="p-3 text-xs font-mono text-on-surface-variant whitespace-nowrap">
-                          {wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : '—'}
+                        <td className="p-3">
+                          <button onClick={() => toggleBookmark(wo.id)} aria-label={marked ? 'Remove bookmark' : 'Bookmark'}
+                            className={`material-symbols-outlined text-lg align-middle ${marked ? 'text-[#f57f17]' : 'text-outline-variant hover:text-[#f57f17]'}`}
+                            style={marked ? { fontVariationSettings: "'FILL' 1" } : undefined}>
+                            star
+                          </button>
                         </td>
-                        <td className="p-3 max-w-[200px]">
-                          <Link href={'/dashboard/work-orders/' + wo.id} className="text-sm font-semibold text-primary hover:underline truncate block">
-                            {wo.title}
-                          </Link>
-                          {overdue && <span className="text-[10px] text-error bg-error/10 px-1.5 py-0.5 rounded-full font-semibold">Overdue</span>}
-                        </td>
-                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{wo.asset?.name ?? '—'}</td>
-                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{wo.site?.name ?? '—'}</td>
-                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{wo.category ?? '—'}</td>
-                        <td className="p-3 whitespace-nowrap">
-                          <Badge text={wo.priority} cls={PRIORITY_BADGE[wo.priority] ?? PRIORITY_BADGE.medium} />
-                        </td>
-                        <td className="p-3 whitespace-nowrap">
-                          <Badge text={wo.status.replace('_', ' ')} cls={STATUS_BADGE[wo.status] ?? STATUS_BADGE.new} />
-                        </td>
-                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{wo.assignee?.full_name ?? (wo.vendor?.company_name ? `${wo.vendor.company_name} (Vendor)` : t('common.unassigned'))}</td>
-                        <td className={`p-3 text-sm whitespace-nowrap ${overdue ? 'text-error font-semibold' : 'text-on-surface-variant'}`}>
-                          {wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}
-                        </td>
-                        <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">
-                          {format(new Date(wo.created_at), 'dd MMM yyyy')}
-                        </td>
+                        {shownCols.map(c => {
+                          if (c.key === 'title') return (
+                            <td key={c.key} className="p-3 max-w-[200px]">
+                              <Link href={'/dashboard/work-orders/' + wo.id} className="text-sm font-semibold text-primary hover:underline truncate block">{wo.title}</Link>
+                              {overdue && <span className="text-[10px] text-error bg-error/10 px-1.5 py-0.5 rounded-full font-semibold">Overdue</span>}
+                            </td>
+                          )
+                          if (c.key === 'wo_number') return (
+                            <td key={c.key} className="p-3 text-xs font-mono text-on-surface-variant whitespace-nowrap">{c.get(wo) || '—'}</td>
+                          )
+                          if (c.key === 'priority') return (
+                            <td key={c.key} className="p-3 whitespace-nowrap"><Badge text={wo.priority} cls={PRIORITY_BADGE[wo.priority] ?? PRIORITY_BADGE.medium} /></td>
+                          )
+                          if (c.key === 'status') return (
+                            <td key={c.key} className="p-3 whitespace-nowrap"><Badge text={wo.status.replace('_', ' ')} cls={STATUS_BADGE[wo.status] ?? STATUS_BADGE.new} /></td>
+                          )
+                          if (c.key === 'assignee') return (
+                            <td key={c.key} className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{c.get(wo) || t('common.unassigned')}</td>
+                          )
+                          if (c.key === 'due_at') return (
+                            <td key={c.key} className={`p-3 text-sm whitespace-nowrap ${overdue ? 'text-error font-semibold' : 'text-on-surface-variant'}`}>{wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : '—'}</td>
+                          )
+                          if (c.key === 'completion_notes') return (
+                            <td key={c.key} className="p-3 text-sm text-on-surface-variant max-w-[220px]"><span className="truncate block">{c.get(wo) || '—'}</span></td>
+                          )
+                          return <td key={c.key} className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{c.get(wo) || '—'}</td>
+                        })}
                       </tr>
                     )
                   })}
@@ -561,7 +667,7 @@ export default function WorkOrdersPage() {
               })()}
             </p>
             <div className="grid grid-cols-2 gap-2 mb-5 max-h-64 overflow-y-auto">
-              {EXPORT_COLUMNS.map(c => (
+              {LIST_COLUMNS.map(c => (
                 <label key={c.key} className="flex items-center gap-2 text-sm text-on-surface cursor-pointer">
                   <input type="checkbox" checked={exportCols.includes(c.key)}
                     onChange={() => setExportCols(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev, c.key])}
@@ -576,6 +682,34 @@ export default function WorkOrdersPage() {
               </button>
               <button onClick={runExport} className="px-5 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary/90 transition-colors">
                 {lang === 'ar' ? 'تنزيل CSV' : 'Download CSV'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WO-14: table column chooser (persists per-browser via localStorage) */}
+      {showColumns && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowColumns(false)}>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-on-surface mb-1">{lang === 'ar' ? 'أعمدة الجدول' : 'Table columns'}</h2>
+            <p className="text-sm text-on-surface-variant mb-4">{lang === 'ar' ? 'اختر الأعمدة المرئية' : 'Choose which columns are visible'}</p>
+            <div className="grid grid-cols-2 gap-2 mb-5 max-h-72 overflow-y-auto">
+              {LIST_COLUMNS.map(c => (
+                <label key={c.key} className={`flex items-center gap-2 text-sm text-on-surface ${c.always ? 'opacity-50' : 'cursor-pointer'}`}>
+                  <input type="checkbox" disabled={c.always} checked={c.always || visibleCols.includes(c.key)}
+                    onChange={() => setVisibleCols(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev, c.key])}
+                    className="rounded" />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between gap-2">
+              <button onClick={() => setVisibleCols(DEFAULT_VISIBLE)} className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                {lang === 'ar' ? 'إعادة التعيين' : 'Reset'}
+              </button>
+              <button onClick={() => setShowColumns(false)} className="px-5 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary/90 transition-colors">
+                {lang === 'ar' ? 'تم' : 'Done'}
               </button>
             </div>
           </div>

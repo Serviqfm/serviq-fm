@@ -283,3 +283,30 @@ review (3 lenses) — 1 medium + several low/nit correctness bugs, all fixed exc
   **Owner-verify:** import a few rows (blank `wo_number`) → created; a bad-category row errors, others
   import; put an existing WO number → that WO updates. Deferred: per-row field-config enforcement
   (import is a manager override); column-picker persistence + extra export columns land with WO-14/WO-30.
+
+### WO list column/filter cluster (branch `claude/t1-wo-list`, off `main`)
+
+One SQL file (`wo-15-bookmarks.sql`, owner-run). Build gate: web tsc ✓, web build ✓.
+
+- **WO-14** — `<this commit>` — "Columns" button + chooser modal on the WO list; visible columns persist
+  per-browser in localStorage (`wo-list-visible-cols`). One `LIST_COLUMNS` model now drives both the table
+  and the CSV export picker (WO # + Title are always-on). New columns: Start Date, Created By, Requested By,
+  Last Updated, Est. Duration, Team, Close-out Notes, Days Since Created. **Owner-verify:** untick a column →
+  hides + survives reload; Reset restores defaults. (No `completed_by`/`Completed By` column exists in the
+  schema, so that one is deferred to a DB migration.)
+- **WO-15** — `<this commit>` — Per-user bookmarks: star toggle on each list row + a "Bookmarked" filter
+  chip. New `wo_bookmarks` table (self-scoped RLS, mirrors `saved_views`) in
+  `docs/superpowers/sql/wo-15-bookmarks.sql` — **owner-run before deploy**; list swallows a missing-table
+  error so build/first-load still work. **Owner-verify:** star a WO → appears under Bookmarked for that user
+  only. Deferred: bookmark toggle on WO detail + mobile.
+- **WO-16** — `<this commit>` — Default landing view is now "Open" (excludes completed/closed via a virtual
+  `open` status served with `.not('status','in','(completed,closed)')`); added an "Unassigned" quick-filter
+  chip (assignee null and no vendor). **Owner-verify:** fresh list shows only open statuses; Unassigned chip
+  shows only WOs with no assignee.
+- **WO-30 (list/export half)** — `<this commit>` — Close-out notes (`completion_notes`) surfaced as a
+  toggleable list column and CSV export column. The "editable at close on Overview" half depends on WO-01
+  and stays on the detail page — deferred. **Owner-verify:** a WO with completion notes shows them in the
+  Close-out Notes column and export.
+
+Deferred from track: WO-29 (asset-dropdown-by-site lives on the new/edit *forms*, not the list),
+WO-12 (archive — needs `archived_at` migration + detail changes).
