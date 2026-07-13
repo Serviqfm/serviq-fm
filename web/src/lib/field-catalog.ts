@@ -87,6 +87,8 @@ export const FIELD_CATALOG: Record<FieldPage, FieldMeta[]> = {
   ],
   work_orders_close: [
     { key: 'closeout_photos', label_en: 'Close-out photos', label_ar: 'صور الإغلاق', type: 'file', default_visibility: 'required', is_system_required: true },
+    // WO-30: close-out notes captured at completion; optional by default, an org may make it required-to-close.
+    { key: 'completion_notes', label_en: 'Close-out notes', label_ar: 'ملاحظات الإغلاق', type: 'textarea', default_visibility: 'optional', is_system_required: false },
   ],
   assets_new: [
     { key: 'name',                    label_en: 'Name',                    label_ar: 'الاسم',                 type: 'text',     default_visibility: 'required', is_system_required: true  },

@@ -364,3 +364,22 @@ item detail/create-edit/QR/mobile (AG-4/5/6/8/9), reports (AG-10), warranty cron
   keys in `context/LanguageContext.tsx`. Bulk QR multi-select intentionally deferred with AG-6
   (its export route). **Owner-verify:** list shows only caller-org items, hides disposed by default,
   filters combine with search, renders in Arabic RTL.
+
+### T2 — WO close-out notes (branch `claude/t2-wo-lifecycle`, off `main`)
+
+No SQL (uses existing `work_orders.completion_notes` column), no deps. Build gate: web tsc ✓, web build ✓.
+
+- **WO-30** — `<this commit>` — Close-out notes are now a first-class field captured *at completion* on
+  web (previously the technician could only enter them via the separate Edit page). A "Close-out notes"
+  textarea shows on the WO detail while the WO is still open (gated/required via Form Fields >
+  Close Work Order, new `completion_notes` catalog entry on `work_orders_close`); the value is sent
+  through `POST /api/work-orders/[id]/close`, persisted to `completion_notes`, and rendered on detail
+  (existing block). Added a "Close-out Notes" column to the WO list CSV export (WO-10 picker). The close
+  route only writes notes when provided (never blanks earlier mobile/edit notes) and falls back to the
+  stored value when merely *closing* an already-completed WO so a required-notes rule isn't re-imposed.
+  **Owner-verify:** mark a WO Completed with notes → notes show on detail + export column; set
+  `completion_notes` required on the Close page → Complete is blocked until notes entered; closing an
+  already-completed WO with required notes still succeeds.
+
+Deferred to follow-ups: WO-06/07 (labor time + costs, need SQL), WO-19 (mobile signature),
+WO-23 (feedback rating — tokenized public email/page surface), MKT-15 (failure-code picklists + report).
