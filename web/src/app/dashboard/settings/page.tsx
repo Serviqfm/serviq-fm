@@ -6,6 +6,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import NotificationsTab from './NotificationsTab'
 import PushAuditTab from './PushAuditTab'
 import FormFieldsTab from './FormFieldsTab'
+import CustomFieldsTab from './CustomFieldsTab'
 import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
 
 export default function SettingsPage() {
@@ -16,7 +17,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'>('account')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields'>('account')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -99,7 +100,7 @@ export default function SettingsPage() {
           <div className="flex gap-0 mb-8 border-b border-outline-variant">
             {(() => {
               const isElevated = user?.role === 'admin' || user?.role === 'manager'
-              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields'; label: string }[] = []
+              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields'; label: string }[] = []
               if (isElevated) {
                 tabs.push(
                   { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
@@ -113,6 +114,7 @@ export default function SettingsPage() {
               )
               if (user?.role === 'admin') {
                 tabs.push({ key: 'form_fields', label: lang === 'ar' ? 'حقول النماذج' : 'Form Fields' })
+                tabs.push({ key: 'custom_fields', label: lang === 'ar' ? 'حقول مخصصة' : 'Custom Fields' })
               }
               return tabs.map(tab => (
                 <button
@@ -411,6 +413,10 @@ export default function SettingsPage() {
 
           {activeTab === 'form_fields' && user?.role === 'admin' && (
             <FormFieldsTab />
+          )}
+
+          {activeTab === 'custom_fields' && user?.role === 'admin' && (
+            <CustomFieldsTab />
           )}
         </div>
       </div>

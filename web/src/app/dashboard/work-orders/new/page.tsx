@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { sendPushNotification } from '@/lib/push'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import WorkOrderCustomFields from '@/components/WorkOrderCustomFields'
 
 const inputCls = 'w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40'
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5'
@@ -48,6 +49,7 @@ export default function NewWorkOrderPage() {
   const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
   const [isManager, setIsManager] = useState(false)
   const [taskRows, setTaskRows] = useState<{ title: string; title_ar: string }[]>([])
+  const [customFields, setCustomFields] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     title: '',
@@ -59,6 +61,7 @@ export default function NewWorkOrderPage() {
     assigned_to: '',
     team_id: '',
     due_at: '',
+    start_at: '',
     sla_hours: '',
     is_recurring: 'false',
     recurrence_frequency: 'monthly',
@@ -276,6 +279,11 @@ export default function NewWorkOrderPage() {
       const extras: Record<string, unknown> = {}
       const estMin = parseInt(form.estimated_duration)
       if (!isNaN(estMin) && estMin > 0) extras.estimated_duration_minutes = estMin
+      // WO-31: planned start date (distinct from actual started_at).
+      if (form.start_at) extras.start_at = form.start_at
+      // WO-26: custom-field values, keyed by definition.key (blanks dropped).
+      const cfEntries = Object.entries(customFields).filter(([, v]) => v !== '')
+      if (cfEntries.length > 0) extras.custom_fields = Object.fromEntries(cfEntries)
       // CORE-20: team / additional-worker assignment is manager-only. Non-managers
       // never see these fields and never write them (the DB trigger also blocks
       // non-manager worker-list changes as the durable backstop).
@@ -548,11 +556,21 @@ export default function NewWorkOrderPage() {
 
             <div>
               <label className={labelCls}>
+                {lang === 'ar' ? 'تاريخ البدء المخطط' : 'Planned Start Date'}
+              </label>
+              <input name="start_at" type="datetime-local" value={form.start_at} onChange={handleChange}
+                className={inputCls} />
+            </div>
+
+            <div>
+              <label className={labelCls}>
                 {lang === 'ar' ? 'المدة المقدرة (بالدقائق)' : 'Estimated Duration (minutes)'}
               </label>
               <input name="estimated_duration" type="number" value={form.estimated_duration} onChange={handleChange}
                 placeholder={lang === 'ar' ? 'مثال: 90' : 'e.g. 90'} min="1" className={inputCls} />
             </div>
+
+            <WorkOrderCustomFields values={customFields} onChange={setCustomFields} />
 
             <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
