@@ -221,3 +221,13 @@ best-effort audit try/catch + chip WO-number padding.
   refetch-revert, and audit trail; technician scoping matches CORE-21; Calendar button on the list.
   **Owner-verify:** drag a WO chip to another day → due date persists + a "Rescheduled" row in the
   WO History tab. Deferred: weekly/day intraday views; WO-18 dispatch board (Phase 2, needs WO-13).
+
+### PR-B4 — Saved views + shareable filter URLs (branch `claude/phase-b-saved-views`, stacked on PR-B3)
+
+Build gate green; adversarially verified — sound; fixed the mount double-fetch race (fetch now
+gated on URL parsing). SQL owner-run, SQL-first.
+
+- **WO-13** — `<this commit>` — `phase-b-03-saved-views.sql` (saved_views, self-scoped RLS) +
+  URL↔filter two-way sync on the WO list + Saved Views bar (apply/save/delete).
+  **Owner-verify:** set filters → copy URL to another tab (same filters); Save current view →
+  reselect it later. Unblocks: WO-14 column chooser persistence + WO-18 dispatch board.
