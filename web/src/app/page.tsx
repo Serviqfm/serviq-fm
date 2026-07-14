@@ -27,7 +27,7 @@ export default function LandingPage() {
   const [wlEmail, setWlEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   useEffect(() => {
-    const launch = new Date('2025-08-01T00:00:00+03:00')
+    const launch = new Date('2026-08-01T00:00:00+03:00')
     const now = new Date()
     const diff = Math.max(0, Math.ceil((launch.getTime() - now.getTime()) / 86400000))
     setDaysLeft(diff > 0 ? diff : '🚀')
@@ -155,7 +155,7 @@ export default function LandingPage() {
             <div className="nav-cta-wrap" style={{ display:'flex', alignItems:'center', gap:10 }}>
               <Link href="/login/employee" style={{ fontSize:14, fontWeight:500, color:navy, padding:'7px 14px', borderRadius:6 }}>Sign in</Link>
               <a href="#waitlist" style={{ display:'inline-flex', alignItems:'center', gap:8, background:grad, color:'#fff', padding:'9px 20px', borderRadius:8, fontFamily:en, fontSize:14, fontWeight:600, cursor:'pointer', border:'none' }}>
-                🚀 Coming Soon — 1 Aug 2025
+                🚀 Coming Soon — 1 Aug 2026
               </a>
             </div>
             {/* Hamburger */}
@@ -190,7 +190,7 @@ export default function LandingPage() {
                 انضم لقائمة الانتظار — Join the Waitlist →
               </a>
               <a href="#waitlist" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'transparent', color:'#fff', border:'1.5px solid rgba(255,255,255,0.45)', padding:'13px 28px', borderRadius:8, fontFamily:en, fontSize:15, fontWeight:600 }}>
-                Launching 1 August 2025
+                Launching 1 August 2026
               </a>
             </div>
             <div style={{ width:1, height:40, background:'rgba(255,255,255,0.12)', margin:'0 auto 48px' }}/>
@@ -390,7 +390,7 @@ export default function LandingPage() {
         <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px', position:'relative', zIndex:1 }}>
           <div style={{ maxWidth:640, margin:'0 auto' }}>
             <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', color:'#fff', fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'6px 18px', borderRadius:999, marginBottom:28 }}>
-              🚀 &nbsp; LAUNCHING 1 AUGUST 2025
+              🚀 &nbsp; LAUNCHING 1 AUGUST 2026
             </div>
             <div style={{ fontFamily:ar, fontSize:36, fontWeight:700, color:'#fff', direction:'rtl', lineHeight:1.5, marginBottom:10 }}>
               كن من أوائل المستخدمين<br/>لسيرفيك FM
@@ -405,8 +405,8 @@ export default function LandingPage() {
                   <div style={{ fontFamily:ar, fontSize:20, fontWeight:700, color:'#fff', direction:'rtl', marginBottom:8 }}>شكراً لانضمامك!</div>
                   <div style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:12 }}>You&apos;re on the list!</div>
                   <div style={{ fontSize:14, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>
-                    We&apos;ll email you at launch on <strong style={{ color:'#fff' }}>1 August 2025</strong> with your early access link and exclusive discount.<br/>
-                    سنراسلك عند الإطلاق في 1 أغسطس 2025.
+                    We&apos;ll email you at launch on <strong style={{ color:'#fff' }}>1 August 2026</strong> with your early access link and exclusive discount.<br/>
+                    سنراسلك عند الإطلاق في 1 أغسطس 2026.
                   </div>
                 </div>
               ) : (
