@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import RequestChat, { type RequestMessage } from '@/components/RequestChat'
 
 const PRIORITIES = ['low','medium','high','critical']
 
@@ -74,6 +75,37 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
     setShowReject(false)
     fetchRequest()
     setActing(false)
+  }
+
+  async function loadMessages(): Promise<RequestMessage[]> {
+    const { data } = await supabase
+      .from('request_messages')
+      .select('id, sender_type, sender_name, body, created_at')
+      .eq('request_id', params.id)
+      .order('created_at', { ascending: true })
+    return (data as RequestMessage[]) ?? []
+  }
+
+  async function sendMessage(body: string): Promise<RequestMessage> {
+    // organisation_id comes from the loaded request; RLS enforces it belongs to
+    // the caller's org and that request_id lives in the same org.
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = user
+      ? await supabase.from('users').select('full_name').eq('id', user.id).maybeSingle()
+      : { data: null }
+    const { data, error: insErr } = await supabase
+      .from('request_messages')
+      .insert({
+        organisation_id: request.organisation_id,
+        request_id: params.id,
+        sender_type: 'staff',
+        sender_name: (profile as { full_name: string } | null)?.full_name ?? null,
+        body,
+      })
+      .select('id, sender_type, sender_name, body, created_at')
+      .single()
+    if (insErr || !data) throw new Error('send failed')
+    return data as RequestMessage
   }
 
   if (loading) return (
@@ -182,6 +214,9 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                 ))}
               </div>
             )}
+
+            {/* Requester message thread */}
+            <RequestChat mySide="staff" load={loadMessages} send={sendMessage} />
           </div>
 
           {/* Right: actions */}
