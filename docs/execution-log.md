@@ -448,3 +448,31 @@ Three disjoint tracks. T9 (RLS) got the deepest adversarial review of the progra
   `work_orders.status` directly — centralizes close-out enforcement/sign-off/audit + notifications, and removes
   a direct-PostgREST status-write bypass (complements CORE-20). Completion sheet: close-out photo + sign-off.
   No SQL. Deferred: FM-06 (tasks/checklists tab), CORE-04 web wiring.
+
+## Wave 4 batch 1 — KPIs · purchasing · compliance+QR · portal chat (2026-07-14)
+
+Four disjoint tracks; new-RLS tracks (B/C/D) got a full SQL review — fixes below landed pre-merge.
+
+### W4-A — Real KPIs + reports (PR #36) — CORE-13, FM-03, FM-12
+Real MTTR / MTBF / total maintenance cost / active-technicians + SLA compliance % and worst-first breach
+table on `/dashboard/reports`; pure fns in `lib/kpis.ts` with a 10-case vitest. FM-12: grepped — no fake
+hardcoded KPI deltas existed to remove. No SQL (client-side aggregation over org-scoped rows).
+
+### W4-B — Purchase orders + stock ledger (PR #37) — MKT-05, FM-10
+`purchase_orders` / `purchase_order_items` / `stock_transactions` (org RLS, insert+update WITH CHECK) +
+`receive_purchase_order()` SECURITY DEFINER RPC (atomic PO→received + stock bump + ledger; idempotent via
+status guard). New `/dashboard/purchase-orders` + `/dashboard/inventory/ledger`. **SQL:** `w4-01-purchasing.sql`.
+Review fix: the receive loop now JOINs in-org inventory items so the ledger can't record a stock-in that
+never landed (ledger/inventory divergence). Residual (documented): FK-binding WITH CHECK for direct writers
+(none today). Follow-up: FM-17 settings toggles.
+
+### W4-C — Compliance register + Asset Log QR (PR #38) — FM-04, AG-6
+`compliance_certificates` (org RLS, expiry flags) + `/dashboard/compliance`; `/al/[token]` QR landing
+(self-auth, RLS-scoped) + bulk A4 QR-label PDF export + asset-log list bulk-select. **SQL:**
+`w4-compliance-certificates.sql`. Review: clean. Deferred: compliance sidebar link + expiry-alert cron.
+
+### W4-D — Request-portal chat (PR #35) — CORE-36, WO-22
+`request_messages` + a two-way thread: staff on the request detail, requester on the public `/track/[token]`
+via `/api/public/request-messages/[token]` (service-role, token pins to one request_id, `sender_type`
+forced server-side). **SQL:** `core-36-request-messages.sql`. Review: token scoping + anon-deny sound;
+render is JSX-escaped (no XSS); fix added — a 3s anti-flood throttle on the public POST.
