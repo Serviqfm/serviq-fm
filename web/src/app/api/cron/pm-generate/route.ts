@@ -59,6 +59,9 @@ type PMRow = {
   is_seasonal?: boolean | null
   seasonal_start_month?: number | null
   seasonal_end_month?: number | null
+  meter_id?: string | null
+  meter_interval?: number | null
+  last_trigger_reading?: number | null
 }
 
 async function run() {
@@ -75,14 +78,17 @@ async function run() {
 
   const { data: due, error } = await admin
     .from('pm_schedules')
-    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month')
+    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month, meter_id, meter_interval, last_trigger_reading')
     .eq('is_active', true)
     .eq('is_archived', false)
     .not('next_due_at', 'is', null)
     .lte('next_due_at', cutoff)
     .returns<PMRow[]>()
   if (error) return { error: error.message, generated: 0 }
-  if (!due || due.length === 0) return { error: null, generated: 0, scanned: 0 }
+  // Meter-triggered schedules can fire with no calendar due date, so they aren't
+  // caught by the next_due_at window above — evaluate them in a separate pass.
+  const meterGenerated = await runMeterPass(admin)
+  if (!due || due.length === 0) return { error: null, generated: meterGenerated, scanned: 0 }
 
   let generated = 0
   const errors: string[] = []
@@ -161,6 +167,12 @@ async function run() {
       const update: Record<string, unknown> = { next_due_at: nextDueDate.toISOString() }
       // Rolled past the end date: this was the last cycle — deactivate.
       if (pm.end_date && nextDueDate > new Date(pm.end_date)) update.is_active = false
+      // Hybrid: a calendar service also consumes the current meter crossing, so the meter
+      // pass won't generate a duplicate WO for the same cycle after this one completes.
+      if (pm.meter_id) {
+        const { data: m } = await admin.from('meters').select('current_reading').eq('id', pm.meter_id).single()
+        if (m) update.last_trigger_reading = Number(m.current_reading)
+      }
       await admin.from('pm_schedules').update(update).eq('id', pm.id)
       generated++
     } catch (e) {
@@ -168,7 +180,74 @@ async function run() {
     }
   }
 
-  return { error: errors.length > 0 ? errors.join('; ') : null, generated, scanned: due.length }
+  return { error: errors.length > 0 ? errors.join('; ') : null, generated: generated + meterGenerated, scanned: due.length }
+}
+
+// Meter arm of the hybrid trigger (T8 / 1C-11). For each active meter-based schedule,
+// generate a WO when the linked meter's current_reading has crossed
+// (last_trigger_reading + meter_interval), then advance last_trigger_reading. A schedule
+// with BOTH next_due_at and meter_id is hybrid: the calendar loop above and this pass
+// each fire on their own condition (whichever comes first); the WO-exists de-dupe stops
+// a double WO in the same cycle. Mirrors generate_due_pm_work_orders() in
+// docs/superpowers/sql/t8-01-meters-pm.sql.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function runMeterPass(admin: any): Promise<number> {
+  const { data: rows } = await admin
+    .from('pm_schedules')
+    .select('id, title, description, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, meter_id, meter_interval, last_trigger_reading')
+    .eq('is_active', true)
+    .eq('is_archived', false)
+    .not('meter_id', 'is', null)
+    .not('meter_interval', 'is', null)
+  if (!rows || rows.length === 0) return 0
+  const pmRows = rows as PMRow[]
+
+  let generated = 0
+  for (const pm of pmRows) {
+    try {
+      if (!pm.meter_id || !pm.meter_interval || pm.meter_interval <= 0) continue
+      const { data: meter } = await admin
+        .from('meters')
+        .select('current_reading')
+        .eq('id', pm.meter_id)
+        .single()
+      if (!meter) continue
+      const reading = Number(meter.current_reading)
+      const threshold = (pm.last_trigger_reading ?? 0) + pm.meter_interval
+      if (reading < threshold) continue
+
+      // De-dupe: at most one open PM WO per schedule. Do NOT advance the marker on a
+      // skip — if the open WO is calendar-sourced, advancing here swallows this crossing.
+      const { data: existing } = await admin
+        .from('work_orders')
+        .select('id')
+        .eq('pm_schedule_id', pm.id)
+        .not('status', 'in', '("completed","closed")')
+        .limit(1)
+      if (existing && existing.length > 0) continue
+
+      const { error: insErr } = await admin.from('work_orders').insert({
+        organisation_id: pm.organisation_id,
+        title: `PM - ${pm.title}`,
+        description: pm.description,
+        priority: 'medium',
+        status: pm.assigned_to ? 'assigned' : 'new',
+        source: 'pm_schedule',
+        pm_schedule_id: pm.id,
+        asset_id: pm.asset_id,
+        site_id: pm.site_id,
+        assigned_to: pm.assigned_to,
+        due_at: pm.next_due_at,
+        sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
+      })
+      if (insErr) continue
+      await admin.from('pm_schedules').update({ last_trigger_reading: reading }).eq('id', pm.id)
+      generated++
+    } catch {
+      // Isolate a single bad schedule; keep processing the rest.
+    }
+  }
+  return generated
 }
 
 export async function GET(req: NextRequest) {
