@@ -14,10 +14,15 @@
 --   3. Extends the EXISTING org-isolation SELECT/UPDATE/ALL policies on
 --      work_orders and assets to ALSO require the site check, by ANDing
 --      `(site_id IS NULL OR public.user_can_access_site(site_id))` into each
---      policy's existing USING expression. The exact org expression and any
+--      policy's existing USING expression. The exact org expression, roles and any
 --      WITH CHECK are preserved verbatim (read straight from pg_policies), so
---      org isolation is NOT weakened and the CORE-20 triggers are untouched
---      (RLS filters visible rows; the triggers still enforce transitions).
+--      cross-ORG isolation is never weakened and the CORE-20 triggers are untouched.
+--      NOTE ON WRITES: work_orders/assets carry a FOR ALL org policy with NO explicit
+--      WITH CHECK, so Postgres reuses USING as the write-check. Extending USING
+--      therefore also site-scopes WRITES for SCOPED users — a site-scoped user cannot
+--      create/edit a work_order/asset for a site outside their scope. This is intended
+--      (scoped = act only within your sites). UNSCOPED users and service_role (web
+--      routes) are unaffected.
 --
 -- WOs/assets with a NULL site_id stay visible to everyone in the org (per the
 -- 1C-14 spec: "WOs with no site stay visible to all").
@@ -54,20 +59,31 @@ DROP POLICY IF EXISTS user_site_scope_org_insert ON public.user_site_scope;
 CREATE POLICY user_site_scope_org_insert ON public.user_site_scope
   FOR INSERT WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    -- Only admins/managers assign scope, and the target user AND site must belong to
+    -- the same org (else an org-A member could forge a row pointing at an org-B site,
+    -- or write scope for another user). Closes the FK-injection / self-grant vectors.
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
+    AND EXISTS (SELECT 1 FROM public.users u WHERE u.id = user_id AND u.organisation_id = organisation_id)
+    AND EXISTS (SELECT 1 FROM public.sites s WHERE s.id = site_id AND s.organisation_id = organisation_id)
   );
 
 DROP POLICY IF EXISTS user_site_scope_org_update ON public.user_site_scope;
 CREATE POLICY user_site_scope_org_update ON public.user_site_scope
   FOR UPDATE USING (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
   ) WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
+    AND EXISTS (SELECT 1 FROM public.users u WHERE u.id = user_id AND u.organisation_id = organisation_id)
+    AND EXISTS (SELECT 1 FROM public.sites s WHERE s.id = site_id AND s.organisation_id = organisation_id)
   );
 
 DROP POLICY IF EXISTS user_site_scope_org_delete ON public.user_site_scope;
 CREATE POLICY user_site_scope_org_delete ON public.user_site_scope
   FOR DELETE USING (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
   );
 
 -- ---------------------------------------------------------------------------
@@ -85,12 +101,20 @@ SET search_path = public, pg_temp
 AS $$
   SELECT
     p_site_id IS NULL
+    -- No VALID (same-org) scope rows -> unrestricted (backward-compatible default).
     OR NOT EXISTS (
-      SELECT 1 FROM public.user_site_scope WHERE user_id = auth.uid()
+      SELECT 1 FROM public.user_site_scope uss
+        JOIN public.sites s ON s.id = uss.site_id
+       WHERE uss.user_id = auth.uid()
+         AND s.organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     )
+    -- Otherwise: only a site in the caller's own scope AND own org is accessible
+    -- (the org join makes a forged foreign-org scope row inert even if one exists).
     OR EXISTS (
-      SELECT 1 FROM public.user_site_scope
-      WHERE user_id = auth.uid() AND site_id = p_site_id
+      SELECT 1 FROM public.user_site_scope uss
+        JOIN public.sites s ON s.id = uss.site_id
+       WHERE uss.user_id = auth.uid() AND uss.site_id = p_site_id
+         AND s.organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     );
 $$;
 
@@ -138,7 +162,9 @@ BEGIN
     CONTINUE WHEN v_cmd IS NULL;
 
     v_using := '(' || r.qual || ') AND ' || v_site_expr;
-    v_roles := array_to_string(r.roles, ', ');
+    -- quote_ident each role so any future policy whose role list needs quoting
+    -- (mixed case / reserved word) still rebuilds to valid SQL.
+    v_roles := (SELECT string_agg(quote_ident(role_name), ', ') FROM unnest(r.roles) AS role_name);
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I',
                    r.policyname, r.schemaname, r.tablename);

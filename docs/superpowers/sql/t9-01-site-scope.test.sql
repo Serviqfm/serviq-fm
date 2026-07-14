@@ -99,6 +99,21 @@ BEGIN
     RAISE NOTICE 'PASS d: cross-org scope insert blocked by org RLS WITH CHECK';
   END;
 
+  -- --- (e) A non-admin cannot self-grant scope even to a VALID same-org site
+  --         (scope assignment is admin/manager-only per the tightened WITH CHECK) ---
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('role','authenticated','sub', v_scoped)::text, true);
+  SET LOCAL role authenticated;
+  BEGIN
+    INSERT INTO public.user_site_scope (user_id, site_id, organisation_id)
+      VALUES (v_scoped, v_siteA2, v_orgA);
+    RESET role;
+    RAISE WARNING 'FAIL e: technician self-granted a scope row';
+  EXCEPTION WHEN insufficient_privilege OR check_violation THEN
+    RESET role;
+    RAISE NOTICE 'PASS e: non-admin scope self-grant blocked (admin/manager only)';
+  END;
+
   RESET role;
 END $$;
 ROLLBACK;
