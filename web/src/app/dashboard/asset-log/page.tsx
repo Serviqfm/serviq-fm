@@ -41,6 +41,11 @@ export default function AssetLogPage() {
   const [reviewDueOnly, setReviewDueOnly] = useState(false)
   const [includeDisposed, setIncludeDisposed] = useState(false)
 
+  // AG-6 bulk QR label export
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [layout, setLayout] = useState<2 | 4 | 6>(4)
+  const [exporting, setExporting] = useState(false)
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
@@ -107,6 +112,49 @@ export default function AssetLogPage() {
   const money = (n: number) => `SAR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
   const al = (n: number) => 'AL-' + String(n).padStart(4, '0')
   const typeName = (it: Item) => it.type ? (isAr && it.type.name_ar ? it.type.name_ar : it.type.name) : '—'
+
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+  const allVisibleSelected = filtered.length > 0 && filtered.every(it => selected.has(it.id))
+  function toggleAll() {
+    setSelected(prev => {
+      if (allVisibleSelected) {
+        const next = new Set(prev)
+        filtered.forEach(it => next.delete(it.id))
+        return next
+      }
+      const next = new Set(prev)
+      filtered.forEach(it => next.add(it.id))
+      return next
+    })
+  }
+
+  async function exportQr() {
+    if (selected.size === 0) return
+    setExporting(true)
+    try {
+      const res = await fetch('/api/asset-log/export-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: Array.from(selected), layout }),
+      })
+      if (!res.ok) { alert(t('asset_log.qr_pdf_failed')); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'asset-log-qr.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8" dir={isAr ? 'rtl' : 'ltr'}>
@@ -230,10 +278,32 @@ export default function AssetLogPage() {
               </div>
             ) : (
               <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
+                {selected.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-primary/5 border-b border-outline-variant/30">
+                    <span className="text-sm font-semibold text-on-surface">{selected.size} {t('asset_log.selected')}</span>
+                    <button onClick={() => setSelected(new Set())} className="text-xs text-primary font-bold hover:underline">{t('common.clear_all')}</button>
+                    <div className={`flex items-center gap-2 ${isAr ? 'mr-auto' : 'ml-auto'}`}>
+                      <label className="text-xs text-on-surface-variant">{t('asset_log.per_page')}</label>
+                      <select value={layout} onChange={e => setLayout(Number(e.target.value) as 2 | 4 | 6)}
+                        className="px-2 py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
+                        {[2, 4, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                      <button onClick={exportQr} disabled={exporting}
+                        className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-60">
+                        <span className="material-symbols-outlined text-lg">qr_code_2</span>
+                        {exporting ? t('common.loading') : t('asset_log.qr_pdf')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-surface-container border-b border-outline-variant/30">
+                        <th className="p-3 w-10">
+                          <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll}
+                            className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/30" aria-label={t('common.select_all')} />
+                        </th>
                         {[t('asset_log.col.number'), t('asset_log.col.name'), t('asset_log.col.type'), t('asset_log.col.location'),
                           t('asset_log.col.qty'), t('common.status'), t('asset_log.col.condition'), t('asset_log.col.value'), t('asset_log.col.warranty')].map(h => (
                           <th key={h} className={`p-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap ${isAr ? 'text-right' : 'text-left'}`}>{h}</th>
@@ -250,6 +320,10 @@ export default function AssetLogPage() {
                           : (it.site?.name ?? t('asset_log.unassigned'))
                         return (
                           <tr key={it.id} className="hover:bg-surface-container-low transition-colors">
+                            <td className="p-3 w-10">
+                              <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggleOne(it.id)}
+                                className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/30" aria-label={al(it.item_number)} />
+                            </td>
                             <td className="p-3 text-xs font-mono text-on-surface-variant whitespace-nowrap">{al(it.item_number)}</td>
                             <td className="p-3">
                               <Link href={'/dashboard/asset-log/' + it.id} className="text-sm font-semibold text-primary hover:underline">{it.name}</Link>
