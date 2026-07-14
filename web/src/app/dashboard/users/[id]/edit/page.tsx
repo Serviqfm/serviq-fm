@@ -25,6 +25,10 @@ export default function EditUserPage() {
     role: 'technician',
     is_active: true,
   })
+  // Site scoping (T9 / 1C-14): empty scopedSites = unscoped = sees all sites.
+  const [sites, setSites] = useState<{ id: string; name: string }[]>([])
+  const [scopedSites, setScopedSites] = useState<Set<string>>(new Set())
+  const [orgId, setOrgId] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUser() }, [id])
@@ -33,13 +37,42 @@ export default function EditUserPage() {
     const { data: { user } } = await supabase.auth.getUser()
     setIsSelf(Boolean(user && user.id === id))
     const { data } = await supabase.from('users').select('*').eq('id', id).single()
-    if (data) setForm({
-      full_name: data.full_name ?? '',
-      full_name_ar: data.full_name_ar ?? '',
-      role: data.role ?? 'technician',
-      is_active: data.is_active !== false,
-    })
+    if (data) {
+      setForm({
+        full_name: data.full_name ?? '',
+        full_name_ar: data.full_name_ar ?? '',
+        role: data.role ?? 'technician',
+        is_active: data.is_active !== false,
+      })
+      setOrgId(data.organisation_id ?? '')
+      if (data.organisation_id) {
+        const { data: siteRows } = await supabase.from('sites').select('id, name').eq('organisation_id', data.organisation_id).eq('is_active', true).order('name')
+        setSites(siteRows ?? [])
+      }
+      const { data: scopeRows } = await supabase.from('user_site_scope').select('site_id').eq('user_id', id)
+      if (scopeRows) setScopedSites(new Set(scopeRows.map(r => r.site_id as string)))
+    }
     setLoading(false)
+  }
+
+  function toggleSite(siteId: string) {
+    setScopedSites(prev => {
+      const next = new Set(prev)
+      if (next.has(siteId)) next.delete(siteId); else next.add(siteId)
+      return next
+    })
+  }
+
+  // Replace the user's scope rows to match the current selection. Missing table
+  // (migration not yet run) fails silently — the user just stays unscoped.
+  async function saveSiteScope() {
+    if (!orgId) return
+    await supabase.from('user_site_scope').delete().eq('user_id', id)
+    if (scopedSites.size > 0) {
+      await supabase.from('user_site_scope').insert(
+        Array.from(scopedSites).map(site_id => ({ user_id: id, site_id, organisation_id: orgId }))
+      )
+    }
   }
 
   // Friendly bilingual messages for the API safety-rule rejections.
@@ -78,6 +111,7 @@ export default function EditUserPage() {
       setSaving(false)
       return
     }
+    await saveSiteScope()
     router.push('/dashboard/users')
   }
 
@@ -142,6 +176,24 @@ export default function EditUserPage() {
             <label htmlFor='is_active' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>
               User is active — can log in and use the platform
             </label>
+          </div>
+        )}
+        {sites.length > 0 && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'المواقع المسموح بها' : 'Site access'}</label>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 8px' }}>
+              {lang === 'ar'
+                ? 'اترك الكل بدون تحديد لمنح الوصول إلى جميع المواقع. حدد المواقع لتقييد هذا المستخدم بها فقط.'
+                : 'Leave all unchecked for full access to every site. Check sites to restrict this user to only those.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#f9f9f9', borderRadius: 8, padding: '10px 14px', maxHeight: 200, overflowY: 'auto' }}>
+              {sites.map(s => (
+                <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#444', cursor: 'pointer' }}>
+                  <input type='checkbox' checked={scopedSites.has(s.id)} onChange={() => toggleSite(s.id)} style={{ width: 15, height: 15 }} />
+                  {s.name}
+                </label>
+              ))}
+            </div>
           </div>
         )}
         {error && (
