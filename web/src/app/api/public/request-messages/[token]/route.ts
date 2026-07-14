@@ -49,6 +49,19 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (!text) return NextResponse.json({ error: 'Empty message' }, { status: 400 })
   if (text.length > 4000) return NextResponse.json({ error: 'Message too long' }, { status: 400 })
 
+  // Lightweight anti-flood: a tracking token is low-secrecy (emailed in plaintext),
+  // so throttle a requester to one message per few seconds per request.
+  const { data: recent } = await admin()
+    .from('request_messages')
+    .select('created_at')
+    .eq('request_id', request.id)
+    .eq('sender_type', 'requester')
+    .order('created_at', { ascending: false })
+    .limit(1)
+  if (recent?.[0] && Date.now() - new Date(recent[0].created_at as string).getTime() < 3000) {
+    return NextResponse.json({ error: 'Please wait a moment before sending again' }, { status: 429 })
+  }
+
   // sender_type is forced to 'requester' and org/request are taken from the
   // token-resolved row — the client cannot spoof either.
   const { data, error } = await admin()
