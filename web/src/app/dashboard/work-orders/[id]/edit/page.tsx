@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import WorkOrderCustomFields from '@/components/WorkOrderCustomFields'
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
@@ -30,6 +31,7 @@ export default function EditWorkOrderPage() {
   const [teams, setTeams] = useState<any[]>([])
   const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
   const [isManager, setIsManager] = useState(false)
+  const [customFields, setCustomFields] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -40,6 +42,7 @@ export default function EditWorkOrderPage() {
     assigned_to: '',
     team_id: '',
     due_at: '',
+    start_at: '',
     sla_hours: '',
     completion_notes: '',
     actual_cost: '',
@@ -111,11 +114,18 @@ export default function EditWorkOrderPage() {
         assigned_to: wo.assigned_to ?? wo.assigned_vendor_id ?? '',
         team_id: wo.team_id ?? '',
         due_at: wo.due_at ? wo.due_at.slice(0, 16) : '',
+        start_at: wo.start_at ? wo.start_at.slice(0, 16) : '',
         sla_hours: wo.sla_hours ? String(wo.sla_hours) : '',
         completion_notes: wo.completion_notes ?? '',
         actual_cost: wo.actual_cost ? String(wo.actual_cost) : '',
       })
       setAdditionalWorkers(Array.isArray(wo.additional_workers) ? wo.additional_workers : [])
+      // WO-26: custom_fields JSONB → string map (coerce any stored value to string).
+      if (wo.custom_fields && typeof wo.custom_fields === 'object') {
+        setCustomFields(Object.fromEntries(
+          Object.entries(wo.custom_fields as Record<string, unknown>).map(([k, v]) => [k, v == null ? '' : String(v)])
+        ))
+      }
       setLoading(false)
     } catch (err) {
       console.error('Unexpected error in loadData:', err)
@@ -173,6 +183,13 @@ export default function EditWorkOrderPage() {
         additional_workers: additionalWorkers.filter(uid => uid !== form.assigned_to),
       }).eq('id', id)
     }
+
+    // WO-31 + WO-26: planned start + custom fields aren't in the PATCH whitelist —
+    // save them via an org-scoped RLS update (any user allowed to edit this WO).
+    await supabase.from('work_orders').update({
+      start_at: form.start_at ? form.start_at : null,
+      custom_fields: Object.fromEntries(Object.entries(customFields).filter(([, v]) => v !== '')),
+    }).eq('id', id)
 
     // Send assignment notification via API (keeps server-side imports server-side).
     // Vendors have no user account, so only notify when a real user was assigned.
@@ -363,6 +380,10 @@ export default function EditWorkOrderPage() {
             </div>
           )}
         </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'تاريخ البدء المخطط' : 'Planned Start Date'}</label>
+          <input name='start_at' type='datetime-local' value={form.start_at} onChange={handleChange} style={fieldStyle} />
+        </div>
         {!isHidden('completion_notes') && (
           <div>
             <label style={labelStyle}>Completion Notes{reqMark('completion_notes')}</label>
@@ -371,6 +392,7 @@ export default function EditWorkOrderPage() {
               placeholder='Notes on how the issue was resolved...' style={{ ...fieldStyle, resize: 'vertical' }} />
           </div>
         )}
+        <WorkOrderCustomFields values={customFields} onChange={setCustomFields} />
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button type='submit' disabled={saving} style={{ flex: 1, background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: saving ? 0.7 : 1 }}>

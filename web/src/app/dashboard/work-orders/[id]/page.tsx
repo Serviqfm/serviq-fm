@@ -13,6 +13,7 @@ import { sendPushNotification } from '@/lib/push'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 import WorkOrderFilesTab from '@/components/work-orders/WorkOrderFilesTab'
+import { CustomFieldDefinition, fieldLabel } from '@/lib/customFields'
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
@@ -34,6 +35,7 @@ export default function WorkOrderDetailPage() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [addingTask, setAddingTask] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null)
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventoryItems, setInventoryItems] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,6 +136,15 @@ export default function WorkOrderDetailPage() {
       } else {
         setAdditionalWorkerNames([])
       }
+      // WO-26: load active custom-field definitions to label/order the stored values.
+      const { data: defs } = await supabase
+        .from('custom_field_definitions')
+        .select('*')
+        .eq('organisation_id', data.organisation_id)
+        .eq('entity', 'work_order')
+        .eq('is_active', true)
+        .order('sort_order')
+      if (defs) setCustomFieldDefs(defs as CustomFieldDefinition[])
     }
     setLoading(false)
   }
@@ -673,6 +684,10 @@ export default function WorkOrderDetailPage() {
               : []),
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: 'Category', value: (wo as any).category ?? '—' },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...((wo as any).start_at
+              ? [{ label: lang === 'ar' ? 'البدء المخطط' : 'Planned Start', value: format(new Date((wo as any).start_at), 'dd MMM yyyy, HH:mm') }]
+              : []),
             { label: 'Started', value: wo.started_at ? format(new Date(wo.started_at), 'dd MMM yyyy, HH:mm') : '—' },
             { label: 'Completed', value: wo.completed_at ? format(new Date(wo.completed_at), 'dd MMM yyyy, HH:mm') : '—' },
             { label: 'SLA', value: wo.sla_hours ? `${wo.sla_hours} hours` : '—' },
@@ -694,6 +709,26 @@ export default function WorkOrderDetailPage() {
             <p className="text-sm m-0 leading-relaxed text-on-surface">{wo.description}</p>
           </div>
         )}
+
+        {/* WO-26: org-defined custom-field values (labelled/ordered by active definitions). */}
+        {(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cf = ((wo as any).custom_fields ?? {}) as Record<string, unknown>
+          const rows = customFieldDefs
+            .map(def => ({ def, value: cf[def.key] }))
+            .filter(({ value }) => value !== undefined && value !== null && value !== '')
+          if (rows.length === 0) return null
+          return (
+            <div className="grid grid-cols-2 gap-3">
+              {rows.map(({ def, value }) => (
+                <div key={def.id} className="bg-surface-container-low rounded-xl px-4 py-3">
+                  <p className="text-xs text-on-surface-variant mb-1">{fieldLabel(def, lang)}</p>
+                  <p className="text-sm font-medium text-on-surface m-0">{String(value)}</p>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
 
         {wo.completion_notes && (
           <div className="bg-surface-container-low rounded-xl px-4 py-3 border border-primary/20">
