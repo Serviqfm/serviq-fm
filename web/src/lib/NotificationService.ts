@@ -140,6 +140,43 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Insert an in-app alert-center row (CORE-15). Separate from email/push: this is
+   * the feed the header bell reads. `dedupeKey` makes the insert once-only per user
+   * (CORE-16 escalation cron relies on the partial unique index in
+   * docs/superpowers/sql/t10-01-user-notifications.sql) — a duplicate is swallowed.
+   * Returns true if a new row was written, false on duplicate/failure.
+   */
+  static async insertInApp(
+    userId: string,
+    organisationId: string,
+    typeKey: NotificationTypeKey,
+    opts: { title: string; body?: string; link?: string; dedupeKey?: string }
+  ): Promise<boolean> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (this.supabase.from('user_notifications') as any).insert({
+        user_id: userId,
+        organisation_id: organisationId,
+        type_key: typeKey,
+        title: opts.title,
+        body: opts.body ?? null,
+        link: opts.link ?? null,
+        dedupe_key: opts.dedupeKey ?? null,
+      });
+      // 23505 = unique_violation: the event already notified this user. Not an error.
+      if (error) {
+        if ((error as { code?: string }).code === '23505') return false;
+        console.error('Failed to insert in-app notification:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to insert in-app notification:', err);
+      return false;
+    }
+  }
+
   private static async logNotification(
     userId: string,
     typeKey: NotificationTypeKey,
