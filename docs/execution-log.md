@@ -417,3 +417,34 @@ insert AND update (Wave-1 lesson). T5 + T8 SQL got a full adversarial review bef
   (Details / Movements / Repairs / Condition) + lifecycle actions, on the merged #24 foundation; the
   move action uses the authenticated client (RPC needs auth.uid()). No new migration. Deferred: AG-6
   (QR + bulk PDF), AG-8/9 (mobile).
+
+## Wave 3 — location perms · notifications · mobile completion (2026-07-14)
+
+Three disjoint tracks. T9 (RLS) got the deepest adversarial review of the program; findings fixed pre-merge.
+
+### T9 — Location-based permissions (PR #30, `claude/t9-location-perms`)
+- **1C-14 / MKT-11** — `user_site_scope(user_id, site_id, organisation_id)` join table; `user_can_access_site()`
+  SECURITY DEFINER helper (search_path pinned, org-aware) with a BACKWARD-COMPATIBLE default (no valid scope
+  rows = unrestricted, so shipping it locks nobody out); a catalog-driven idempotent rewrite that ANDs the site
+  check into the existing `work_orders`/`assets` org policies' USING (org expression/roles/WITH CHECK preserved
+  verbatim; CORE-20 triggers untouched). Site-assign UI on the user edit page. **SQL:** `t9-01-site-scope.sql`
+  (+ `.test.sql`). **Review (deep) fixed pre-merge:** user_site_scope writes now require admin/manager + bind
+  user_id & site_id to the caller's org (closed a self-grant/forged-row vector); helper made org-correct;
+  roles quote_ident'd; documented that for the FOR-ALL/no-WITH-CHECK base policy, extending USING also
+  site-scopes WRITES for scoped users (intended). Deferred: 1C-13, custom roles/SSO/MFA (MKT-20/21/22).
+
+### T10 — Notifications + escalation (PR #31, `claude/t10-notifications`)
+- **CORE-15** — `user_notifications` in-app feed table (self-scoped org RLS) + `NotificationBell` (unread badge,
+  alert center, mark-read, 60s poll) in the sidebar + `NotificationService.insertInApp()` (isEnabled-gated,
+  swallows only 23505 dedupe). **CORE-16** — `/api/cron/escalations` (CRON_SECRET-gated, fails closed) with
+  three deduped passes (overdue WOs, PM overdue 24h, due <24h), excluding deactivated users; hourly in
+  `web/vercel.json`. **SQL:** `t10-01-user-notifications.sql` (+ `.test.sql`). Review: clean (the flagged
+  "missing insertInApp" was a false positive — it exists on-branch). Deferred: 1C-06, full 1C-07 sweep,
+  additional_workers fan-out.
+
+### T11 — Mobile completion parity (PR #33, `claude/t11-mobile-parity`)
+- **FM-07 / CORE-05** — mobile WO Complete/Close now POSTs the web `/api/work-orders/[id]/close` endpoint
+  (via a new `webApi.ts` that presents the Supabase session as the `@supabase/ssr` cookie) instead of writing
+  `work_orders.status` directly — centralizes close-out enforcement/sign-off/audit + notifications, and removes
+  a direct-PostgREST status-write bypass (complements CORE-20). Completion sheet: close-out photo + sign-off.
+  No SQL. Deferred: FM-06 (tasks/checklists tab), CORE-04 web wiring.
