@@ -7,6 +7,10 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
   PieChart, Pie, Legend,
 } from 'recharts'
+import {
+  mttrHours, mtbfDays, totalMaintenanceCost, activeTechnicians,
+  slaBreaches, slaCompliancePercent, type WoKpiRow, type SlaBreach,
+} from '@/lib/kpis'
 
 const STATUS_COLORS: Record<string, string> = {
   new:         '#4f5e82',
@@ -44,6 +48,10 @@ export default function ReportsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [assetsByCategory, setAssetsByCategory] = useState<any[]>([])
   const [kpis, setKpis] = useState({ totalWO: 0, openWO: 0, totalAssets: 0, totalPM: 0 })
+  const [maint, setMaint] = useState<{
+    mttr: number | null; mtbf: number | null; cost: number; activeTechs: number
+    slaCompliance: number | null; breaches: SlaBreach[]
+  }>({ mttr: null, mtbf: null, cost: 0, activeTechs: 0, slaCompliance: null, breaches: [] })
   const supabase = createClient()
   const { lang } = useLanguage()
 
@@ -58,10 +66,13 @@ export default function ReportsPage() {
     if (!profile) { setLoading(false); return }
     const orgId = profile.organisation_id
 
-    const [{ data: wos }, { data: assets }, { data: pms }] = await Promise.all([
-      supabase.from('work_orders').select('status, priority').eq('organisation_id', orgId),
+    const [{ data: wos }, { data: assets }, { data: pms }, { data: techs }] = await Promise.all([
+      supabase.from('work_orders')
+        .select('status, priority, created_at, completed_at, due_at, sla_hours, actual_cost, asset_id, assigned_to, wo_number, title')
+        .eq('organisation_id', orgId),
       supabase.from('assets').select('category, status').eq('organisation_id', orgId),
       supabase.from('pm_schedules').select('is_active').eq('organisation_id', orgId),
+      supabase.from('users').select('role, is_active, last_sign_in_at').eq('organisation_id', orgId),
     ])
 
     if (wos) {
@@ -74,6 +85,16 @@ export default function ReportsPage() {
       setWoByStatus(Object.entries(statusMap).map(([name, value]) => ({ name, value })))
       setWoByPriority(Object.entries(priorityMap).map(([name, value]) => ({ name, value })))
       setKpis(prev => ({ ...prev, totalWO: wos.length, openWO: wos.filter(w => !['completed', 'closed'].includes(w.status)).length }))
+
+      const rows = wos as WoKpiRow[]
+      setMaint({
+        mttr: mttrHours(rows),
+        mtbf: mtbfDays(rows),
+        cost: totalMaintenanceCost(rows),
+        activeTechs: activeTechnicians(techs ?? []),
+        slaCompliance: slaCompliancePercent(rows),
+        breaches: slaBreaches(rows),
+      })
     }
 
     if (assets) {
@@ -172,6 +193,26 @@ export default function ReportsPage() {
               </div>
               <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2">{c.label}</p>
               <p className={`text-5xl font-bold ${c.color}`}>{c.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CORE-13 — real maintenance KPIs (MTTR / MTBF / cost / active techs / SLA) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[
+            { label: lang === 'ar' ? 'متوسط زمن الإصلاح' : 'MTTR',           value: maint.mttr == null ? '—' : `${maint.mttr.toFixed(1)}h`, sub: lang === 'ar' ? 'متوسط زمن الإصلاح' : 'Mean time to repair',   icon: 'timer' },
+            { label: lang === 'ar' ? 'متوسط بين الأعطال' : 'MTBF',           value: maint.mtbf == null ? '—' : `${maint.mtbf.toFixed(1)}d`, sub: lang === 'ar' ? 'متوسط بين الأعطال' : 'Mean time between failures', icon: 'schedule' },
+            { label: lang === 'ar' ? 'تكلفة الصيانة' : 'Maintenance Cost',   value: maint.cost > 0 ? 'SAR ' + maint.cost.toLocaleString() : 'SAR 0', sub: lang === 'ar' ? 'إجمالي التكلفة الفعلية' : 'Sum of actual cost',      icon: 'payments' },
+            { label: lang === 'ar' ? 'الفنيون النشطون' : 'Active Techs',     value: maint.activeTechs, sub: lang === 'ar' ? 'خلال 30 يومًا' : 'Signed in ≤30 days',   icon: 'engineering' },
+            { label: lang === 'ar' ? 'الالتزام بـ SLA' : 'SLA Compliance',   value: maint.slaCompliance == null ? '—' : `${maint.slaCompliance}%`, sub: lang === 'ar' ? 'ضمن المهلة' : 'Resolved within SLA',        icon: 'verified' },
+          ].map(c => (
+            <div key={c.label} className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-primary text-lg">{c.icon}</span>
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">{c.label}</p>
+              </div>
+              <p className="text-3xl font-bold text-on-surface leading-none">{c.value}</p>
+              <p className="text-[11px] text-on-surface-variant mt-1.5">{c.sub}</p>
             </div>
           ))}
         </div>
@@ -294,6 +335,49 @@ export default function ReportsPage() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* FM-12 — SLA breach report (real, from FM-03 due_at/sla_hours fields) */}
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-outline-variant/20 bg-surface-container-low/30 flex justify-between items-center">
+                <h3 className="text-base font-bold text-on-surface">{lang === 'ar' ? 'خروقات اتفاقية مستوى الخدمة' : 'SLA Breaches'}</h3>
+                <span className="text-xs font-bold text-[#ba1a1a] bg-[#ba1a1a]/10 px-2.5 py-0.5 rounded-full">{maint.breaches.length}</span>
+              </div>
+              {maint.breaches.length === 0 ? (
+                <p className="p-5 text-on-surface-variant text-sm">{lang === 'ar' ? 'لا توجد خروقات — جميع أوامر العمل ضمن المهلة.' : 'No breaches — every work order is within its SLA.'}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/20">
+                        <th className="px-5 py-3">{lang === 'ar' ? 'رقم' : 'WO'}</th>
+                        <th className="px-5 py-3">{lang === 'ar' ? 'العنوان' : 'Title'}</th>
+                        <th className="px-5 py-3">{lang === 'ar' ? 'الأولوية' : 'Priority'}</th>
+                        <th className="px-5 py-3">{lang === 'ar' ? 'المهلة' : 'Due'}</th>
+                        <th className="px-5 py-3 text-right">{lang === 'ar' ? 'التأخير' : 'Overdue'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10">
+                      {maint.breaches.slice(0, 20).map((b, i) => (
+                        <tr key={b.wo_number ?? i} className="hover:bg-surface-container-low/40">
+                          <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">{b.wo_number ?? '—'}</td>
+                          <td className="px-5 py-3 text-on-surface max-w-[200px] truncate">{b.title ?? '—'}</td>
+                          <td className="px-5 py-3">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: PRIORITY_COLORS[b.priority ?? ''] ?? '#3e4944', backgroundColor: (PRIORITY_COLORS[b.priority ?? ''] ?? '#3e4944') + '1a' }}>
+                              {priorityLabel[b.priority ?? ''] ?? b.priority ?? '—'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-on-surface-variant text-xs">{b.dueAt ? new Date(b.dueAt).toLocaleDateString('en-GB') : '—'}</td>
+                          <td className="px-5 py-3 text-right font-semibold text-[#ba1a1a]">{b.overdueHours < 48 ? `${Math.round(b.overdueHours)}h` : `${Math.round(b.overdueHours / 24)}d`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {maint.breaches.length > 20 && (
+                    <p className="px-5 py-3 text-xs text-on-surface-variant border-t border-outline-variant/10">{lang === 'ar' ? `+${maint.breaches.length - 20} أخرى` : `+${maint.breaches.length - 20} more`}</p>
+                  )}
+                </div>
               )}
             </div>
 
