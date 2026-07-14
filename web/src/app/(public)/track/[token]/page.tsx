@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { format } from 'date-fns'
+import PublicRequestChat from './PublicRequestChat'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +107,8 @@ export default async function TrackRequestPage({ params }: { params: { token: st
           ))}
         </div>
       </div>
+
+      <PublicRequestChat token={params.token} />
     </div>
   )
 }
