@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import { supabase } from '../lib/supabase'
+import { closeWorkOrder } from '../lib/webApi'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
@@ -85,6 +86,11 @@ export default function WorkOrderDetailScreen() {
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'photos' | 'time' | 'activity'>('details')
   const [timerRunning, setTimerRunning] = useState(false)
   const [timerSeconds, setTimerSeconds] = useState(0)
+  // CORE-05 / FM-07: completion (close-out) flow routed through the web close endpoint.
+  const [closeModal, setCloseModal] = useState<null | 'completed' | 'closed'>(null)
+  const [closeoutPhotos, setCloseoutPhotos] = useState<string[]>([])
+  const [signoff, setSignoff] = useState('')
+  const [completionNotes, setCompletionNotes] = useState('')
   const timerRef = useRef<any>(null)
   const startTimeRef = useRef<Date | null>(null)
 
@@ -112,13 +118,22 @@ export default function WorkOrderDetailScreen() {
   }
 
   async function updateStatus(newStatus: string) {
+    // CORE-05 / FM-07: completing or closing must go through the web close
+    // endpoint (field-config close-out photos, sign-off, audit, manager
+    // notification). Open the completion screen instead of writing directly.
+    if (newStatus === 'completed' || newStatus === 'closed') {
+      setCloseoutPhotos([])
+      setSignoff(profile?.full_name ?? '')
+      setCompletionNotes('')
+      setCloseModal(newStatus)
+      return
+    }
     setSaving(true)
     const now = new Date().toISOString()
     const updates: any = { status: newStatus, updated_at: now }
     if (newStatus === 'in_progress' && !wo.started_at) updates.started_at = now
-    if (newStatus === 'completed') updates.completed_at = now
-    else if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
-    if (newStatus !== 'closed' && wo.closed_at) updates.closed_at = null // reopening a closed WO clears the stale close time
+    if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
+    if (wo.closed_at) updates.closed_at = null // reopening a closed WO clears the stale close time
     await supabase.from('work_orders').update(updates).eq('id', wo.id)
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
@@ -129,6 +144,64 @@ export default function WorkOrderDetailScreen() {
     setWo((prev: any) => ({ ...prev, ...updates }))
     await fetchWO()
     setSaving(false)
+  }
+
+  // Route the close-out through the web server endpoint. Server enforces
+  // required close-out photos and returns a clear message when missing.
+  async function submitClose() {
+    if (!closeModal) return
+    setSaving(true)
+    const result = await closeWorkOrder({
+      workOrderId: wo.id,
+      status: closeModal,
+      closeoutPhotoUrls: closeoutPhotos,
+      signoff: signoff.trim() || undefined,
+      completionNotes: completionNotes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!result.ok) {
+      Alert.alert(t('error'), t('complete_failed', { error: result.error }))
+      return
+    }
+    const doneKey = closeModal === 'closed' ? 'closed_ok' : 'completed_ok'
+    setCloseModal(null)
+    await fetchWO()
+    Alert.alert(lang === 'ar' ? 'تم' : 'Done', t(doneKey))
+  }
+
+  // Compress + upload a single image, return its public URL. Shared by the
+  // Photos tab and the close-out photo capture.
+  async function uploadImageToStorage(originalUri: string): Promise<string> {
+    const compressed = await ImageManipulator.manipulateAsync(
+      originalUri,
+      [{ resize: { width: 800 } }],
+      { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+    )
+    const filename = 'wo-' + wo.id + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.jpg'
+    const response = await fetch(compressed.uri)
+    const blob = await response.blob()
+    const arrayBuffer = await new Response(blob).arrayBuffer()
+    const { error } = await supabase.storage.from('media').upload(filename, arrayBuffer, { contentType: 'image/jpeg', upsert: false })
+    if (error) throw new Error(error.message)
+    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filename)
+    return publicUrl
+  }
+
+  // Capture a close-out photo for the completion screen (not yet attached to
+  // the WO — the server merges these into photo_urls on close).
+  async function addCloseoutPhoto() {
+    const perm = await ImagePicker.requestCameraPermissionsAsync()
+    if (!perm.granted) { Alert.alert(t('camera_permission_required')); return }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.3, allowsEditing: true, aspect: [4, 3] as [number, number] })
+    if (result.canceled) return
+    setUploading(true)
+    try {
+      const url = await uploadImageToStorage(result.assets[0].uri)
+      setCloseoutPhotos(prev => [...prev, url])
+    } catch (e: any) {
+      Alert.alert(t('error'), e.message)
+    }
+    setUploading(false)
   }
 
   function startTimer() {
@@ -211,23 +284,7 @@ export default function WorkOrderDetailScreen() {
     if (result.canceled) return
     setUploading(true)
     try {
-      const originalUri = result.assets[0].uri
-      // Compress and resize to max 800px
-      const compressed = await ImageManipulator.manipulateAsync(
-        originalUri,
-        [{ resize: { width: 800 } }],
-        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
-      )
-      const uri = compressed.uri
-      // Random suffix keeps the public-bucket filename unguessable, and
-      // upsert: false guarantees we never overwrite an existing object.
-      const filename = 'wo-' + wo.id + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.jpg'
-      const response = await fetch(uri)
-      const blob = await response.blob()
-      const arrayBuffer = await new Response(blob).arrayBuffer()
-      const { error } = await supabase.storage.from('media').upload(filename, arrayBuffer, { contentType: 'image/jpeg', upsert: false })
-      if (error) { Alert.alert('Upload error', error.message); setUploading(false); return }
-      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filename)
+      const publicUrl = await uploadImageToStorage(result.assets[0].uri)
       // Re-fetch the latest photo list right before writing to shrink the
       // read-modify-write window against concurrent uploads.
       const { data: fresh } = await supabase.from('work_orders').select('photo_urls').eq('id', wo.id).single()
@@ -521,6 +578,66 @@ export default function WorkOrderDetailScreen() {
           </TouchableOpacity>
         </Modal>
       )}
+
+      {closeModal && (
+        <Modal transparent animationType='slide' onRequestClose={() => !saving && setCloseModal(null)}>
+          <KeyboardAvoidingView
+            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.sheet}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>
+                {closeModal === 'closed' ? t('close_wo') : t('complete_wo')}
+              </Text>
+              <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }}>
+                <Text style={styles.fieldLabel}>{t('closeout_photo')}</Text>
+                {closeoutPhotos.length > 0 && (
+                  <View style={styles.photoGrid}>
+                    {closeoutPhotos.map((url, i) => (
+                      <Image key={i} source={{ uri: url }} style={styles.photo} contentFit='cover' transition={200} />
+                    ))}
+                  </View>
+                )}
+                <TouchableOpacity style={styles.sheetPhotoBtn} onPress={addCloseoutPhoto} disabled={uploading || saving}>
+                  {uploading
+                    ? <ActivityIndicator color={colors.primary} />
+                    : (<><Ionicons name='camera-outline' size={18} color={colors.primary} /><Text style={styles.photoBtnText}>{t('add_photo')}</Text></>)}
+                </TouchableOpacity>
+
+                <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{t('signoff_name')}</Text>
+                <TextInput
+                  style={styles.sheetInput}
+                  value={signoff}
+                  onChangeText={setSignoff}
+                  placeholder={t('signoff_placeholder')}
+                  placeholderTextColor={colors.textLight}
+                />
+
+                <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{t('completion_notes')}</Text>
+                <TextInput
+                  style={[styles.sheetInput, { minHeight: 72, textAlignVertical: 'top' }]}
+                  value={completionNotes}
+                  onChangeText={setCompletionNotes}
+                  placeholder={t('completion_notes_placeholder')}
+                  placeholderTextColor={colors.textLight}
+                  multiline
+                />
+              </ScrollView>
+
+              <View style={styles.sheetActions}>
+                <TouchableOpacity style={[styles.sheetBtn, styles.sheetBtnGhost]} onPress={() => setCloseModal(null)} disabled={saving}>
+                  <Text style={styles.sheetBtnGhostText}>{t('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.sheetBtn, { backgroundColor: colors.success }]} onPress={submitClose} disabled={saving || uploading}>
+                  {saving
+                    ? <ActivityIndicator color='white' size='small' />
+                    : <Text style={styles.sheetBtnText}>{t('submit')}</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -571,4 +688,15 @@ const styles = StyleSheet.create({
   activityRow: { flexDirection: 'row', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, alignItems: 'flex-start' },
   activityIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   activityText: { fontSize: 13, color: colors.text, lineHeight: 18 },
+  sheet: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 },
+  sheetTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 16 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
+  sheetInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 12, fontSize: 14, color: colors.text },
+  sheetActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  sheetBtn: { flex: 1, padding: 14, borderRadius: radius.sm, alignItems: 'center' },
+  sheetBtnGhost: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  sheetBtnGhostText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
+  sheetBtnText: { color: 'white', fontSize: 15, fontWeight: '600' },
+  sheetPhotoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.infoLight },
 })
