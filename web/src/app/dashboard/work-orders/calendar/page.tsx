@@ -98,11 +98,18 @@ export default function WorkOrderCalendarPage() {
             <h1 className="text-2xl font-bold text-on-surface">{lang === 'ar' ? 'تقويم أوامر العمل' : 'Work Order Calendar'}</h1>
             <p className="text-on-surface-variant mt-1 text-sm">{monthCount} {lang === 'ar' ? 'أمر عمل مستحق هذا الشهر · اسحب لإعادة الجدولة' : 'due this month · drag a card to reschedule'}</p>
           </div>
-          <Link href="/dashboard/work-orders">
-            <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">list</span>{lang === 'ar' ? 'عرض القائمة' : 'List view'}
-            </button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/dashboard/work-orders/board">
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">view_kanban</span>{lang === 'ar' ? 'لوحة التوزيع' : 'Board'}
+              </button>
+            </Link>
+            <Link href="/dashboard/work-orders">
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">list</span>{lang === 'ar' ? 'عرض القائمة' : 'List view'}
+              </button>
+            </Link>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 mb-5">
