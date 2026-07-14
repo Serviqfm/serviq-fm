@@ -149,11 +149,21 @@ export default function InventoryPage() {
               {lowStockItems.length > 0 && <span className="text-error ml-2">· {lowStockItems.length} {t('inv.status.low')}</span>}
             </p>
           </div>
-          <Link href="/dashboard/inventory/new">
-            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-              <span className="material-symbols-outlined text-lg">add</span>{t('btn.add_item')}
-            </button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/inventory/ledger"
+              className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-colors text-sm font-semibold">
+              <span className="material-symbols-outlined text-base">receipt_long</span>Stock Ledger
+            </Link>
+            <Link href="/dashboard/purchase-orders"
+              className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-colors text-sm font-semibold">
+              <span className="material-symbols-outlined text-base">shopping_cart</span>Purchase Orders
+            </Link>
+            <Link href="/dashboard/inventory/new">
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">add</span>{t('btn.add_item')}
+              </button>
+            </Link>
+          </div>
         </div>
 
         {/* KPI bento */}
