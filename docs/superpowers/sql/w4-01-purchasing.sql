@@ -179,10 +179,14 @@ BEGIN
     RETURN v_po;
   END IF;
 
-  -- One ledger row + stock bump per line that maps to an inventory item.
+  -- One ledger row + stock bump per line that maps to an IN-ORG inventory item.
+  -- The JOIN drops any foreign-org / stale item_id, so the ledger can never record
+  -- a stock-in that didn't actually land in inventory_items (ledger drift).
   FOR v_line IN
-    SELECT item_id, quantity FROM purchase_order_items
-     WHERE purchase_order_id = p_po_id AND item_id IS NOT NULL
+    SELECT poi.item_id, poi.quantity
+      FROM purchase_order_items poi
+      JOIN inventory_items ii ON ii.id = poi.item_id AND ii.organisation_id = v_org
+     WHERE poi.purchase_order_id = p_po_id
   LOOP
     UPDATE inventory_items
        SET stock_quantity = COALESCE(stock_quantity, 0) + v_line.quantity
