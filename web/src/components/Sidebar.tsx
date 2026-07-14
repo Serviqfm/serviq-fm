@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { useFeatureFlag } from '@/lib/featureFlags'
 import { Logo } from '@/components/brand/Logo'
+import NotificationBell from '@/components/NotificationBell'
 
 // roles: items listed here are visible only to these roles. Items without `roles` are visible to everyone.
 const NAV: { key: string; href: string; en: string; ar: string; icon: string; exact: boolean; roles?: string[] }[] = [
@@ -149,6 +150,9 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-outline-variant/20 p-2 flex flex-col gap-0.5 flex-shrink-0">
+
+        {/* Notification bell + in-app alert center (CORE-15) */}
+        <NotificationBell collapsed={collapsed} />
 
         {/* Language toggle */}
         <button
