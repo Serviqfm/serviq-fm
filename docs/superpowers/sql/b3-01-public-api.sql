@@ -99,3 +99,9 @@ CREATE POLICY webhooks_admin_update ON webhooks
 DROP POLICY IF EXISTS webhooks_admin_delete ON webhooks;
 CREATE POLICY webhooks_admin_delete ON webhooks
   FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM users WHERE id = auth.uid() AND role = 'admin'));
+
+-- Column-level hardening (review): the SHA-256 key hash is never needed by any
+-- client (the dashboard shows only key_prefix), so deny it to authenticated/anon
+-- even for same-org admins hitting PostgREST directly. Service-role (server routes)
+-- is unaffected — makes the "key_hash is not client-readable" guarantee literal.
+REVOKE SELECT (key_hash) ON public.api_keys FROM authenticated, anon;

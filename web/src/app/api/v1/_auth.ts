@@ -60,7 +60,7 @@ export async function authenticateApiKey(req: NextRequest): Promise<NextResponse
   }
 
   // Best-effort last-used stamp; never blocks the request.
-  void admin.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', row.id)
+  void admin.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', row.id).then(undefined, () => {})
 
   return {
     orgId: row.organisation_id as string,
