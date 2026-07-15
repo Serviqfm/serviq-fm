@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { exportCSV } from '@/lib/csv'
 import { useLanguage } from '@/context/LanguageContext'
 import {
   currentValue, isWarrantyExpiringSoon, isWarrantyExpired, isReviewDue,
@@ -156,6 +157,38 @@ export default function AssetLogPage() {
     }
   }
 
+  // Filter-aware CSV export. Columns mirror the import template so an export → import
+  // round-trips (name/type/site/space by name, not id).
+  function exportCsv() {
+    const rows = filtered.map(it => ({
+      name: it.name ?? '',
+      name_ar: it.name_ar ?? '',
+      description: it.description ?? '',
+      type_name: it.type?.name ?? '',
+      brand: it.brand ?? '',
+      model: it.model ?? '',
+      serial_number: it.serial_number ?? '',
+      tracking_mode: it.tracking_mode ?? 'unit',
+      quantity: it.quantity ?? 1,
+      site_name: it.site?.name ?? '',
+      space_name: it.space?.name ?? '',
+      status: it.status ?? '',
+      purchase_date: it.purchase_date ?? '',
+      purchase_cost: it.purchase_cost ?? '',
+      replacement_cost: it.replacement_cost ?? '',
+      current_value_override: it.current_value_override ?? '',
+      expected_lifespan_years: it.expected_lifespan_years ?? '',
+      invoice_ref: it.invoice_ref ?? '',
+      warranty_provider: it.warranty_provider ?? '',
+      warranty_expiry: it.warranty_expiry ?? '',
+      condition_rating: it.condition_rating ?? '',
+      is_usable: it.is_usable === false ? 'false' : 'true',
+      condition_notes: it.condition_notes ?? '',
+      condition_review_interval_months: it.condition_review_interval_months ?? '',
+    }))
+    exportCSV('asset-log.csv', rows)
+  }
+
   return (
     <div className="star-pattern bg-surface min-h-screen p-8" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="max-w-[1440px] mx-auto">
@@ -167,6 +200,15 @@ export default function AssetLogPage() {
             <p className="text-on-surface-variant mt-1 text-sm">{stats.total} {t('asset_log.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={exportCsv} disabled={filtered.length === 0}
+              className="bg-surface-container-lowest text-on-surface border border-outline-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors disabled:opacity-50">
+              <span className="material-symbols-outlined text-lg">download</span>{t('common.export')}
+            </button>
+            <Link href="/dashboard/asset-log/import">
+              <button className="bg-surface-container-lowest text-on-surface border border-outline-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+                <span className="material-symbols-outlined text-lg">upload</span>{t('common.import')}
+              </button>
+            </Link>
             <Link href="/dashboard/asset-log/new">
               <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
                 <span className="material-symbols-outlined text-lg">add</span>{t('asset_log.new')}
