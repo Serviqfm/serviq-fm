@@ -7,6 +7,7 @@ import NotificationsTab from './NotificationsTab'
 import PushAuditTab from './PushAuditTab'
 import FormFieldsTab from './FormFieldsTab'
 import CustomFieldsTab from './CustomFieldsTab'
+import CategoriesTab from './CategoriesTab'
 import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
 
 export default function SettingsPage() {
@@ -17,7 +18,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields'>('account')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories'>('account')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -100,11 +101,12 @@ export default function SettingsPage() {
           <div className="flex gap-0 mb-8 border-b border-outline-variant">
             {(() => {
               const isElevated = user?.role === 'admin' || user?.role === 'manager'
-              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields'; label: string }[] = []
+              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories'; label: string }[] = []
               if (isElevated) {
                 tabs.push(
                   { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
                   { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
+                  { key: 'categories',   label: lang === 'ar' ? 'الفئات' : 'Categories' },
                 )
               }
               tabs.push(
@@ -417,6 +419,10 @@ export default function SettingsPage() {
 
           {activeTab === 'custom_fields' && user?.role === 'admin' && (
             <CustomFieldsTab />
+          )}
+
+          {activeTab === 'categories' && (user?.role === 'admin' || user?.role === 'manager') && (
+            <CategoriesTab />
           )}
         </div>
       </div>

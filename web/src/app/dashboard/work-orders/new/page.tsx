@@ -8,6 +8,7 @@ import { sendPushNotification } from '@/lib/push'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 import WorkOrderCustomFields from '@/components/WorkOrderCustomFields'
+import { fetchWoCategories, catLabel, type WoCategory } from '@/lib/woCategories'
 
 const inputCls = 'w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40'
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5'
@@ -50,6 +51,7 @@ export default function NewWorkOrderPage() {
   const [isManager, setIsManager] = useState(false)
   const [taskRows, setTaskRows] = useState<{ title: string; title_ar: string }[]>([])
   const [customFields, setCustomFields] = useState<Record<string, string>>({})
+  const [categories, setCategories] = useState<WoCategory[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     title: '',
@@ -102,6 +104,7 @@ export default function NewWorkOrderPage() {
       supabase.from('checklist_templates').select('id, name, name_ar, items').eq('organisation_id', orgId).order('name'),
       supabase.from('teams').select('id, name, name_ar').eq('organisation_id', orgId).order('name'),
     ])
+    setCategories(await fetchWoCategories(supabase))
     if (assetData) setAssets(assetData)
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
@@ -417,18 +420,12 @@ export default function NewWorkOrderPage() {
                     required={isReq('category')}
                     className={inputCls}>
                     <option value="">{lang === 'ar' ? 'اختر الفئة' : 'Select category'}</option>
-                    <option value="HVAC">{t('cat.hvac')}</option>
-                    <option value="Electrical">{t('cat.electrical')}</option>
-                    <option value="Plumbing">{t('cat.plumbing')}</option>
-                    <option value="Elevator / Lift">Elevator / Lift</option>
-                    <option value="Fire Safety">{t('cat.fire')}</option>
-                    <option value="Furniture">Furniture</option>
-                    <option value="Kitchen Equipment">Kitchen Equipment</option>
-                    <option value="Pool / Gym">Pool / Gym</option>
-                    <option value="IT Equipment">IT Equipment</option>
-                    <option value="Signage">Signage</option>
-                    <option value="Vehicle">Vehicle</option>
-                    <option value="Other">{t('cat.other')}</option>
+                    {categories.map(c => (
+                      <option key={c.name} value={c.name}>{catLabel(c, lang)}</option>
+                    ))}
+                    {form.category && !categories.some(c => c.name === form.category) && (
+                      <option value={form.category}>{form.category}</option>
+                    )}
                   </select>
                 </div>
               )}

@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 import WorkOrderCustomFields from '@/components/WorkOrderCustomFields'
+import { fetchWoCategories, catLabel, type WoCategory } from '@/lib/woCategories'
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
@@ -32,6 +33,7 @@ export default function EditWorkOrderPage() {
   const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
   const [isManager, setIsManager] = useState(false)
   const [customFields, setCustomFields] = useState<Record<string, string>>({})
+  const [categories, setCategories] = useState<WoCategory[]>([])
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -97,6 +99,7 @@ export default function EditWorkOrderPage() {
         return
       }
 
+      setCategories(await fetchWoCategories(supabase))
       if (assetResult.data) setAssets(assetResult.data)
       if (siteResult.data) setSites(siteResult.data)
       if (techResult.data) setTechnicians(techResult.data)
@@ -267,18 +270,12 @@ export default function EditWorkOrderPage() {
               <label style={labelStyle}>Category{reqMark('category')}</label>
               <select name='category' value={form.category} onChange={handleChange} required={isReq('category')} style={fieldStyle}>
                 <option value=''>Select category</option>
-                <option value='HVAC'>HVAC</option>
-                <option value='Electrical'>Electrical</option>
-                <option value='Plumbing'>Plumbing</option>
-                <option value='Elevator / Lift'>Elevator / Lift</option>
-                <option value='Fire Safety'>Fire Safety</option>
-                <option value='Furniture'>Furniture</option>
-                <option value='Kitchen Equipment'>Kitchen Equipment</option>
-                <option value='Pool / Gym'>Pool / Gym</option>
-                <option value='IT Equipment'>IT Equipment</option>
-                <option value='Signage'>Signage</option>
-                <option value='Vehicle'>Vehicle</option>
-                <option value='Other'>Other</option>
+                {categories.map(c => (
+                  <option key={c.name} value={c.name}>{catLabel(c, lang)}</option>
+                ))}
+                {form.category && !categories.some(c => c.name === form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
               </select>
             </div>
           )}
