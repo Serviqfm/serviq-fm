@@ -514,3 +514,21 @@ review — critical checks all passed; only LOW/nit hardening applied.
   (server-side price ids, org-bound, admin-only) + `/api/webhooks/stripe` (verifies `Stripe-Signature` via
   `constructEvent` on the raw body, rejects forgeries) → syncs `organisations.plan_tier`. Env-gated (501 unconfigured).
   **SQL (review):** `b3d-01-stripe-customer-unique.sql` (1:1 customer→org). Owner: Stripe keys/prices + webhook endpoint.
+
+## Wave 4 batch 4 — asset-log CSV · PM floating/recurrence · pagination · notifications (2026-07-14)
+
+Four disjoint tracks. PM generator re-reviewed: the W4.2 hybrid/one-open-WO de-dupe fix is intact.
+
+- **AG-7** — PR #50 — Asset Log CSV import (`/api/asset-log/bulk-import`, manager-gated, parseCSV, name/type
+  resolution, per-row validation, initial movement row) + filter-aware export; export↔import round-trips. No SQL.
+  Remaining: AG-10 (reports), AL-03 (downtime — lives on MEP asset pages).
+- **1C-09 + 1C-10** — PR #53 — PM **floating** (next due = prev WO's `completed_at` + interval; first fires
+  immediately; only generates once the prior WO completes) + **true calendar recurrence** (interval_count/unit +
+  day-of-month anchor; `addMonths` clamping fixes 30d/365d drift). `pm_schedules` gains scheduling_mode/interval
+  cols; `generate_due_pm_work_orders()` rewritten (W4.2 meter/hybrid + de-dupe preserved) + `pm_roll_next_due()`
+  SECURITY DEFINER. PM new/edit forms get a mode + custom-interval picker. **SQL:** `b4-01-pm-completion-recurrence.sql`.
+  Remaining: FM-05 (checklists on PM).
+- **DV-14 (cont.)** — PR #52 — server-side pagination on **sites, users, vendors, teams, requests** (usePagination
+  hook from #43; whole-org stat headers via separate aggregate fetches; role gates preserved). No SQL. WO list still pending.
+- **1C-06 + 1C-07 + WO-28** — PR #51 — team/additional-worker assignment notifications; deactivated users excluded
+  from all notification fan-outs + push_token cleared on deactivation. No SQL. Remaining: WO-27.
