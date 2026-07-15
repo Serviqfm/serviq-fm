@@ -6,6 +6,16 @@ import { generateTempPassword } from '@/lib/tempPassword'
 
 export const dynamic = 'force-dynamic'
 
+// 1C-15 coercion: numeric rate (>= 0 or null) and a text[] of skill categories.
+function coerceRate(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+function coerceCategories(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.filter((c): c is string => typeof c === 'string' && c.trim() !== '')
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Authenticate the caller via the cookie-bound Supabase server client.
@@ -26,11 +36,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { email, full_name, full_name_ar, role, phone } = body
+    const { email, full_name, full_name_ar, role, phone, job_title, hourly_rate, skill_categories } = body
 
     if (!email || !full_name || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+
+    // hourly_rate is admin-only (1C-15): managers may create users but not set pay rate.
+    const isAdmin = callerProfile.role === 'admin'
 
     // Only admins may create admin users.
     if (role === 'admin' && callerProfile.role !== 'admin') {
@@ -101,6 +114,9 @@ export async function POST(req: NextRequest) {
       full_name_ar: cleaned.full_name_ar || null,
       role: cleanedRole,
       phone: cleaned.phone || null,
+      job_title: typeof job_title === 'string' && job_title.trim() ? job_title.trim() : null,
+      hourly_rate: isAdmin ? coerceRate(hourly_rate) : null,
+      skill_categories: coerceCategories(skill_categories),
       organisation_id,
       is_active: true,
       invited_at: new Date().toISOString(),

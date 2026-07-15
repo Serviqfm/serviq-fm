@@ -15,13 +15,17 @@ export default function NewUserPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [orgId, setOrgId] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const [form, setForm] = useState({
     full_name: '',
     full_name_ar: '',
     email: '',
     role: 'technician',
     phone: '',
+    job_title: '',
+    hourly_rate: '',
   })
+  const [skillCategories, setSkillCategories] = useState<string[]>([])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadOrg() }, [])
@@ -30,7 +34,13 @@ export default function NewUserPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data: profile } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
-    if (profile) setOrgId(profile.organisation_id)
+    if (profile) { setOrgId(profile.organisation_id); setIsAdmin(profile.role === 'admin') }
+  }
+
+  // Fixed WO category list (mirrors work-orders page); used for skill categories.
+  const CATEGORIES = ['HVAC', 'Electrical', 'Plumbing', 'Elevator / Lift', 'Fire Safety', 'Furniture', 'Kitchen Equipment', 'Pool / Gym', 'IT Equipment', 'Signage', 'Vehicle', 'Other']
+  function toggleCategory(c: string) {
+    setSkillCategories(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
@@ -53,6 +63,9 @@ export default function NewUserPage() {
         full_name_ar: form.full_name_ar,
         role: form.role,
         phone: form.phone,
+        job_title: form.job_title,
+        hourly_rate: form.hourly_rate,
+        skill_categories: skillCategories,
         organisation_id: orgId,
       }),
     })
@@ -106,7 +119,7 @@ export default function NewUserPage() {
           <button style={{ padding: '9px 24px', background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>{lang === 'ar' ? 'عرض المستخدمين' : 'View All Users'}</button>
         </a>
         <button
-          onClick={() => { setSuccess(false); setForm({ full_name: '', full_name_ar: '', email: '', role: 'technician', phone: '' }) }}
+          onClick={() => { setSuccess(false); setForm({ full_name: '', full_name_ar: '', email: '', role: 'technician', phone: '', job_title: '', hourly_rate: '' }); setSkillCategories([]) }}
           style={{ padding: '9px 24px', background: 'white', color: '#333', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
         >
           Add Another
@@ -167,6 +180,31 @@ export default function NewUserPage() {
             )}
           </div>
         )}
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}</label>
+          <input name='job_title' value={form.job_title} onChange={handleChange} placeholder={lang === 'ar' ? 'مثال: فني تكييف' : 'e.g. HVAC Technician'} style={fieldStyle} />
+        </div>
+        {isAdmin && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الأجر بالساعة' : 'Hourly Rate'}</label>
+            <input name='hourly_rate' type='number' min='0' step='0.01' value={form.hourly_rate} onChange={handleChange} placeholder='0.00' style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>{lang === 'ar' ? 'يُستخدم لحساب تكلفة العمالة في الفواتير.' : 'Used to compute labor charges on invoices.'}</p>
+          </div>
+        )}
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'فئات المهارة' : 'Skill Categories'}</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {CATEGORIES.map(c => {
+              const on = skillCategories.includes(c)
+              return (
+                <button type='button' key={c} onClick={() => toggleCategory(c)}
+                  style={{ padding: '5px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', border: on ? '1px solid #1a1a2e' : '1px solid #ddd', background: on ? '#1a1a2e' : 'white', color: on ? 'white' : '#444' }}>
+                  {c}
+                </button>
+              )
+            })}
+          </div>
+        </div>
         {error && (
           <div style={{ background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#b71c1c' }}>
             {error}
