@@ -493,3 +493,24 @@ Four disjoint ops/polish tracks; SQL reviewed (all standard patterns — clean, 
 - **WO-04** — PR #42 — org-managed `work_order_categories` (org RLS; writes admin/manager-gated + WITH CHECK)
   + Settings → Categories CRUD tab; WO new/edit dropdowns read the table with a hardcoded fallback (pre-migration
   safe). **SQL:** `b2-wo-categories.sql`.
+
+## Wave 4 batch 3 — the security cluster: public API · MFA · SSO · Stripe (2026-07-14)
+
+Four security-sensitive foundations, each env-gated (build + no-op until owner-configured). Full adversarial
+review — critical checks all passed; only LOW/nit hardening applied.
+
+- **MKT-19 (partial)** — PR #46 — public REST API foundation: `api_keys` (SHA-256 hash + display prefix, plaintext
+  shown once) + `webhooks` tables (admin-only org RLS); `/api/v1/{work-orders,assets}` authed by `Bearer <key>`
+  (org resolved from the key, scopes enforced, 401/501); `/dashboard/developers` admin page. **SQL:**
+  `b3-01-public-api.sql` (+ review: `REVOKE SELECT(key_hash)` from clients). Webhook delivery + rate-limit + write
+  verbs = follow-ups.
+- **MKT-21 (partial)** — PR #45 — MFA/TOTP on Supabase's built-in `auth.mfa`: `/dashboard/security` enroll (QR) /
+  challenge+verify / list / unenroll + AAL step-up. No SQL, no external service. Login-enforcement + recovery codes
+  = follow-ups. Review: clean.
+- **MKT-20 (partial)** — PR #48 — SSO via `signInWithSSO({ domain })`: additive sign-in on the login form +
+  `organisations.sso_domain` + a settings/sso page. **SQL:** `b3-sso-domain.sql`. Owner configures the IdP in
+  Supabase. SCIM + mobile SSO = follow-ups. Review: clean (additive, no password-auth bypass).
+- **AP-01 (partial)** — PR #47 — Stripe subscription billing: `stripe` SDK; `/dashboard/billing` + checkout route
+  (server-side price ids, org-bound, admin-only) + `/api/webhooks/stripe` (verifies `Stripe-Signature` via
+  `constructEvent` on the raw body, rejects forgeries) → syncs `organisations.plan_tier`. Env-gated (501 unconfigured).
+  **SQL (review):** `b3d-01-stripe-customer-unique.sql` (1:1 customer→org). Owner: Stripe keys/prices + webhook endpoint.
