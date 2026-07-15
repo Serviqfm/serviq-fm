@@ -7,6 +7,16 @@ import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 
 export const dynamic = 'force-dynamic'
 
+// 1C-15 coercion: numeric rate (>= 0 or null) and a text[] of skill categories.
+function coerceRate(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+function coerceCategories(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.filter((c): c is string => typeof c === 'string' && c.trim() !== '')
+}
+
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   if (!id) return NextResponse.json({ error: 'Missing user id' }, { status: 400 })
@@ -121,6 +131,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ('full_name_ar' in cleaned) finalUpdate.full_name_ar = updateRow.full_name_ar
   if ('role' in cleaned) finalUpdate.role = updateRow.role
   if ('is_active' in cleaned) finalUpdate.is_active = updateRow.is_active
+
+  // 1C-15 admin-editable fields — not in the field catalog, so they skip
+  // enforceFieldConfig and are read straight from the body. Only keys the
+  // client actually sent are written (partial-PATCH safe).
+  if ('phone' in body) finalUpdate.phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : null
+  if ('job_title' in body) finalUpdate.job_title = typeof body.job_title === 'string' && body.job_title.trim() ? body.job_title.trim() : null
+  if ('skill_categories' in body) finalUpdate.skill_categories = coerceCategories(body.skill_categories)
+  // hourly_rate is admin-only: managers may edit users but not set pay rate.
+  if ('hourly_rate' in body && profile.role === 'admin') finalUpdate.hourly_rate = coerceRate(body.hourly_rate)
 
   const { error } = await admin
     .from('users')

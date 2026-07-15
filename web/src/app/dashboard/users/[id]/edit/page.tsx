@@ -19,12 +19,17 @@ export default function EditUserPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [isSelf, setIsSelf] = useState(false)
+  const [callerIsAdmin, setCallerIsAdmin] = useState(false)
   const [form, setForm] = useState({
     full_name: '',
     full_name_ar: '',
     role: 'technician',
     is_active: true,
+    phone: '',
+    job_title: '',
+    hourly_rate: '',
   })
+  const [skillCategories, setSkillCategories] = useState<string[]>([])
   // Site scoping (T9 / 1C-14): empty scopedSites = unscoped = sees all sites.
   const [sites, setSites] = useState<{ id: string; name: string }[]>([])
   const [scopedSites, setScopedSites] = useState<Set<string>>(new Set())
@@ -36,6 +41,10 @@ export default function EditUserPage() {
   async function loadUser() {
     const { data: { user } } = await supabase.auth.getUser()
     setIsSelf(Boolean(user && user.id === id))
+    if (user) {
+      const { data: me } = await supabase.from('users').select('role').eq('id', user.id).single()
+      setCallerIsAdmin(me?.role === 'admin')
+    }
     const { data } = await supabase.from('users').select('*').eq('id', id).single()
     if (data) {
       setForm({
@@ -43,7 +52,11 @@ export default function EditUserPage() {
         full_name_ar: data.full_name_ar ?? '',
         role: data.role ?? 'technician',
         is_active: data.is_active !== false,
+        phone: data.phone ?? '',
+        job_title: data.job_title ?? '',
+        hourly_rate: data.hourly_rate != null ? String(data.hourly_rate) : '',
       })
+      if (Array.isArray(data.skill_categories)) setSkillCategories(data.skill_categories)
       setOrgId(data.organisation_id ?? '')
       if (data.organisation_id) {
         const { data: siteRows } = await supabase.from('sites').select('id, name').eq('organisation_id', data.organisation_id).eq('is_active', true).order('name')
@@ -53,6 +66,12 @@ export default function EditUserPage() {
       if (scopeRows) setScopedSites(new Set(scopeRows.map(r => r.site_id as string)))
     }
     setLoading(false)
+  }
+
+  // Fixed WO category list (mirrors work-orders page); used for skill categories.
+  const CATEGORIES = ['HVAC', 'Electrical', 'Plumbing', 'Elevator / Lift', 'Fire Safety', 'Furniture', 'Kitchen Equipment', 'Pool / Gym', 'IT Equipment', 'Signage', 'Vehicle', 'Other']
+  function toggleCategory(c: string) {
+    setSkillCategories(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
   }
 
   function toggleSite(siteId: string) {
@@ -100,6 +119,12 @@ export default function EditUserPage() {
         full_name_ar: form.full_name_ar,
         role: form.role,
         is_active: form.is_active,
+        phone: form.phone,
+        job_title: form.job_title,
+        skill_categories: skillCategories,
+        // Only send hourly_rate when the caller is an admin; the API ignores it
+        // for non-admins, but omitting it keeps the request honest.
+        ...(callerIsAdmin ? { hourly_rate: form.hourly_rate } : {}),
       }),
     })
     const result = await res.json().catch(() => ({}))
@@ -178,6 +203,35 @@ export default function EditUserPage() {
             </label>
           </div>
         )}
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}</label>
+          <input name='phone' value={form.phone} onChange={handleChange} placeholder='+966 5x xxx xxxx' style={fieldStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}</label>
+          <input name='job_title' value={form.job_title} onChange={handleChange} placeholder={lang === 'ar' ? 'مثال: فني تكييف' : 'e.g. HVAC Technician'} style={fieldStyle} />
+        </div>
+        {callerIsAdmin && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الأجر بالساعة' : 'Hourly Rate'}</label>
+            <input name='hourly_rate' type='number' min='0' step='0.01' value={form.hourly_rate} onChange={handleChange} placeholder='0.00' style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>{lang === 'ar' ? 'يُستخدم لحساب تكلفة العمالة في الفواتير.' : 'Used to compute labor charges on invoices.'}</p>
+          </div>
+        )}
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'فئات المهارة' : 'Skill Categories'}</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {CATEGORIES.map(c => {
+              const on = skillCategories.includes(c)
+              return (
+                <button type='button' key={c} onClick={() => toggleCategory(c)}
+                  style={{ padding: '5px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', border: on ? '1px solid #1a1a2e' : '1px solid #ddd', background: on ? '#1a1a2e' : 'white', color: on ? 'white' : '#444' }}>
+                  {c}
+                </button>
+              )
+            })}
+          </div>
+        </div>
         {sites.length > 0 && (
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'المواقع المسموح بها' : 'Site access'}</label>
