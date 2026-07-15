@@ -532,3 +532,23 @@ Four disjoint tracks. PM generator re-reviewed: the W4.2 hybrid/one-open-WO de-d
   hook from #43; whole-org stat headers via separate aggregate fetches; role gates preserved). No SQL. WO list still pending.
 - **1C-06 + 1C-07 + WO-28** — PR #51 — team/additional-worker assignment notifications; deactivated users excluded
   from all notification fan-outs + push_token cleared on deactivation. No SQL. Remaining: WO-27.
+
+## Wave 4 batch 5 — mobile tasks · report builder · custom statuses · webhook delivery (2026-07-14)
+
+Four disjoint tracks (vercel.json cron reconciled: #58 stacked on #56). SQL/security reviewed; 2 fixes pre-merge.
+
+- **FM-06 / WO-21 / 1C-02** — PR #55 — mobile WO Tasks tab (work_order_tasks toggle + progress + open-task
+  guard before Complete) + mobile deactivation enforcement (is_active=false signs out). Mobile-only, no SQL.
+  Remaining: AG-8/9 (asset-log mobile scan/move).
+- **MKT-08 / FM-11** — PR #56 — report builder (/dashboard/reports/builder: entity + columns + range → preview +
+  CSV/print) + `scheduled_reports` table (org RLS, admin write) + CRON_SECRET-gated `/api/cron/scheduled-reports`
+  (emails packs, advances next_run). **SQL:** `b5-scheduled-reports.sql`. Review fix: the cron now filters
+  config.columns to plain identifiers (blocks FK-embed injection into the service-role select).
+- **WO-25** — PR #57 — custom WO statuses as base-mapped display sub-states: `work_order_custom_statuses`
+  (maps_to_base_status CHECK'd to the 6 base values, org RLS, admin write) + nullable work_orders.custom_status_id
+  (ON DELETE SET NULL). **work_orders.status stays base → CORE-20 triggers untouched** (verified). Admin page +
+  WO-detail control. **SQL:** `b5-wo-custom-statuses.sql`. Remaining: close-route wiring + WO-24 linking.
+- **MKT-19 (delivery) / FM-04 (cron) / v1** — PR #58 — HMAC-SHA256 signed webhook delivery (org-scoped,
+  fire-and-forget) wired on wo.status_changed + request.submitted; CRON_SECRET-gated compliance-expiry cron
+  (30/7-day admin alerts); /api/v1/sites + /api/v1/requests (api-key auth, scoped). No SQL. Review fix: SSRF guard
+  blocks private/metadata webhook hosts at registration. Remaining: wo.created event wiring.
