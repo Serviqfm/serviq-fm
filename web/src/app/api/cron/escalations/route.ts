@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { NotificationService } from '@/lib/NotificationService'
+import { captureAndAlert } from '@/lib/errorLog'
+
+const ROUTE = '/api/cron/escalations'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -175,8 +178,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const result = await run()
-  return NextResponse.json(result)
+  // DV-16: a failing run must not fail silently. Log + alert platform admins on
+  // an unexpected throw or when run() reports accumulated errors.
+  try {
+    const result = await run()
+    if (result.error) {
+      await captureAndAlert(new Error(result.error), { route: ROUTE })
+    }
+    return NextResponse.json(result)
+  } catch (e) {
+    await captureAndAlert(e, { route: ROUTE })
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
