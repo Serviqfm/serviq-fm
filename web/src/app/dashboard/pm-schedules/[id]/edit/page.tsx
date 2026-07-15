@@ -24,6 +24,7 @@ export default function EditPMSchedulePage() {
     asset_id: '', site_id: '', assigned_to: '',
     next_due_at: '', end_date: '', estimated_duration_minutes: '',
     is_seasonal: false, seasonal_start_month: '1', seasonal_end_month: '12',
+    scheduling_mode: 'fixed', interval_count: '', interval_unit: 'month', anchor_day: '',
   })
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
 
@@ -58,6 +59,10 @@ export default function EditPMSchedulePage() {
       is_seasonal: pm.is_seasonal ?? false,
       seasonal_start_month: pm.seasonal_start_month ? String(pm.seasonal_start_month) : '1',
       seasonal_end_month: pm.seasonal_end_month ? String(pm.seasonal_end_month) : '12',
+      scheduling_mode: pm.scheduling_mode ?? 'fixed',
+      interval_count: pm.interval_count ? String(pm.interval_count) : '',
+      interval_unit: pm.interval_unit ?? 'month',
+      anchor_day: pm.anchor_day ? String(pm.anchor_day) : '',
     })
     if (pm) setDaysOfWeek(Array.isArray(pm.days_of_week) ? pm.days_of_week : [])
     setLoading(false)
@@ -89,6 +94,11 @@ export default function EditPMSchedulePage() {
       is_seasonal: form.is_seasonal,
       seasonal_start_month: form.is_seasonal ? parseInt(form.seasonal_start_month) : null,
       seasonal_end_month: form.is_seasonal ? parseInt(form.seasonal_end_month) : null,
+      scheduling_mode: form.scheduling_mode,
+      interval_count: form.interval_count ? parseInt(form.interval_count) : null,
+      interval_unit: form.interval_count ? form.interval_unit : null,
+      anchor_day: form.interval_count && ['month', 'year'].includes(form.interval_unit) && form.anchor_day
+        ? parseInt(form.anchor_day) : null,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
     if (updateError) { setError(updateError.message); setSaving(false) }
@@ -221,6 +231,42 @@ export default function EditPMSchedulePage() {
               </div>
             </div>
           )}
+        </div>
+        <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'نمط الجدولة' : 'Scheduling Mode'}</label>
+            <select name='scheduling_mode' value={form.scheduling_mode} onChange={handleChange} style={fieldStyle}>
+              <option value='fixed'>{lang === 'ar' ? 'ثابت (تقويمي)' : 'Fixed (calendar-based)'}</option>
+              <option value='floating'>{lang === 'ar' ? 'عائم (بعد الإكمال)' : 'Floating (after completion)'}</option>
+            </select>
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {form.scheduling_mode === 'floating'
+                ? (lang === 'ar' ? 'يُنشأ الأمر التالي بعد اكتمال السابق بفترة واحدة.' : 'The next work order is created one interval after the previous one is completed.')
+                : (lang === 'ar' ? 'تُنشأ الأوامر على تواريخ تقويمية ثابتة.' : 'Work orders generate on fixed calendar dates.')}
+            </p>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'فاصل مخصص (اختياري)' : 'Custom interval (optional)'}</label>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 8px' }}>
+              {lang === 'ar' ? 'اترك الرقم فارغاً لاستخدام التكرار أعلاه. الأشهر/السنوات تستخدم تواريخ تقويمية حقيقية.' : 'Leave the number blank to use the frequency preset above. Months/years use true calendar dates.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: '#444' }}>{lang === 'ar' ? 'كل' : 'Every'}</span>
+              <input name='interval_count' type='number' min='1' value={form.interval_count} onChange={handleChange} placeholder='N' style={{ ...fieldStyle, width: 80 }} />
+              <select name='interval_unit' value={form.interval_unit} onChange={handleChange} style={{ ...fieldStyle, flex: 1 }}>
+                <option value='day'>{lang === 'ar' ? 'يوم/أيام' : 'day(s)'}</option>
+                <option value='week'>{lang === 'ar' ? 'أسبوع/أسابيع' : 'week(s)'}</option>
+                <option value='month'>{lang === 'ar' ? 'شهر/أشهر' : 'month(s)'}</option>
+                <option value='year'>{lang === 'ar' ? 'سنة/سنوات' : 'year(s)'}</option>
+              </select>
+            </div>
+            {form.interval_count && ['month', 'year'].includes(form.interval_unit) && (
+              <div style={{ marginTop: 8 }}>
+                <label style={labelStyle}>{lang === 'ar' ? 'يوم من الشهر (اختياري)' : 'Day of month (optional)'}</label>
+                <input name='anchor_day' type='number' min='1' max='31' value={form.anchor_day} onChange={handleChange} placeholder={lang === 'ar' ? 'مثال: 1 أو 15' : 'e.g. 1 or 15'} style={{ ...fieldStyle, width: 120 }} />
+              </div>
+            )}
+          </div>
         </div>
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 10 }}>
