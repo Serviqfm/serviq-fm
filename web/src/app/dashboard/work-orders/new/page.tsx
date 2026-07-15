@@ -320,20 +320,24 @@ export default function NewWorkOrderPage() {
       }
     }
 
-    if (form.assigned_to && newWO) {
-        sendPushNotification({
-          user_id: form.assigned_to,
-          title: 'New Work Order Assigned',
-          body: `You have been assigned: ${form.title}`,
-          data: { type: 'work_order', id: newWO.id },
-        }).catch(console.error)
+    if (newWO) {
+        if (form.assigned_to) {
+          sendPushNotification({
+            user_id: form.assigned_to,
+            title: 'New Work Order Assigned',
+            body: `You have been assigned: ${form.title}`,
+            data: { type: 'work_order', id: newWO.id },
+          }).catch(console.error)
+        }
 
-        const { data: techUser } = await supabase
-          .from('users')
-          .select('email')
-          .eq('id', form.assigned_to)
-          .single()
-        if (techUser?.email) {
+        // 1C-06/WO-28: notify assignee + team members + additional workers. The route
+        // resolves recipients server-side (org-scoped, active-only). On create every
+        // recipient is new, so no delta is needed.
+        const newTeamId = isManager && form.team_id ? form.team_id : undefined
+        const newWorkerIds = isManager
+          ? additionalWorkers.filter(uid => uid !== form.assigned_to)
+          : []
+        if (form.assigned_to || newTeamId || newWorkerIds.length > 0) {
           const woNumber = newWO.wo_number
             ? `WO-${String(newWO.wo_number).padStart(4, '0')}`
             : newWO.id.slice(0, 8)
@@ -341,8 +345,9 @@ export default function NewWorkOrderPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userId: form.assigned_to,
-              userEmail: techUser.email,
+              userId: form.assigned_to || undefined,
+              teamId: newTeamId,
+              additionalWorkerIds: newWorkerIds,
               assignedBy: 'Manager',
               woNumber,
               woTitle: form.title,

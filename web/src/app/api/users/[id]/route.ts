@@ -132,6 +132,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ('role' in cleaned) finalUpdate.role = updateRow.role
   if ('is_active' in cleaned) finalUpdate.is_active = updateRow.is_active
 
+  // 1C-07: deactivating a user must silence their device. Clear the Expo push
+  // token/platform so no push can reach them even before the fan-out is-active
+  // filters catch up. (is_active guards email/in-app; this guards push at source.)
+  if (newActive === false) {
+    finalUpdate.push_token = null
+    finalUpdate.push_platform = null
+  }
+
   // 1C-15 admin-editable fields — not in the field catalog, so they skip
   // enforceFieldConfig and are read straight from the body. Only keys the
   // client actually sent are written (partial-PATCH safe).
