@@ -47,8 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("ERROR:", JSON.stringify(error))
       console.log("USER_ID:", userId)
     }
-    // Disabled (incl. self-deleted) accounts can never stay signed in.
-    if (data?.disabled) {
+    // Disabled (incl. self-deleted) or tenant-deactivated (is_active=false)
+    // accounts can never stay signed in. 1C-02: mirror the web AuthContext.
+    if (data?.disabled || data?.is_active === false) {
       await supabase.auth.signOut()
       setProfile(null)
       setLoading(false)
