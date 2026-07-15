@@ -15,6 +15,14 @@ import { isSystemRequired } from '@/lib/field-catalog'
 import WorkOrderFilesTab from '@/components/work-orders/WorkOrderFilesTab'
 import { CustomFieldDefinition, fieldLabel } from '@/lib/customFields'
 
+type CustomStatusOption = {
+  id: string
+  name: string
+  name_ar: string | null
+  color: string | null
+  maps_to_base_status: WorkOrderStatus
+}
+
 export default function WorkOrderDetailPage() {
   const { id } = useParams()
   const supabase = createClient()
@@ -57,6 +65,8 @@ export default function WorkOrderDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [existingInvoice, setExistingInvoice] = useState<any>(null)
   const [additionalWorkerNames, setAdditionalWorkerNames] = useState<string[]>([])
+  // WO-25: org-defined custom statuses (display sub-states mapped to a base status).
+  const [customStatuses, setCustomStatuses] = useState<CustomStatusOption[]>([])
   useEffect(() => {
     fetchWorkOrder()
     fetchComments()
@@ -66,6 +76,7 @@ export default function WorkOrderDetailPage() {
     fetchInvoice()
     fetchTasks()
     fetchCurrentUser()
+    fetchCustomStatuses()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -74,6 +85,16 @@ export default function WorkOrderDetailPage() {
     if (!user) return
     const { data: profile } = await supabase.from('users').select('id, role').eq('id', user.id).single()
     if (profile) setCurrentUser(profile)
+  }
+
+  async function fetchCustomStatuses() {
+    // Table may not exist yet (migration not applied) — any error just leaves the list empty.
+    const { data } = await supabase
+      .from('work_order_custom_statuses')
+      .select('id, name, name_ar, color, maps_to_base_status')
+      .eq('is_active', true)
+      .order('sort_order')
+    if (data) setCustomStatuses(data as CustomStatusOption[])
   }
 
   async function fetchTasks() {
@@ -208,7 +229,9 @@ export default function WorkOrderDetailPage() {
     window.location.reload()
   }
 
-  async function updateStatus(newStatus: WorkOrderStatus) {
+  // WO-25: customStatusId is the optional display sub-state; base `newStatus` is always
+  // one of the 6 legal statuses so the CORE-20 lifecycle trigger keeps working.
+  async function updateStatus(newStatus: WorkOrderStatus, customStatusId: string | null = null) {
     if (newStatus === 'closed') {
       setShowSignoff(true)
       return
@@ -222,10 +245,10 @@ export default function WorkOrderDetailPage() {
       alert('Please enter close-out notes before marking as completed.')
       return
     }
-    await doStatusUpdate(newStatus)
+    await doStatusUpdate(newStatus, undefined, customStatusId)
   }
 
-  async function doStatusUpdate(newStatus: WorkOrderStatus, signoff?: string) {
+  async function doStatusUpdate(newStatus: WorkOrderStatus, signoff?: string, customStatusId: string | null = null) {
     setUpdating(true)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -278,6 +301,8 @@ export default function WorkOrderDetailPage() {
 
       await supabase.from('work_orders').update({
         status: newStatus,
+        // WO-25: set/clear the display sub-state together with the base status.
+        custom_status_id: customStatusId,
         updated_at: new Date().toISOString(),
         ...(newStatus === 'in_progress' ? { started_at: new Date().toISOString() } : {}),
         ...(closeoutPhotoUrls.length > 0 ? { photo_urls: allPhotos } : {}),
@@ -631,6 +656,19 @@ export default function WorkOrderDetailPage() {
             )}
             <PriorityBadge priority={wo.priority} />
             <StatusBadge status={wo.status} />
+            {/* WO-25: show the custom sub-state only when it still maps to the current base
+                status (hides a stale sub-state left by a completed/closed transition). */}
+            {(() => {
+              const cs = customStatuses.find(c => c.id === wo.custom_status_id && c.maps_to_base_status === wo.status)
+              if (!cs) return null
+              return (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
+                  style={{ borderColor: cs.color ?? '#6b7280', color: cs.color ?? '#6b7280' }}>
+                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: cs.color ?? '#6b7280' }} />
+                  {lang === 'ar' && cs.name_ar ? cs.name_ar : cs.name}
+                </span>
+              )
+            })()}
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(wo as any).category && (
               <span className="text-xs bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full">
@@ -760,7 +798,10 @@ export default function WorkOrderDetailPage() {
           // CORE-01: only managers/admins can move a WO to `closed`.
           const transitions = nextStatuses[wo.status].filter(s => s !== 'closed' || isManager)
           const canReopen = isManager && ['completed', 'closed'].includes(wo.status)
-          if (transitions.length === 0 && !canReopen) return null
+          // WO-25: custom statuses whose base maps to an available transition. Picking one
+          // writes both custom_status_id and the base status (via updateStatus's 2nd arg).
+          const customTransitions = customStatuses.filter(cs => transitions.includes(cs.maps_to_base_status))
+          if (transitions.length === 0 && customTransitions.length === 0 && !canReopen) return null
           return (
             <div>
               <p className="text-sm font-medium mb-2 text-on-surface-variant">Update Status</p>
@@ -773,6 +814,17 @@ export default function WorkOrderDetailPage() {
                     className={`px-[18px] py-2 rounded-xl cursor-pointer text-sm font-medium transition-colors ${statusActionClass(s)}`}
                   >
                     {updating ? '...' : `→ ${s.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`}
+                  </button>
+                ))}
+                {customTransitions.map(cs => (
+                  <button
+                    key={cs.id}
+                    onClick={() => updateStatus(cs.maps_to_base_status, cs.id)}
+                    disabled={updating}
+                    className="px-[18px] py-2 rounded-xl cursor-pointer text-sm font-medium transition-colors border"
+                    style={{ borderColor: cs.color ?? '#6b7280', color: cs.color ?? '#6b7280' }}
+                  >
+                    {updating ? '...' : `→ ${lang === 'ar' && cs.name_ar ? cs.name_ar : cs.name}`}
                   </button>
                 ))}
                 {canReopen && (
