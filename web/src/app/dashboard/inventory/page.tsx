@@ -3,52 +3,99 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 import Link from 'next/link'
 
 export default function InventoryPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [items, setItems] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [filterCategory, setFilterCategory] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'in' | 'low' | 'out'>('all')
+  const [orgId, setOrgId] = useState<string | null>(null)
+  const [categories, setCategories] = useState<string[]>([])
+  // Org-wide KPI aggregates (whole table, not just the current page).
+  const [kpis, setKpis] = useState({ total: 0, lowStock: 0, outOfStock: 0, totalValue: 0 })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [lowStockItems, setLowStockItems] = useState<any[]>([])
   const supabase = createClient()
   const { t } = useLanguage()
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchItems() }, [])
+  // Debounce search so we don't fire a query on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
 
-  async function fetchItems() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      if (typeof window !== 'undefined') window.location.href = '/login'
-      return
-    }
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
-    const { data } = await supabase.from('inventory_items').select('*, site:site_id(name)').eq('organisation_id', profile.organisation_id).order('name', { ascending: true })
-    if (data) setItems(data)
-    setLoading(false)
-  }
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) {
+        if (typeof window !== 'undefined') window.location.href = '/login'
+        return
+      }
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (profile) setOrgId(profile.organisation_id)
+    })
+  }, [supabase])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: items, total, loading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
+    () => {
+      let q = supabase.from('inventory_items').select('*, site:site_id(name)', { count: 'exact' })
+        .eq('organisation_id', orgId!).order('name', { ascending: true })
+      if (debouncedSearch) {
+        const s = `%${debouncedSearch}%`
+        q = q.or(`name.ilike.${s},sku.ilike.${s},category.ilike.${s}`)
+      }
+      if (filterCategory) q = q.eq('category', filterCategory)
+      if (filterStatus === 'out') q = q.eq('stock_quantity', 0)
+      if (filterStatus === 'in') q = q.gt('stock_quantity', 0)
+      // 'low' can't be expressed as a single column filter (needs stock <= min_level);
+      // ponytail: approximate as a low absolute stock threshold, exact filter would need an RPC.
+      if (filterStatus === 'low') q = q.gt('stock_quantity', 0).lte('stock_quantity', 10)
+      return q
+    },
+    [orgId, debouncedSearch, filterCategory, filterStatus],
+  )
+
+  // KPIs + distinct categories + low-stock list: whole-org, refreshed on delete.
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    supabase.from('inventory_items')
+      .select('category, stock_quantity, minimum_stock_level, unit_cost, id, name, unit')
+      .eq('organisation_id', orgId)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setCategories(Array.from(new Set(data.map(i => i.category).filter(Boolean))).sort() as string[])
+        const low = data.filter(i => i.stock_quantity <= i.minimum_stock_level && i.minimum_stock_level > 0)
+        setLowStockItems(low)
+        setKpis({
+          total: data.length,
+          lowStock: low.length,
+          outOfStock: data.filter(i => i.stock_quantity === 0).length,
+          totalValue: data.reduce((sum, i) => sum + (i.stock_quantity * (i.unit_cost ?? 0)), 0),
+        })
+      })
+    return () => { cancelled = true }
+  }, [orgId, deleting, supabase])
 
   async function deleteSelected() {
     if (!confirm(t('common.confirm_delete') + ' (' + selected.length + ')')) return
     setDeleting(true)
     await supabase.from('inventory_items').delete().in('id', selected)
     setSelected([])
-    await fetchItems()
+    refresh()
     setDeleting(false)
   }
 
   async function deleteOne(id: string) {
     if (!confirm(t('common.confirm_delete'))) return
     await supabase.from('inventory_items').delete().eq('id', id)
-    fetchItems()
+    refresh()
   }
 
   function toggleSelect(id: string) {
@@ -56,29 +103,19 @@ export default function InventoryPage() {
   }
 
   function toggleSelectAll() {
-    setSelected(prev => prev.length === filtered.length ? [] : filtered.map(i => i.id))
+    setSelected(prev => prev.length === items.length ? [] : items.map(i => i.id))
   }
 
-  const categories = Array.from(new Set(items.map(i => i.category).filter(Boolean))).sort() as string[]
+  // Current page is already server-filtered; render it directly.
+  const filtered = items
 
-  function statusOf(i: { stock_quantity: number; minimum_stock_level: number }): 'in' | 'low' | 'out' {
-    if (i.stock_quantity === 0) return 'out'
-    if (i.stock_quantity <= i.minimum_stock_level && i.minimum_stock_level > 0) return 'low'
-    return 'in'
-  }
-
-  const filtered = items.filter(i => {
-    const matchesSearch = !search ||
-      i.name?.toLowerCase().includes(search.toLowerCase()) ||
-      i.sku?.toLowerCase().includes(search.toLowerCase()) ||
-      i.category?.toLowerCase().includes(search.toLowerCase())
-    const matchesCat = !filterCategory || i.category === filterCategory
-    const matchesStatus = filterStatus === 'all' || statusOf(i) === filterStatus
-    return matchesSearch && matchesCat && matchesStatus
-  })
-
-  function exportCSV() {
-    if (filtered.length === 0) {
+  // Export the full org list, not just the current page.
+  async function exportCSV() {
+    if (!orgId) return
+    const { data: allItems } = await supabase.from('inventory_items')
+      .select('name, name_ar, sku, category, unit, stock_quantity, minimum_stock_level, unit_cost, site:site_id(name)')
+      .eq('organisation_id', orgId).order('name', { ascending: true })
+    if (!allItems || allItems.length === 0) {
       alert('Nothing to export.')
       return
     }
@@ -88,7 +125,8 @@ export default function InventoryPage() {
       const s = typeof v === 'string' ? v : String(v)
       return `"${s.replace(/"/g, '""')}"`
     }
-    const rows = filtered.map(i => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = (allItems as any[]).map(i => ({
       name: i.name ?? '',
       name_ar: i.name_ar ?? '',
       sku: i.sku ?? '',
@@ -108,10 +146,6 @@ export default function InventoryPage() {
     a.click()
     URL.revokeObjectURL(url)
   }
-
-  const lowStockItems = items.filter(i => i.stock_quantity <= i.minimum_stock_level && i.minimum_stock_level > 0)
-  const outOfStockCount = items.filter(i => i.stock_quantity === 0).length
-  const totalValue = items.reduce((sum, i) => sum + (i.stock_quantity * (i.unit_cost ?? 0)), 0)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function stockStatus(item: any) {
@@ -134,8 +168,6 @@ export default function InventoryPage() {
     return `${pct}%`
   }
 
-  if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
-
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
       <div className="max-w-[1440px] mx-auto space-y-6">
@@ -145,8 +177,8 @@ export default function InventoryPage() {
           <div>
             <h1 className="text-3xl font-bold text-on-surface">{t('inv.title')}</h1>
             <p className="text-on-surface-variant mt-1 text-sm">
-              {items.length} {t('inv.title').toLowerCase()}
-              {lowStockItems.length > 0 && <span className="text-error ml-2">· {lowStockItems.length} {t('inv.status.low')}</span>}
+              {kpis.total} {t('inv.title').toLowerCase()}
+              {kpis.lowStock > 0 && <span className="text-error ml-2">· {kpis.lowStock} {t('inv.status.low')}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -173,22 +205,22 @@ export default function InventoryPage() {
               <span className="material-symbols-outlined text-primary" style={{ fontSize: 64 }}>payments</span>
             </div>
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2">Total Value (SAR)</p>
-            <p className="text-4xl font-bold text-primary">{totalValue > 0 ? totalValue.toLocaleString('en-SA', { maximumFractionDigits: 0 }) : items.length}</p>
+            <p className="text-4xl font-bold text-primary">{kpis.totalValue > 0 ? kpis.totalValue.toLocaleString('en-SA', { maximumFractionDigits: 0 }) : kpis.total}</p>
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 relative overflow-hidden group shadow-sm">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <span className="material-symbols-outlined text-error" style={{ fontSize: 64 }}>warning</span>
             </div>
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2">Low Stock Items</p>
-            <p className="text-4xl font-bold text-error">{lowStockItems.length}</p>
-            {outOfStockCount > 0 && <p className="text-xs text-error font-semibold mt-3">{outOfStockCount} out of stock</p>}
+            <p className="text-4xl font-bold text-error">{kpis.lowStock}</p>
+            {kpis.outOfStock > 0 && <p className="text-xs text-error font-semibold mt-3">{kpis.outOfStock} out of stock</p>}
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 relative overflow-hidden group shadow-sm">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <span className="material-symbols-outlined text-secondary" style={{ fontSize: 64 }}>local_shipping</span>
             </div>
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2">Total Items</p>
-            <p className="text-4xl font-bold text-secondary">{items.length}</p>
+            <p className="text-4xl font-bold text-secondary">{kpis.total}</p>
           </div>
         </div>
 
@@ -274,7 +306,9 @@ export default function InventoryPage() {
         )}
 
         {/* Table */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-16 text-on-surface-variant">{t('common.loading')}</div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
             <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">inventory_2</span>
             <p className="text-lg font-semibold mb-1">{t('inv.title')}</p>
@@ -346,6 +380,11 @@ export default function InventoryPage() {
               </table>
             </div>
           </div>
+        )}
+
+        {!loading && (
+          <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+            hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label={t('inv.title').toLowerCase()} />
         )}
 
       </div>

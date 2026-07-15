@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 import { getDescendantIds } from './asset-hierarchy'
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
@@ -31,10 +33,8 @@ const STATUS_CLASSES: Record<string, string> = {
 }
 
 export default function AssetsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [assets, setAssets] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState<string[]>([])
@@ -43,8 +43,27 @@ export default function AssetsPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchAssets() }, [categoryFilter, statusFilter])
+  // Debounce search so we don't fire a query on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: assets, total, loading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
+    () => {
+      let q = supabase.from('assets').select('*, site:site_id(name), parent:parent_asset_id(name)', { count: 'exact' })
+        .order('created_at', { ascending: false })
+      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+      if (categoryFilter !== 'all') q = q.eq('category', categoryFilter)
+      if (debouncedSearch) {
+        const s = `%${debouncedSearch}%`
+        q = q.or(`name.ilike.${s},serial_number.ilike.${s},manufacturer.ilike.${s}`)
+      }
+      return q
+    },
+    [statusFilter, categoryFilter, debouncedSearch],
+  )
 
   // AL-01: deleting a parent silently promoted its children to top level
   // (parent_asset_id is ON DELETE SET NULL). Surface the descendants and make
@@ -74,7 +93,7 @@ export default function AssetsPage() {
     setDeleting(true)
     await supabase.from('assets').delete().in('id', toDelete)
     setSelected([])
-    await fetchAssets()
+    refresh()
     setDeleting(false)
   }
 
@@ -103,20 +122,10 @@ export default function AssetsPage() {
     const toDelete = await resolveDeleteSet([id])
     if (!toDelete) return
     await supabase.from('assets').delete().in('id', toDelete)
-    fetchAssets()
+    refresh()
   }
 
   function toggleSelect(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
-
-  async function fetchAssets() {
-    setLoading(true)
-    let query = supabase.from('assets').select('*, site:site_id(name), parent:parent_asset_id(name)').order('created_at', { ascending: false })
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter)
-    if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)
-    const { data, error } = await query
-    if (!error && data) setAssets(data)
-    setLoading(false)
-  }
 
   const isWarrantyExpiringSoon = (date: string) => {
     if (!date) return false
@@ -125,12 +134,8 @@ export default function AssetsPage() {
   }
   const isWarrantyExpired = (date: string) => !!date && new Date(date) < new Date()
 
-  const filtered = assets.filter(a =>
-    a.name?.toLowerCase().includes(search.toLowerCase()) ||
-    a.serial_number?.toLowerCase().includes(search.toLowerCase()) ||
-    a.manufacturer?.toLowerCase().includes(search.toLowerCase()) ||
-    a.site?.name?.toLowerCase().includes(search.toLowerCase())
-  )
+  // Current page is already server-filtered; render it directly.
+  const filtered = assets
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
@@ -140,7 +145,7 @@ export default function AssetsPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-on-surface">{t('assets.title')}</h1>
-            <p className="text-on-surface-variant mt-1 text-sm">{assets.length} total assets registered</p>
+            <p className="text-on-surface-variant mt-1 text-sm">{total} total assets registered</p>
           </div>
           <div className="flex items-center gap-2">
             {/* View toggle */}
@@ -384,6 +389,11 @@ export default function AssetsPage() {
                   </table>
                 </div>
               </div>
+            )}
+
+            {!loading && (
+              <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+                hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label="assets" />
             )}
           </div>
         </div>
