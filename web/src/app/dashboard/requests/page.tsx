@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 
 function statusBadgeClass(status: string) {
   switch (status) {
@@ -19,32 +21,43 @@ function statusBadgeClass(status: string) {
 }
 
 export default function RequestsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [requests, setRequests] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'all'|'pending'|'approved'|'rejected'>('all')
+  const [orgId, setOrgId] = useState<string | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
   const supabase = createClient()
 
-  useEffect(() => { fetchRequests() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (profile) setOrgId(profile.organisation_id)
+    })
+  }, [supabase])
 
-  async function fetchRequests() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
-    const { data } = await supabase
-      .from('requests')
-      .select('*, site:site_id(name), space:space_id(name, floor), work_order:work_order_id(wo_number)')
-      .eq('organisation_id', profile.organisation_id)
-      .order('status')
-      .order('created_at', { ascending: false })
-    if (data) setRequests(data)
-    setLoading(false)
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: filtered, total, loading, page, pageCount, from, to, hasPrev, hasNext, prev, next } = usePagination<any>(
+    () => {
+      let q = supabase
+        .from('requests')
+        .select('*, site:site_id(name), space:space_id(name, floor), work_order:work_order_id(wo_number)', { count: 'exact' })
+        .eq('organisation_id', orgId!)
+        .order('status')
+        .order('created_at', { ascending: false })
+      if (tab !== 'all') q = q.eq('status', tab)
+      return q
+    },
+    [orgId, tab],
+  )
 
-  const filtered = tab === 'all' ? requests : requests.filter(r => r.status === tab)
-  const pendingCount = requests.filter(r => r.status === 'pending').length
+  // Whole-org pending count for the badge (independent of the current tab/page).
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    supabase.from('requests').select('id', { count: 'exact', head: true })
+      .eq('organisation_id', orgId).eq('status', 'pending')
+      .then(({ count }) => { if (!cancelled) setPendingCount(count ?? 0) })
+    return () => { cancelled = true }
+  }, [orgId, total, supabase])
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
@@ -139,6 +152,11 @@ export default function RequestsPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {!loading && (
+          <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+            hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label="requests" />
         )}
       </div>
     </div>
