@@ -38,11 +38,15 @@ export async function POST(req: NextRequest) {
     )
     const { data: target } = await admin
       .from('users')
-      .select('organisation_id, email')
+      .select('organisation_id, email, is_active, disabled')
       .eq('id', userId)
       .maybeSingle()
     if (!target || target.organisation_id !== callerProfile.organisation_id || !target.email) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+    // 1C-07: a deactivated/disabled account receives no notification.
+    if (target.is_active === false || target.disabled === true) {
+      return NextResponse.json({ success: true, skipped: 'inactive' })
     }
 
     const statusLabels: Record<string, string> = {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
@@ -31,6 +31,9 @@ export default function EditWorkOrderPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [teams, setTeams] = useState<any[]>([])
   const [additionalWorkers, setAdditionalWorkers] = useState<string[]>([])
+  // 1C-06/WO-28: snapshot of team + workers at load so we only notify newly-added
+  // recipients on save (re-saving an unchanged WO must not re-notify).
+  const origAssignRef = useRef<{ teamId: string; workers: string[] }>({ teamId: '', workers: [] })
   const [isManager, setIsManager] = useState(false)
   const [customFields, setCustomFields] = useState<Record<string, string>>({})
   const [categories, setCategories] = useState<WoCategory[]>([])
@@ -123,6 +126,10 @@ export default function EditWorkOrderPage() {
         actual_cost: wo.actual_cost ? String(wo.actual_cost) : '',
       })
       setAdditionalWorkers(Array.isArray(wo.additional_workers) ? wo.additional_workers : [])
+      origAssignRef.current = {
+        teamId: wo.team_id ?? '',
+        workers: Array.isArray(wo.additional_workers) ? wo.additional_workers : [],
+      }
       // WO-26: custom_fields JSONB → string map (coerce any stored value to string).
       if (wo.custom_fields && typeof wo.custom_fields === 'object') {
         setCustomFields(Object.fromEntries(
@@ -194,32 +201,44 @@ export default function EditWorkOrderPage() {
       custom_fields: Object.fromEntries(Object.entries(customFields).filter(([, v]) => v !== '')),
     }).eq('id', id)
 
-    // Send assignment notification via API (keeps server-side imports server-side).
-    // Vendors have no user account, so only notify when a real user was assigned.
-    if (form.assigned_to && !isVendor && updatedWO && updatedWO.length > 0) {
-      try {
-        const wo = updatedWO[0]
-        const woNumber = wo.wo_number
-          ? `WO-${String(wo.wo_number).padStart(4, '0')}`
-          : id.slice(0, 8)
-        const { data: techData } = await supabase.from('users').select('id, email, full_name').eq('id', form.assigned_to).single()
-        if (techData?.email) {
-          fetch('/api/notifications/wo-assigned', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: form.assigned_to,
-              userEmail: techData.email,
-              assignedBy: 'Manager',
-              woNumber,
-              woTitle: form.title,
-              woId: id,
-            }),
-          }).catch(console.error)
-        }
-      } catch (err) {
-        console.error('Failed to send assignment notification:', err)
+    // Send assignment notifications via API (keeps server-side imports server-side).
+    // The route resolves every recipient (single assignee, team members, added
+    // workers) server-side, org-scoped and active-only (1C-06/1C-07/WO-28). We only
+    // send the team/worker deltas that changed, so a re-save doesn't re-notify.
+    try {
+      const wo = updatedWO[0]
+      const woNumber = wo?.wo_number
+        ? `WO-${String(wo.wo_number).padStart(4, '0')}`
+        : id.slice(0, 8)
+
+      // Vendors have no user account — only notify a real user assignee.
+      const assigneeId = form.assigned_to && !isVendor ? form.assigned_to : undefined
+      // Notify the team only when it's newly set/changed on this save.
+      const newTeamId = isManager && form.team_id && form.team_id !== origAssignRef.current.teamId
+        ? form.team_id : undefined
+      // Notify only workers added on this save (exclude the assignee — they get their own).
+      const savedWorkers = isManager
+        ? additionalWorkers.filter(uid => uid !== form.assigned_to)
+        : []
+      const newWorkerIds = savedWorkers.filter(uid => !origAssignRef.current.workers.includes(uid))
+
+      if (assigneeId || newTeamId || newWorkerIds.length > 0) {
+        fetch('/api/notifications/wo-assigned', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: assigneeId,
+            teamId: newTeamId,
+            additionalWorkerIds: newWorkerIds,
+            assignedBy: 'Manager',
+            woNumber,
+            woTitle: form.title,
+            woId: id,
+          }),
+        }).catch(console.error)
       }
+    } catch (err) {
+      console.error('Failed to send assignment notification:', err)
     }
 
     router.push('/dashboard/work-orders/' + id)
