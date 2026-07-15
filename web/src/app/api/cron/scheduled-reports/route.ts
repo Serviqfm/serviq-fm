@@ -70,8 +70,12 @@ async function renderPack(admin: any, s: ScheduleRow): Promise<string> {
   const cfg = s.config ?? {}
   const entity = cfg.entity ?? ''
   const dateField = ENTITY_DATE_FIELD[entity]
-  const columns = Array.isArray(cfg.columns) && cfg.columns.length > 0 ? cfg.columns : null
-  if (!dateField || !columns) {
+  // Only plain scalar column identifiers — reject PostgREST embed/injection syntax
+  // (foo:bar(baz), *, dotted paths) so a hand-crafted config can't pull FK-embedded
+  // cross-org / PII data through this service-role select.
+  const columns = (Array.isArray(cfg.columns) ? cfg.columns : [])
+    .filter((c): c is string => typeof c === 'string' && /^[a-z_][a-z0-9_]*$/i.test(c))
+  if (!dateField || columns.length === 0) {
     return `<p style="color:#334155">This scheduled report has no valid configuration and produced no data.</p>`
   }
 
