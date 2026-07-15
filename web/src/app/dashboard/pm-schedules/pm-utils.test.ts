@@ -1,5 +1,54 @@
 import { describe, it, expect } from 'vitest'
-import { isMonthInSeasonalWindow, nextSeasonStart, applySeasonalWindow } from './pm-utils'
+import { isMonthInSeasonalWindow, nextSeasonStart, applySeasonalWindow, addMonths, rollByInterval, rollNextDue } from './pm-utils'
+
+describe('addMonths (true calendar, day clamped)', () => {
+  it('Jan 31 + 1 month clamps to Feb 28 (non-leap)', () => {
+    expect(addMonths(new Date('2026-01-31T09:00:00Z'), 1).toISOString()).toBe('2026-02-28T09:00:00.000Z')
+  })
+  it('Jan 31 + 1 month clamps to Feb 29 (leap year)', () => {
+    expect(addMonths(new Date('2028-01-31T00:00:00Z'), 1).toISOString()).toBe('2028-02-29T00:00:00.000Z')
+  })
+  it('crosses the year boundary', () => {
+    expect(addMonths(new Date('2026-11-15T00:00:00Z'), 3).toISOString()).toBe('2027-02-15T00:00:00.000Z')
+  })
+})
+
+describe('rollByInterval (1C-10)', () => {
+  it('returns null when not fully specified', () => {
+    expect(rollByInterval(new Date('2026-01-01Z'), {})).toBeNull()
+    expect(rollByInterval(new Date('2026-01-01Z'), { interval_count: 0, interval_unit: 'day' })).toBeNull()
+  })
+  it('every 2 months advances two real calendar months', () => {
+    expect(rollByInterval(new Date('2026-01-15T00:00:00Z'), { interval_count: 2, interval_unit: 'month' })!.toISOString())
+      .toBe('2026-03-15T00:00:00.000Z')
+  })
+  it('anchors day-of-month to the 1st across month lengths', () => {
+    expect(rollByInterval(new Date('2026-01-31T00:00:00Z'), { interval_count: 1, interval_unit: 'month', anchor_day: 1 })!.toISOString())
+      .toBe('2026-02-01T00:00:00.000Z')
+  })
+  it('anchor_day clamps to month length (31 -> Feb 28)', () => {
+    expect(rollByInterval(new Date('2026-01-15T00:00:00Z'), { interval_count: 1, interval_unit: 'month', anchor_day: 31 })!.toISOString())
+      .toBe('2026-02-28T00:00:00.000Z')
+  })
+  it('week and year units', () => {
+    expect(rollByInterval(new Date('2026-01-01T00:00:00Z'), { interval_count: 2, interval_unit: 'week' })!.toISOString())
+      .toBe('2026-01-15T00:00:00.000Z')
+    expect(rollByInterval(new Date('2026-01-01T00:00:00Z'), { interval_count: 1, interval_unit: 'year' })!.toISOString())
+      .toBe('2027-01-01T00:00:00.000Z')
+  })
+})
+
+describe('rollNextDue precedence', () => {
+  it('interval config overrides the frequency preset', () => {
+    expect(rollNextDue(new Date('2026-01-15T00:00:00Z'), 'monthly', null, { interval_count: 2, interval_unit: 'month' }).toISOString())
+      .toBe('2026-03-15T00:00:00.000Z')
+  })
+  it('falls back to the frequency preset when no interval config', () => {
+    // monthly preset = +30 days
+    expect(rollNextDue(new Date('2026-01-01T00:00:00Z'), 'monthly').toISOString())
+      .toBe('2026-01-31T00:00:00.000Z')
+  })
+})
 
 describe('isMonthInSeasonalWindow', () => {
   it('handles a normal (non-wrapping) window May–Sep', () => {

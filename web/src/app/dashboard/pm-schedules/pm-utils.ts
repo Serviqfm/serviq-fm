@@ -28,9 +28,56 @@ export function nextDueOnDaysOfWeek(from: Date, daysOfWeek: number[]): Date {
   return addDays(from, 7)
 }
 
-// Cron-style roll-forward: fixed day intervals per frequency, except weekly
-// schedules with days_of_week set, which land on the next selected weekday.
-export function rollNextDue(from: Date, frequency: string, daysOfWeek?: number[] | null): Date {
+// 1C-10 recurrence config: arbitrary interval N + unit, with optional
+// day-of-month anchoring. When set it overrides the FREQ_TO_DAYS preset model
+// and uses true calendar math (month/year add via setUTCMonth — no 30d/365d drift).
+export type Recurrence = {
+  interval_count?: number | null
+  interval_unit?: string | null   // 'day' | 'week' | 'month' | 'year'
+  anchor_day?: number | null      // day-of-month 1-31 (month/year units only)
+}
+
+// Add N calendar months to d, clamping the day to the last valid day of the
+// target month (e.g. Jan 31 + 1 month = Feb 28/29, not Mar 3).
+export function addMonths(d: Date, months: number): Date {
+  const out = new Date(d)
+  const day = out.getUTCDate()
+  out.setUTCDate(1)
+  out.setUTCMonth(out.getUTCMonth() + months)
+  const lastDay = new Date(Date.UTC(out.getUTCFullYear(), out.getUTCMonth() + 1, 0)).getUTCDate()
+  out.setUTCDate(Math.min(day, lastDay))
+  return out
+}
+
+// Advance `from` by one interval using explicit interval_count + interval_unit.
+// anchor_day (if set, month/year only) forces the day-of-month, clamped to the
+// month length. Returns null when the recurrence isn't fully specified.
+export function rollByInterval(from: Date, rec: Recurrence): Date | null {
+  const n = rec.interval_count
+  const unit = rec.interval_unit
+  if (!n || n <= 0 || !unit) return null
+  let next: Date
+  switch (unit) {
+    case 'day': next = addDays(from, n); break
+    case 'week': next = addDays(from, n * 7); break
+    case 'month': next = addMonths(from, n); break
+    case 'year': next = addMonths(from, n * 12); break
+    default: return null
+  }
+  if ((unit === 'month' || unit === 'year') && rec.anchor_day && rec.anchor_day >= 1 && rec.anchor_day <= 31) {
+    const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate()
+    next.setUTCDate(Math.min(rec.anchor_day, lastDay))
+  }
+  return next
+}
+
+// Cron-style roll-forward. Precedence: explicit interval config (1C-10) →
+// weekly days_of_week → fixed FREQ_TO_DAYS preset.
+export function rollNextDue(from: Date, frequency: string, daysOfWeek?: number[] | null, rec?: Recurrence | null): Date {
+  if (rec) {
+    const byInterval = rollByInterval(from, rec)
+    if (byInterval) return byInterval
+  }
   if (frequency === 'weekly' && daysOfWeek && daysOfWeek.length > 0) {
     return nextDueOnDaysOfWeek(from, daysOfWeek)
   }

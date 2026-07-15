@@ -27,6 +27,10 @@ export default function NewPMSchedulePage() {
     next_due_at: '',
     end_date: '',
     estimated_duration_minutes: '',
+    scheduling_mode: 'fixed',      // 1C-09: 'fixed' | 'floating'
+    interval_count: '',            // 1C-10: blank = use frequency preset
+    interval_unit: 'month',
+    anchor_day: '',                // day-of-month (month/year units)
   })
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
   const [assetSearch, setAssetSearch] = useState('')
@@ -79,11 +83,16 @@ export default function NewPMSchedulePage() {
       end_date: form.end_date || null,
       days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
       estimated_duration_minutes: form.estimated_duration_minutes ? parseInt(form.estimated_duration_minutes) : null,
+      scheduling_mode: form.scheduling_mode,
+      interval_count: form.interval_count ? parseInt(form.interval_count) : null,
+      interval_unit: form.interval_count ? form.interval_unit : null,
+      anchor_day: form.interval_count && ['month', 'year'].includes(form.interval_unit) && form.anchor_day
+        ? parseInt(form.anchor_day) : null,
       organisation_id: profile.organisation_id,
       is_active: true,
     }))
     const { data: created, error: insertError } = await supabase.from('pm_schedules').insert(rows)
-      .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week')
+      .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day')
     if (insertError) { setError(insertError.message); setLoading(false); return }
 
     // Optionally create the first work order immediately — same WO shape as
@@ -108,7 +117,11 @@ export default function NewPMSchedulePage() {
           created_by: user.id,
         })
         if (woError) continue
-        const nextDue = rollNextDue(new Date(pm.next_due_at), pm.frequency, pm.days_of_week)
+        const rec = { interval_count: pm.interval_count, interval_unit: pm.interval_unit, anchor_day: pm.anchor_day }
+        // Floating: next due is one interval after this WO would complete — approximate
+        // from now (cron re-anchors off the real completed_at). Fixed: roll off due date.
+        const rollFrom = pm.scheduling_mode === 'floating' ? new Date() : new Date(pm.next_due_at)
+        const nextDue = rollNextDue(rollFrom, pm.frequency, pm.days_of_week, rec)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const upd: any = { next_due_at: nextDue.toISOString(), last_generated_at: new Date().toISOString() }
         if (pm.end_date && nextDue > new Date(pm.end_date)) upd.is_active = false
@@ -211,6 +224,42 @@ export default function NewPMSchedulePage() {
             </div>
           </div>
         )}
+        <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'نمط الجدولة' : 'Scheduling Mode'}</label>
+            <select name='scheduling_mode' value={form.scheduling_mode} onChange={handleChange} style={fieldStyle}>
+              <option value='fixed'>{lang === 'ar' ? 'ثابت (تقويمي)' : 'Fixed (calendar-based)'}</option>
+              <option value='floating'>{lang === 'ar' ? 'عائم (بعد الإكمال)' : 'Floating (after completion)'}</option>
+            </select>
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {form.scheduling_mode === 'floating'
+                ? (lang === 'ar' ? 'يُنشأ الأمر التالي بعد اكتمال السابق بفترة واحدة.' : 'The next work order is created one interval after the previous one is completed.')
+                : (lang === 'ar' ? 'تُنشأ الأوامر على تواريخ تقويمية ثابتة.' : 'Work orders generate on fixed calendar dates.')}
+            </p>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'فاصل مخصص (اختياري)' : 'Custom interval (optional)'}</label>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 8px' }}>
+              {lang === 'ar' ? 'اترك الرقم فارغاً لاستخدام التكرار أعلاه. الأشهر/السنوات تستخدم تواريخ تقويمية حقيقية.' : 'Leave the number blank to use the frequency preset above. Months/years use true calendar dates.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: '#444' }}>{lang === 'ar' ? 'كل' : 'Every'}</span>
+              <input name='interval_count' type='number' min='1' value={form.interval_count} onChange={handleChange} placeholder='N' style={{ ...fieldStyle, width: 80 }} />
+              <select name='interval_unit' value={form.interval_unit} onChange={handleChange} style={{ ...fieldStyle, flex: 1 }}>
+                <option value='day'>{lang === 'ar' ? 'يوم/أيام' : 'day(s)'}</option>
+                <option value='week'>{lang === 'ar' ? 'أسبوع/أسابيع' : 'week(s)'}</option>
+                <option value='month'>{lang === 'ar' ? 'شهر/أشهر' : 'month(s)'}</option>
+                <option value='year'>{lang === 'ar' ? 'سنة/سنوات' : 'year(s)'}</option>
+              </select>
+            </div>
+            {form.interval_count && ['month', 'year'].includes(form.interval_unit) && (
+              <div style={{ marginTop: 8 }}>
+                <label style={labelStyle}>{lang === 'ar' ? 'يوم من الشهر (اختياري)' : 'Day of month (optional)'}</label>
+                <input name='anchor_day' type='number' min='1' max='31' value={form.anchor_day} onChange={handleChange} placeholder={lang === 'ar' ? 'مثال: 1 أو 15' : 'e.g. 1 or 15'} style={{ ...fieldStyle, width: 120 }} />
+              </div>
+            )}
+          </div>
+        </div>
         <div>
           <label style={labelStyle}>
             {lang === 'ar' ? 'الأصول' : 'Assets'}
