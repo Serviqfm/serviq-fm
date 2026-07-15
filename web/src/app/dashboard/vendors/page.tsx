@@ -5,55 +5,91 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import Link from 'next/link'
 import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 
 export default function VendorsPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [vendors, setVendors] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [orgId, setOrgId] = useState<string | null>(null)
+  // Whole-org stats (all vendors, not just the current page).
+  const [stats, setStats] = useState({ total: 0, active: 0, rated: 0, avgRating: '—' })
   const supabase = createClient()
   const { t } = useLanguage()
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchVendors() }, [])
+  // Debounce search so we don't fire a query on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
 
-  async function fetchVendors() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); if (typeof window !== 'undefined') window.location.href = '/login'; return }
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
-    const { data } = await supabase.from('vendors').select('*').eq('organisation_id', profile.organisation_id).order('company_name', { ascending: true })
-    if (data) setVendors(data)
-    setLoading(false)
-  }
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { if (typeof window !== 'undefined') window.location.href = '/login'; return }
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (profile) setOrgId(profile.organisation_id)
+    })
+  }, [supabase])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: filtered, total, loading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
+    () => {
+      let q = supabase.from('vendors').select('*', { count: 'exact' })
+        .eq('organisation_id', orgId!).order('company_name', { ascending: true })
+      if (debouncedSearch) {
+        const s = `%${debouncedSearch}%`
+        q = q.or(`company_name.ilike.${s},contact_name.ilike.${s},specialisation.ilike.${s}`)
+      }
+      return q
+    },
+    [orgId, debouncedSearch],
+  )
+
+  // Whole-org stats, refreshed alongside the list.
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    supabase.from('vendors').select('is_active, average_rating').eq('organisation_id', orgId)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setStats({
+          total: data.length,
+          active: data.filter(v => v.is_active).length,
+          rated: data.filter(v => v.average_rating && v.average_rating >= 4).length,
+          avgRating: data.length > 0 ? (data.reduce((s, v) => s + (v.average_rating || 0), 0) / data.length).toFixed(1) : '—',
+        })
+      })
+    return () => { cancelled = true }
+  }, [orgId, total, supabase])
 
   async function deleteSelected() {
     if (!confirm(t('common.confirm_delete'))) return
     setDeleting(true)
     await supabase.from('vendors').delete().in('id', selected)
     setSelected([])
-    await fetchVendors()
+    refresh()
     setDeleting(false)
   }
 
   async function deleteOne(id: string) {
     if (!confirm(t('common.confirm_delete'))) return
     await supabase.from('vendors').delete().eq('id', id)
-    fetchVendors()
+    refresh()
   }
 
   async function toggleActive(id: string, current: boolean) {
     await supabase.from('vendors').update({ is_active: !current }).eq('id', id)
-    fetchVendors()
+    refresh()
   }
 
   const importRef = useRef<HTMLInputElement>(null)
 
-  function handleExport() {
-    if (vendors.length === 0) { alert('No vendors to export.'); return }
+  async function handleExport() {
+    if (!orgId) return
+    const { data: vendors } = await supabase.from('vendors').select('*').eq('organisation_id', orgId).order('company_name', { ascending: true })
+    if (!vendors || vendors.length === 0) { alert('No vendors to export.'); return }
     exportCSV(`vendors-${new Date().toISOString().slice(0, 10)}.csv`, vendors.map(v => ({
       company_name: v.company_name ?? '',
       company_name_ar: v.company_name_ar ?? '',
@@ -98,7 +134,7 @@ export default function VendorsPage() {
       const { error } = await supabase.from('vendors').insert(payload)
       if (error) { alert('Import failed: ' + error.message); return }
       alert(`Imported ${payload.length} vendor(s).`)
-      fetchVendors()
+      refresh()
     } finally {
       if (importRef.current) importRef.current.value = ''
     }
@@ -107,17 +143,9 @@ export default function VendorsPage() {
   function toggleSelect(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   function toggleSelectAll() { setSelected(selected.length === filtered.length ? [] : filtered.map(v => v.id)) }
 
-  const filtered = vendors.filter(v =>
-    v.company_name?.toLowerCase().includes(search.toLowerCase()) ||
-    v.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
-    v.specialisation?.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const activeCount = vendors.filter(v => v.is_active).length
-  const ratedCount = vendors.filter(v => v.average_rating && v.average_rating >= 4).length
-  const avgRating = vendors.length > 0
-    ? (vendors.reduce((s, v) => s + (v.average_rating || 0), 0) / vendors.length).toFixed(1)
-    : '—'
+  const activeCount = stats.active
+  const ratedCount = stats.rated
+  const avgRating = stats.avgRating
 
   function StarRating({ rating }: { rating: number }) {
     if (!rating) return <span className="text-on-surface-variant text-sm">—</span>
@@ -145,7 +173,7 @@ export default function VendorsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-on-surface">{t('vendors.title')}</h1>
-            <p className="text-on-surface-variant mt-1 text-sm">{vendors.length} {t('vendors.title').toLowerCase()} registered</p>
+            <p className="text-on-surface-variant mt-1 text-sm">{stats.total} {t('vendors.title').toLowerCase()} registered</p>
           </div>
           <div className="flex items-center gap-2">
             <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
@@ -166,7 +194,7 @@ export default function VendorsPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { icon: 'business', label: 'Total Vendors', value: vendors.length, cls: 'bg-primary/10 text-primary', decor: 'bg-primary/5' },
+            { icon: 'business', label: 'Total Vendors', value: stats.total, cls: 'bg-primary/10 text-primary', decor: 'bg-primary/5' },
             { icon: 'verified', label: 'Active Vendors', value: activeCount, cls: 'bg-primary/10 text-primary', decor: 'bg-primary/5' },
             { icon: 'star', label: 'Top Rated (4+)', value: ratedCount, cls: 'bg-[#f57f17]/10 text-[#f57f17]', decor: 'bg-[#f57f17]/5' },
             { icon: 'grade', label: 'Avg. Rating', value: avgRating, cls: 'bg-secondary/10 text-secondary', decor: 'bg-secondary/5' },
@@ -273,6 +301,11 @@ export default function VendorsPage() {
               </table>
             </div>
           </div>
+        )}
+
+        {!loading && (
+          <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+            hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label={t('vendors.title').toLowerCase()} />
         )}
       </div>
     </div>

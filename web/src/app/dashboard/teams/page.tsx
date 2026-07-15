@@ -4,35 +4,35 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 
 export default function TeamsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [teams, setTeams] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [orgId, setOrgId] = useState<string | null>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchTeams() }, [])
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { if (typeof window !== 'undefined') window.location.href = '/login'; return }
+      const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single()
+      setCurrentUser(profile ?? null)
+      if (profile && ['admin', 'manager'].includes(profile.role)) setOrgId(profile.organisation_id)
+      setProfileLoaded(true)
+    })
+  }, [supabase])
 
-  async function fetchTeams() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); if (typeof window !== 'undefined') window.location.href = '/login'; return }
-    const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
-    setCurrentUser(profile)
-    if (!['admin', 'manager'].includes(profile.role)) { setLoading(false); return }
-    const { data } = await supabase
-      .from('teams')
-      .select('*, team_members(count)')
-      .eq('organisation_id', profile.organisation_id)
-      .order('name', { ascending: true })
-    if (data) setTeams(data)
-    setLoading(false)
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: teams, total, loading: listLoading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
+    () => supabase.from('teams').select('*, team_members(count)', { count: 'exact' })
+      .eq('organisation_id', orgId!).order('name', { ascending: true }),
+    [orgId],
+  )
+
+  const loading = !profileLoaded || (orgId != null && listLoading)
 
   async function deleteTeam(id: string, name: string) {
     const msg = lang === 'ar'
@@ -44,7 +44,7 @@ export default function TeamsPage() {
       alert(lang === 'ar' ? 'تعذر حذف الفريق' : 'Failed to delete team')
       return
     }
-    fetchTeams()
+    refresh()
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +69,7 @@ export default function TeamsPage() {
           <div>
             <h1 className="text-3xl font-bold text-on-surface">{lang === 'ar' ? 'الفرق' : 'Teams'}</h1>
             <p className="text-on-surface-variant mt-1 text-sm">
-              {teams.length} {lang === 'ar' ? 'فريق في مؤسستك' : 'team(s) in your organisation'}
+              {total} {lang === 'ar' ? 'فريق في مؤسستك' : 'team(s) in your organisation'}
             </p>
           </div>
           <Link href="/dashboard/teams/new">
@@ -144,6 +144,9 @@ export default function TeamsPage() {
             </table>
           </div>
         </div>
+
+        <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+          hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label={lang === 'ar' ? 'فرق' : 'teams'} />
 
       </div>
     </div>

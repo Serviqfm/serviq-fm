@@ -7,50 +7,73 @@ import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
 import { useFeatureFlag } from '@/lib/featureFlags'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 
 export default function SitesPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [sites, setSites] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [orgId, setOrgId] = useState<string | null>(null)
+  // Whole-org count for the header + multi-site gate (not just the current page).
+  const [totalSites, setTotalSites] = useState(0)
   const supabase = createClient()
   const { t, lang } = useLanguage()
   const { flags } = useFeatureFlag()
-  const canAddSite = flags.multi_site || sites.length === 0
+  const canAddSite = flags.multi_site || totalSites === 0
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchSites() }, [])
+  // Debounce search so we don't fire a query on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
 
-  async function fetchSites() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
-    const { data } = await supabase.from('sites').select('*').eq('organisation_id', profile.organisation_id).order('created_at', { ascending: false })
-    if (data) setSites(data)
-    setLoading(false)
-  }
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (profile) setOrgId(profile.organisation_id)
+    })
+  }, [supabase])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: filtered, loading, page, pageCount, from, to, total, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
+    () => {
+      let q = supabase.from('sites').select('*', { count: 'exact' })
+        .eq('organisation_id', orgId!).order('created_at', { ascending: false })
+      if (debouncedSearch) {
+        const s = `%${debouncedSearch}%`
+        q = q.or(`name.ilike.${s},city.ilike.${s},address.ilike.${s}`)
+      }
+      return q
+    },
+    [orgId, debouncedSearch],
+  )
+
+  // Whole-org total for the header/gate, refreshed alongside the list.
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    supabase.from('sites').select('id', { count: 'exact', head: true }).eq('organisation_id', orgId)
+      .then(({ count }) => { if (!cancelled) setTotalSites(count ?? 0) })
+    return () => { cancelled = true }
+  }, [orgId, total, supabase])
 
   async function toggleActive(id: string, current: boolean) {
     await supabase.from('sites').update({ is_active: !current }).eq('id', id)
-    fetchSites()
+    refresh()
   }
 
   async function deleteSite(id: string) {
     if (!confirm(t('common.confirm_delete'))) return
     await supabase.from('sites').delete().eq('id', id)
-    fetchSites()
+    refresh()
   }
 
-  const filtered = sites.filter(s =>
-    s.name?.toLowerCase().includes(search.toLowerCase()) ||
-    s.city?.toLowerCase().includes(search.toLowerCase()) ||
-    s.address?.toLowerCase().includes(search.toLowerCase())
-  )
-
   const importRef = useRef<HTMLInputElement>(null)
-  function handleExport() {
+  async function handleExport() {
+    if (!orgId) return
+    const { data: sites } = await supabase.from('sites').select('*').eq('organisation_id', orgId).order('created_at', { ascending: false })
+    if (!sites || sites.length === 0) { alert('No sites to export.'); return }
     exportCSV(`sites-${new Date().toISOString().slice(0, 10)}.csv`, sites.map(s => ({
       name: s.name ?? '', name_ar: s.name_ar ?? '', city: s.city ?? '', address: s.address ?? '',
       invoicing_enabled: s.invoicing_enabled ? 'true' : 'false',
@@ -79,7 +102,7 @@ export default function SitesPage() {
       const { error } = await supabase.from('sites').insert(payload)
       if (error) { alert('Import failed: ' + error.message); return }
       alert(`Imported ${payload.length} site(s).`)
-      fetchSites()
+      refresh()
     } finally {
       if (importRef.current) importRef.current.value = ''
     }
@@ -92,7 +115,7 @@ export default function SitesPage() {
           <div>
             <h1 className="text-3xl font-bold text-on-surface">{t('nav.sites')}</h1>
             <p className="text-sm text-on-surface-variant mt-1">
-              {sites.length} {lang === 'ar' ? 'مواقع مسجلة' : 'sites registered'}
+              {totalSites} {lang === 'ar' ? 'مواقع مسجلة' : 'sites registered'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -161,6 +184,11 @@ export default function SitesPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {!loading && (
+          <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+            hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label={lang === 'ar' ? 'مواقع' : 'sites'} />
         )}
       </div>
     </div>

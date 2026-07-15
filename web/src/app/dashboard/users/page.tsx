@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 
 const ROLE_BADGE: Record<string, string> = {
   admin:      'bg-primary text-on-primary',
@@ -15,32 +17,57 @@ const ROLE_BADGE: Record<string, string> = {
 
 export default function UsersPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [orgId, setOrgId] = useState<string | null>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [resendResult, setResendResult] = useState<{ email: string; fullName: string } | null>(null)
+  // Whole-org role/active counts (all users, not just the current page).
+  const [counts, setCounts] = useState({ total: 0, active: 0, admin: 0, manager: 0, technician: 0, requester: 0 })
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchUsers() }, [])
+  const canManage = ['admin', 'manager'].includes(currentUser?.role)
 
-  async function fetchUsers() {
-    setLoading(true)
-    const timeout = setTimeout(() => setLoading(false), 8000)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); if (typeof window !== 'undefined') window.location.href = '/login'; return }
-    const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
-    setCurrentUser(profile)
-    if (!['admin', 'manager'].includes(profile.role)) return
-    const { data } = await supabase.from('users').select('*').eq('organisation_id', profile.organisation_id).order('full_name', { ascending: true })
-    if (data) setUsers(data)
-    clearTimeout(timeout)
-    setLoading(false)
-  }
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { if (typeof window !== 'undefined') window.location.href = '/login'; return }
+      const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single()
+      setCurrentUser(profile ?? null)
+      if (profile && ['admin', 'manager'].includes(profile.role)) setOrgId(profile.organisation_id)
+      setProfileLoaded(true)
+    })
+  }, [supabase])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { rows: users, total, loading: listLoading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
+    () => supabase.from('users').select('*', { count: 'exact' })
+      .eq('organisation_id', orgId!).order('full_name', { ascending: true }),
+    [orgId],
+  )
+
+  // Whole-org counts for the stat cards, refreshed alongside the list.
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    supabase.from('users').select('role, is_active').eq('organisation_id', orgId)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setCounts({
+          total: data.length,
+          active: data.filter(u => u.is_active !== false).length,
+          admin: data.filter(u => u.role === 'admin').length,
+          manager: data.filter(u => u.role === 'manager').length,
+          technician: data.filter(u => u.role === 'technician').length,
+          requester: data.filter(u => u.role === 'requester').length,
+        })
+      })
+    return () => { cancelled = true }
+  }, [orgId, total, supabase])
+
+  function fetchUsers() { refresh() }
+  // Still loading until we know the profile; then the list only loads for managers.
+  const loading = !profileLoaded || (orgId != null && listLoading)
 
   // Pending = invited but never logged in (derived, never stored).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,8 +138,8 @@ export default function UsersPage() {
     } catch { alert('Network error while deleting user') }
   }
 
-  const roleCount = (role: string) => users.filter(u => u.role === role).length
-  const activeCount = users.filter(u => u.is_active !== false).length
+  const roleCount = (role: string) => (counts as Record<string, number>)[role] ?? 0
+  const activeCount = counts.active
 
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
@@ -124,7 +151,7 @@ export default function UsersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-on-surface">{t('users.title')}</h1>
-            <p className="text-on-surface-variant mt-1 text-sm">{users.length} {t('users.in_org')}</p>
+            <p className="text-on-surface-variant mt-1 text-sm">{counts.total} {t('users.in_org')}</p>
           </div>
           {['admin', 'manager'].includes(currentUser?.role) && (
             <Link href='/dashboard/users/new'>
@@ -156,9 +183,9 @@ export default function UsersPage() {
 
         {/* Active stat strip */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-4 flex items-center justify-between">
-          <span className="text-sm text-on-surface-variant">{activeCount} of {users.length} users are currently active</span>
+          <span className="text-sm text-on-surface-variant">{activeCount} of {counts.total} users are currently active</span>
           <div className="w-48 bg-surface-container-high h-2 rounded-full overflow-hidden">
-            <div className="bg-primary h-full rounded-full transition-all duration-1000" style={{ width: `${users.length > 0 ? Math.round((activeCount / users.length) * 100) : 0}%` }} />
+            <div className="bg-primary h-full rounded-full transition-all duration-1000" style={{ width: `${counts.total > 0 ? Math.round((activeCount / counts.total) * 100) : 0}%` }} />
           </div>
         </div>
 
@@ -264,6 +291,9 @@ export default function UsersPage() {
             </table>
           </div>
         </div>
+
+        <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+          hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next} label={t('users.title').toLowerCase()} />
 
       </div>
     </div>
