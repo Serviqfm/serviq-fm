@@ -12,9 +12,38 @@ export default function EmployeeLoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const supabase = createClient()
+
+  // SSO is additive: derive the domain from the typed email and hand off to the
+  // org's IdP. Supabase resolves whether that domain has SAML/OIDC configured
+  // (owner sets the IdP metadata in the Supabase dashboard). On success we get a
+  // redirect URL to the IdP; the return lands on /auth/callback which already
+  // exchanges the code for a session.
+  const handleSso = async () => {
+    setError('')
+    const domain = email.trim().toLowerCase().split('@')[1]
+    if (!domain) {
+      setError('Enter your corporate email above, then click SSO.')
+      return
+    }
+    setSsoLoading(true)
+    const { data, error: ssoError } = await supabase.auth.signInWithSSO({
+      domain,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (ssoError || !data?.url) {
+      setSsoLoading(false)
+      setError(
+        ssoError?.message ??
+          'Single sign-on is not configured for this email domain.'
+      )
+      return
+    }
+    window.location.href = data.url
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -280,9 +309,11 @@ export default function EmployeeLoginForm() {
                   </div>
                   <button
                     type="button"
-                    className="w-full py-3 border border-outline-variant rounded-xl hover:bg-surface-container-high transition-colors font-medium text-on-surface flex items-center justify-center gap-2"
+                    onClick={handleSso}
+                    disabled={ssoLoading}
+                    className="w-full py-3 border border-outline-variant rounded-xl hover:bg-surface-container-high transition-colors font-medium text-on-surface flex items-center justify-center gap-2 disabled:opacity-60"
                   >
-                    <span>Microsoft Azure SSO</span>
+                    <span>{ssoLoading ? 'Redirecting to your identity provider…' : 'Sign in with SSO'}</span>
                   </button>
                 </div>
               </form>
