@@ -476,3 +476,20 @@ never landed (ledger/inventory divergence). Residual (documented): FK-binding WI
 via `/api/public/request-messages/[token]` (service-role, token pins to one request_id, `sender_type`
 forced server-side). **SQL:** `core-36-request-messages.sql`. Review: token scoping + anon-deny sound;
 render is JSX-escaped (no XSS); fix added — a 3s anti-flood throttle on the public POST.
+
+## Wave 4 batch 2 — pagination · error/cron alerting · user fields · WO categories (2026-07-14)
+
+Four disjoint ops/polish tracks; SQL reviewed (all standard patterns — clean, no fixes).
+
+- **DV-14 (partial)** — PR #43 — reusable `usePagination` hook (Supabase `.range()` + exact count) +
+  `Pagination` control + unit test; applied server-side to the **assets** and **inventory** lists (search
+  moved server-side; KPIs/CSV still whole-org). No SQL. Remaining: work-orders/sites/users/vendors/etc. + mobile.
+- **DV-16** — PR #41 — `error_logs` table (RLS-on, **deny-all**, service-role only) + `lib/errorLog`
+  (captureError + captureAndAlert→platform admins via Resend); wrapped `pm-generate` + `escalations` crons to
+  log+alert on failure. **SQL:** `b2-01-error-logs.sql`.
+- **1C-15** — PR #40 — admin-editable user fields `hourly_rate` (admin-only), `job_title`, `phone`,
+  `skill_categories` on the user new/edit forms + `/api/users` allowlists; unblocks invoice labor math.
+  **SQL:** `1c-15-user-fields.sql` (ADD COLUMN only).
+- **WO-04** — PR #42 — org-managed `work_order_categories` (org RLS; writes admin/manager-gated + WITH CHECK)
+  + Settings → Categories CRUD tab; WO new/edit dropdowns read the table with a hardcoded fallback (pre-migration
+  safe). **SQL:** `b2-wo-categories.sql`.
