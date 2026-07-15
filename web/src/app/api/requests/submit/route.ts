@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendRequestConfirmation } from '@/lib/email'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { deliverWebhookEvent } from '@/lib/webhookDelivery'
 
 // Public portal endpoint — intentionally unauthenticated (anonymous requesters
 // submit via QR-code links). Inputs are validated against the database and
@@ -128,6 +129,15 @@ export async function POST(req: NextRequest) {
   } catch {
     // non-blocking — don't fail submission if admin notify fails
   }
+
+  // MKT-19: fire request.submitted to registered webhooks (fire-and-forget).
+  void deliverWebhookEvent(organisation_id, 'request.submitted', {
+    id: request.id,
+    title,
+    category,
+    site_id: site_id ?? null,
+    space_id: space_id ?? null,
+  })
 
   return NextResponse.json({ success: true, tracking_token: request.tracking_token })
 }

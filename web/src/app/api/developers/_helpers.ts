@@ -52,5 +52,5 @@ export function generateWebhookSecret(): string {
   return 'whsec_' + randomBytes(24).toString('hex')
 }
 
-export const VALID_SCOPES = ['work-orders:read', 'assets:read'] as const
+export const VALID_SCOPES = ['work-orders:read', 'assets:read', 'sites:read', 'requests:read'] as const
 export const VALID_EVENTS = ['wo.created', 'wo.status_changed', 'request.submitted'] as const
