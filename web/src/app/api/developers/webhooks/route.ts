@@ -9,6 +9,19 @@ import { resolveAdmin, generateWebhookSecret, VALID_EVENTS } from '../_helpers'
 
 export const dynamic = 'force-dynamic'
 
+// SSRF guard: block private / loopback / link-local / cloud-metadata hosts so a
+// registered webhook can't aim the server's outbound POST at the internal network.
+function isBlockedHost(h: string): boolean {
+  const host = h.toLowerCase().replace(/^\[|\]$/g, '')
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' || host === '::1') return true
+  if (host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.')) return true
+  if (host === '169.254.169.254' || host.startsWith('169.254.')) return true
+  const m = host.match(/^172\.(\d+)\./)
+  if (m && +m[1] >= 16 && +m[1] <= 31) return true
+  if (host.startsWith('fd') || host.startsWith('fe80')) return true
+  return false
+}
+
 export async function GET() {
   const ctx = await resolveAdmin()
   if (ctx instanceof NextResponse) return ctx
@@ -39,6 +52,9 @@ export async function POST(req: NextRequest) {
   try { parsed = new URL(url) } catch { parsed = null }
   if (!parsed || parsed.protocol !== 'https:') {
     return NextResponse.json({ error: 'A valid https URL is required' }, { status: 400 })
+  }
+  if (isBlockedHost(parsed.hostname)) {
+    return NextResponse.json({ error: 'Webhook URL must be a public host' }, { status: 400 })
   }
   if (!VALID_EVENTS.includes(event as never)) {
     return NextResponse.json({ error: 'Invalid event' }, { status: 400 })
