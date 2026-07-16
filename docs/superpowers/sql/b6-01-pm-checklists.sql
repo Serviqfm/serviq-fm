@@ -2,7 +2,7 @@
 -- generated WO) + 1C-12 priority parity. Run in the Supabase SQL editor.
 -- Idempotent. Safe to run twice. Depends on:
 --   * sprint-k-03-wo-tasks-checklists.sql (work_order_tasks, checklist_templates)
---   * t8-01-meters-pm.sql               (current generate_due_pm_work_orders body)
+--   * b4-01-pm-completion-recurrence.sql (current generate_due_pm body + pm_roll_next_due + floating/interval cols)
 --
 -- WHAT THIS ADDS
 --   1. pm_schedules.checklist_template_id — the checklist a schedule carries; its
@@ -45,28 +45,53 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  pm          RECORD;
-  v_generated integer := 0;
-  v_days      integer;
-  v_next      timestamptz;
+  pm             RECORD;
+  v_generated    integer := 0;
+  v_next         timestamptz;
+  v_base         timestamptz;
   v_calendar_due boolean;
   v_meter_due    boolean;
-  v_reading   numeric;
-  v_wo_id     uuid;
+  v_reading      numeric;
+  v_floating     boolean;
+  v_prev         RECORD;
+  v_due          timestamptz;
+  v_wo_id        uuid;
 BEGIN
   FOR pm IN
     SELECT * FROM pm_schedules
      WHERE is_active = true
        AND COALESCE(is_archived, false) = false
   LOOP
-    -- Calendar arm: due within this schedule's lead window (default 2 days).
-    v_calendar_due := pm.next_due_at IS NOT NULL
-      AND pm.next_due_at <= now() + (COALESCE(pm.lead_time_days, 2) || ' days')::interval;
+    v_floating := COALESCE(pm.scheduling_mode, 'fixed') = 'floating';
 
-    -- Meter arm: current reading has crossed last_trigger + interval.
+    -- Floating (1C-09): timing driven by the PREVIOUS WO's completion, not the calendar.
+    IF v_floating THEN
+      SELECT status, completed_at INTO v_prev
+        FROM work_orders WHERE pm_schedule_id = pm.id ORDER BY created_at DESC LIMIT 1;
+      IF v_prev.status IS NOT NULL THEN
+        IF v_prev.status NOT IN ('completed', 'closed') THEN CONTINUE; END IF;
+        IF v_prev.completed_at IS NULL THEN CONTINUE; END IF;
+        v_base := v_prev.completed_at;
+        v_due  := pm_roll_next_due(v_base, pm.frequency, pm.interval_count, pm.interval_unit, pm.anchor_day);
+        IF v_due > now() THEN CONTINUE; END IF;
+        v_calendar_due := true;
+      ELSE
+        v_base := COALESCE(pm.next_due_at, now());
+        v_due  := v_base;
+        v_calendar_due := true;
+      END IF;
+    ELSE
+      -- Fixed: calendar arm, due within this schedule's lead window (default 2 days).
+      v_calendar_due := pm.next_due_at IS NOT NULL
+        AND pm.next_due_at <= now() + (COALESCE(pm.lead_time_days, 2) || ' days')::interval;
+      v_base := pm.next_due_at;
+      v_due  := pm.next_due_at;
+    END IF;
+
+    -- Meter arm (fixed/hybrid only; floating is completion-driven).
     v_meter_due := false;
     v_reading   := NULL;
-    IF pm.meter_id IS NOT NULL AND pm.meter_interval IS NOT NULL AND pm.meter_interval > 0 THEN
+    IF NOT v_floating AND pm.meter_id IS NOT NULL AND pm.meter_interval IS NOT NULL AND pm.meter_interval > 0 THEN
       SELECT current_reading INTO v_reading FROM meters WHERE id = pm.meter_id;
       IF v_reading IS NOT NULL
          AND v_reading >= COALESCE(pm.last_trigger_reading, 0) + pm.meter_interval THEN
@@ -78,8 +103,8 @@ BEGIN
       CONTINUE;
     END IF;
 
-    -- End date reached on the calendar arm: deactivate instead of generating.
-    IF v_calendar_due AND pm.end_date IS NOT NULL AND pm.next_due_at > pm.end_date THEN
+    -- End date reached on a fixed calendar arm: deactivate instead of generating.
+    IF NOT v_floating AND v_calendar_due AND pm.end_date IS NOT NULL AND pm.next_due_at > pm.end_date THEN
       UPDATE pm_schedules SET is_active = false WHERE id = pm.id;
       CONTINUE;
     END IF;
@@ -110,7 +135,7 @@ BEGIN
       pm.asset_id,
       pm.site_id,
       pm.assigned_to,
-      COALESCE(pm.next_due_at, now()),
+      COALESCE(v_due, now()),
       CASE WHEN pm.estimated_duration_minutes IS NOT NULL
            THEN CEIL(pm.estimated_duration_minutes / 60.0)::int ELSE NULL END
     )
@@ -130,22 +155,18 @@ BEGIN
          AND COALESCE(NULLIF(TRIM(item->>'title'), ''), NULLIF(TRIM(item->>'title_ar'), '')) IS NOT NULL;
     END IF;
 
-    -- One service resets BOTH configured clocks (hybrid = whichever fired first).
+    -- Roll next_due_at forward via the interval config (b4-01: floating anchors off
+    -- completed_at, fixed off the prior due; both honour interval_count/unit + anchor).
     IF v_calendar_due THEN
-      v_days := CASE pm.frequency
-        WHEN 'daily' THEN 1 WHEN 'weekly' THEN 7 WHEN 'fortnightly' THEN 14
-        WHEN 'monthly' THEN 30 WHEN 'quarterly' THEN 90 WHEN 'biannual' THEN 180
-        WHEN 'annual' THEN 365 ELSE 30 END;
-      v_next := pm.next_due_at + (v_days || ' days')::interval;
+      v_next := pm_roll_next_due(v_base, pm.frequency, pm.interval_count, pm.interval_unit, pm.anchor_day);
       IF pm.end_date IS NOT NULL AND v_next > pm.end_date THEN
         UPDATE pm_schedules SET next_due_at = v_next, is_active = false WHERE id = pm.id;
       ELSE
         UPDATE pm_schedules SET next_due_at = v_next WHERE id = pm.id;
       END IF;
     END IF;
-    -- Reset the usage clock whenever a meter is configured and a WO was generated, so a
-    -- calendar-triggered service also consumes the current meter crossing (no double-fire).
-    IF pm.meter_id IS NOT NULL AND v_reading IS NOT NULL THEN
+    -- Reset the usage clock whenever a meter fired/was consumed (hybrid, fixed only).
+    IF NOT v_floating AND pm.meter_id IS NOT NULL AND v_reading IS NOT NULL THEN
       UPDATE pm_schedules SET last_trigger_reading = v_reading WHERE id = pm.id;
     END IF;
 
