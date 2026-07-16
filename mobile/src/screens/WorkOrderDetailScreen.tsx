@@ -78,12 +78,14 @@ export default function WorkOrderDetailScreen() {
   const { t, lang } = useLang()
   const [wo, setWo] = useState<any>(null)
   const [allComments, setAllComments] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([]) // FM-06/WO-21: WO checklist tasks
+  const [newTask, setNewTask] = useState('')
   const [newComment, setNewComment] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [zoomPhoto, setZoomPhoto] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'photos' | 'time' | 'activity'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'comments' | 'photos' | 'time' | 'activity'>('details')
   const [timerRunning, setTimerRunning] = useState(false)
   const [timerSeconds, setTimerSeconds] = useState(0)
   // CORE-05 / FM-07: completion (close-out) flow routed through the web close endpoint.
@@ -114,7 +116,45 @@ export default function WorkOrderDetailScreen() {
     if (cmtError) console.log('CMT Error:', JSON.stringify(cmtError))
     if (cmts) setAllComments(cmts)
 
+    // FM-06/WO-21: work-order checklist tasks (org-scoped RLS).
+    const { data: tsk, error: tskError } = await supabase
+      .from('work_order_tasks')
+      .select('id, title, title_ar, is_done, done_at, done_by, sort_order, done_by_user:done_by(full_name)')
+      .eq('work_order_id', route.params.id)
+      .order('sort_order', { ascending: true })
+    if (tskError) console.log('TASK Error:', JSON.stringify(tskError))
+    if (tsk) setTasks(tsk)
+
     setLoading(false)
+  }
+
+  // FM-06/WO-21: toggle a checklist item, recording done_by/done_at. Optimistic
+  // update, then persist; matches the web WO detail tasks handler.
+  async function toggleTask(task: any) {
+    const nowDone = !task.is_done
+    setTasks(prev => prev.map(t2 => t2.id === task.id ? { ...t2, is_done: nowDone } : t2))
+    const { error } = await supabase.from('work_order_tasks').update({
+      is_done: nowDone,
+      done_by: nowDone ? profile?.id ?? null : null,
+      done_at: nowDone ? new Date().toISOString() : null,
+    }).eq('id', task.id)
+    if (error) { Alert.alert(t('error'), error.message); await fetchWO(); return }
+    await fetchWO()
+  }
+
+  async function addTask() {
+    if (!newTask.trim() || !profile?.organisation_id) return
+    setSaving(true)
+    const { error } = await supabase.from('work_order_tasks').insert({
+      organisation_id: profile.organisation_id,
+      work_order_id: wo.id,
+      title: newTask.trim(),
+      sort_order: tasks.length,
+    })
+    if (error) console.log('Add task error:', JSON.stringify(error))
+    setNewTask('')
+    await fetchWO()
+    setSaving(false)
   }
 
   async function updateStatus(newStatus: string) {
@@ -122,10 +162,28 @@ export default function WorkOrderDetailScreen() {
     // endpoint (field-config close-out photos, sign-off, audit, manager
     // notification). Open the completion screen instead of writing directly.
     if (newStatus === 'completed' || newStatus === 'closed') {
-      setCloseoutPhotos([])
-      setSignoff(profile?.full_name ?? '')
-      setCompletionNotes('')
-      setCloseModal(newStatus)
+      // FM-06/WO-21: warn if checklist tasks are still open before completing.
+      const openTasks = tasks.filter(t2 => !t2.is_done).length
+      const openCloseout = () => {
+        setCloseoutPhotos([])
+        setSignoff(profile?.full_name ?? '')
+        setCompletionNotes('')
+        setCloseModal(newStatus)
+      }
+      if (openTasks > 0) {
+        Alert.alert(
+          lang === 'ar' ? 'مهام غير مكتملة' : 'Open tasks',
+          lang === 'ar'
+            ? `${openTasks} من المهام لم تكتمل بعد. المتابعة على أي حال؟`
+            : `${openTasks} checklist task(s) are still open. Continue anyway?`,
+          [
+            { text: t('cancel'), style: 'cancel' },
+            { text: lang === 'ar' ? 'متابعة' : 'Continue', onPress: openCloseout },
+          ]
+        )
+        return
+      }
+      openCloseout()
       return
     }
     setSaving(true)
@@ -345,8 +403,10 @@ export default function WorkOrderDetailScreen() {
   const timeLogs = allComments.filter(c => c.comment_type === 'time_log')
   const photos = wo.photo_urls ?? []
 
+  const doneTasks = tasks.filter(t2 => t2.is_done).length
   const tabs = [
     { key: 'details',  label: lang === 'ar' ? 'التفاصيل' : 'Details' },
+    { key: 'tasks',    label: (lang === 'ar' ? 'المهام' : 'Tasks') + (tasks.length ? ` (${doneTasks}/${tasks.length})` : '') },
     { key: 'comments', label: lang === 'ar' ? 'التعليقات' : 'Comments', count: comments.length },
     { key: 'photos',   label: lang === 'ar' ? 'الصور' : 'Photos', count: photos.length },
     { key: 'time',     label: lang === 'ar' ? 'الوقت' : 'Time', count: timeLogs.length },
@@ -421,6 +481,64 @@ export default function WorkOrderDetailScreen() {
                 <Text style={{ fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 20 }}>{wo.description}</Text>
               </View>
             ) : null}
+          </View>
+        )}
+
+        {activeTab === 'tasks' && (
+          <View style={styles.card}>
+            {tasks.length > 0 && (
+              <View style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={styles.rowLabel}>
+                    {lang === 'ar' ? `${doneTasks}/${tasks.length} مكتمل` : `${doneTasks}/${tasks.length} completed`}
+                  </Text>
+                  <Text style={[styles.rowLabel, { fontWeight: '700', color: colors.primary }]}>
+                    {Math.round((doneTasks / tasks.length) * 100)}%
+                  </Text>
+                </View>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }}>
+                  <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.primary, width: `${(doneTasks / tasks.length) * 100}%` }} />
+                </View>
+              </View>
+            )}
+            {tasks.length === 0
+              ? <Text style={styles.empty}>{lang === 'ar' ? 'لا توجد مهام' : 'No tasks yet'}</Text>
+              : tasks.map(task => (
+                <TouchableOpacity key={task.id} style={styles.taskRow} onPress={() => toggleTask(task)} activeOpacity={0.6}>
+                  <Ionicons
+                    name={task.is_done ? 'checkbox' : 'square-outline'}
+                    size={22}
+                    color={task.is_done ? colors.success : colors.textLight}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.taskText, task.is_done && { textDecorationLine: 'line-through', color: colors.textLight }]}>
+                      {lang === 'ar' && task.title_ar ? task.title_ar : task.title}
+                    </Text>
+                    {task.is_done && task.done_at ? (
+                      <Text style={styles.commentTime}>
+                        {(task.done_by_user?.full_name ?? '—') + ' · ' + format(new Date(task.done_at), 'dd MMM, HH:mm')}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              ))
+            }
+            {role !== 'requester' && (
+              <View style={styles.commentInput}>
+                <TextInput
+                  style={styles.commentTextInput}
+                  value={newTask}
+                  onChangeText={setNewTask}
+                  placeholder={lang === 'ar' ? 'أضف مهمة...' : 'Add a task...'}
+                  placeholderTextColor={colors.textLight}
+                  onSubmitEditing={addTask}
+                  returnKeyType='done'
+                />
+                <TouchableOpacity style={styles.sendBtn} onPress={addTask} disabled={saving}>
+                  <Ionicons name='add' size={22} color='white' />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 
@@ -673,6 +791,8 @@ const styles = StyleSheet.create({
   commentTextInput: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 10, fontSize: 14, color: colors.text, maxHeight: 100 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   empty: { textAlign: 'center', color: colors.textLight, fontSize: 13, paddingVertical: 24 },
+  taskRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  taskText: { fontSize: 14, color: colors.text, lineHeight: 20 },
   photoActions: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   photoBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.infoLight },
   photoBtnText: { fontSize: 13, color: colors.primary, fontWeight: '500' },
