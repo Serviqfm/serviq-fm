@@ -67,6 +67,14 @@ export default function WorkOrderDetailPage() {
   const [additionalWorkerNames, setAdditionalWorkerNames] = useState<string[]>([])
   // WO-25: org-defined custom statuses (display sub-states mapped to a base status).
   const [customStatuses, setCustomStatuses] = useState<CustomStatusOption[]>([])
+  // WO-24: related work orders (links to/from this WO).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [links, setLinks] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [linkableWOs, setLinkableWOs] = useState<any[]>([])
+  const [newLinkType, setNewLinkType] = useState<'blocks' | 'duplicate_of' | 'related'>('related')
+  const [newLinkTarget, setNewLinkTarget] = useState('')
+  const [addingLink, setAddingLink] = useState(false)
   useEffect(() => {
     fetchWorkOrder()
     fetchComments()
@@ -77,6 +85,8 @@ export default function WorkOrderDetailPage() {
     fetchTasks()
     fetchCurrentUser()
     fetchCustomStatuses()
+    fetchLinks()
+    fetchLinkableWOs()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -95,6 +105,50 @@ export default function WorkOrderDetailPage() {
       .eq('is_active', true)
       .order('sort_order')
     if (data) setCustomStatuses(data as CustomStatusOption[])
+  }
+
+  async function fetchLinks() {
+    // Route degrades to [] when the work_order_links table is absent.
+    const res = await fetch(`/api/work-orders/${id}/links`).catch(() => null)
+    if (!res?.ok) return
+    const json = await res.json().catch(() => ({ links: [] }))
+    setLinks(json.links ?? [])
+  }
+
+  async function fetchLinkableWOs() {
+    // Lightweight picker source: recent org WOs (RLS scopes to the caller's org).
+    // ponytail: cap at 200; add a typeahead search if orgs outgrow that.
+    const { data } = await supabase
+      .from('work_orders')
+      .select('id, wo_number, title')
+      .neq('id', id as string)
+      .order('wo_number', { ascending: false })
+      .limit(200)
+    if (data) setLinkableWOs(data)
+  }
+
+  async function addLink(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newLinkTarget) return
+    setAddingLink(true)
+    const res = await fetch(`/api/work-orders/${id}/links`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to_wo_id: newLinkTarget, link_type: newLinkType }),
+    }).catch(() => null)
+    setAddingLink(false)
+    if (!res?.ok) {
+      const json = await res?.json().catch(() => ({}))
+      alert(json?.error ?? 'Failed to add link')
+      return
+    }
+    setNewLinkTarget('')
+    fetchLinks()
+  }
+
+  async function removeLink(linkId: string) {
+    await fetch(`/api/work-orders/${id}/links?link_id=${linkId}`, { method: 'DELETE' }).catch(() => null)
+    fetchLinks()
   }
 
   async function fetchTasks() {
@@ -572,6 +626,22 @@ export default function WorkOrderDetailPage() {
     return 'border border-outline-variant text-on-surface-variant bg-surface-container-lowest'
   }
 
+  // WO-24: relationship label from this WO's perspective (inverse for incoming rows).
+  function linkLabel(type: string, direction: string): string {
+    const en: Record<string, string> = {
+      'blocks:out': 'Blocks', 'blocks:in': 'Blocked by',
+      'duplicate_of:out': 'Duplicate of', 'duplicate_of:in': 'Duplicated by',
+      'related:out': 'Related to', 'related:in': 'Related to',
+    }
+    const ar: Record<string, string> = {
+      'blocks:out': 'يمنع', 'blocks:in': 'ممنوع بواسطة',
+      'duplicate_of:out': 'مكرر لـ', 'duplicate_of:in': 'مكرر بواسطة',
+      'related:out': 'مرتبط بـ', 'related:in': 'مرتبط بـ',
+    }
+    const key = `${type}:${direction}`
+    return (lang === 'ar' ? ar[key] : en[key]) ?? type
+  }
+
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
       <div className="max-w-[860px] mx-auto space-y-6">
@@ -868,6 +938,45 @@ export default function WorkOrderDetailPage() {
             </div>
           </div>
         )}
+
+        {/* WO-24: related work orders (links to/from this WO; informational). */}
+        <div className="bg-surface-container-low rounded-xl px-4 py-3">
+          <p className="text-xs text-on-surface-variant mb-2">{lang === 'ar' ? 'أوامر العمل ذات الصلة' : 'Related work orders'}</p>
+          {links.length > 0 && (
+            <div className="space-y-1.5 mb-3">
+              {links.map(l => (
+                <div key={l.id} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm min-w-0">
+                    <span className="text-xs font-semibold text-on-surface-variant shrink-0">{linkLabel(l.link_type, l.direction)}</span>
+                    <a href={`/dashboard/work-orders/${l.other.id}`} className="text-primary hover:underline truncate">
+                      {l.other.wo_number ? `#${l.other.wo_number}` : ''} {l.other.title}
+                    </a>
+                  </div>
+                  <button onClick={() => removeLink(l.id)} className="text-xs text-on-surface-variant hover:text-error shrink-0" aria-label={lang === 'ar' ? 'إزالة' : 'Remove'}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {links.length === 0 && <p className="text-sm text-on-surface-variant/60 mb-3 m-0">{lang === 'ar' ? 'لا توجد روابط بعد.' : 'No links yet.'}</p>}
+          {wo.status !== 'closed' && (
+            <form onSubmit={addLink} className="flex flex-wrap gap-2 items-center">
+              <select value={newLinkType} onChange={e => setNewLinkType(e.target.value as typeof newLinkType)} className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface outline-none">
+                <option value="related">{lang === 'ar' ? 'مرتبط بـ' : 'Related to'}</option>
+                <option value="blocks">{lang === 'ar' ? 'يمنع' : 'Blocks'}</option>
+                <option value="duplicate_of">{lang === 'ar' ? 'مكرر لـ' : 'Duplicate of'}</option>
+              </select>
+              <select value={newLinkTarget} onChange={e => setNewLinkTarget(e.target.value)} className="bg-surface-container-low border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface outline-none flex-1 min-w-[180px]">
+                <option value="">{lang === 'ar' ? 'اختر أمر عمل…' : 'Select a work order…'}</option>
+                {linkableWOs.map(w => (
+                  <option key={w.id} value={w.id}>{w.wo_number ? `#${w.wo_number}` : ''} {w.title}</option>
+                ))}
+              </select>
+              <button type="submit" disabled={!newLinkTarget || addingLink} className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!newLinkTarget || addingLink ? 'opacity-50' : ''}`}>
+                {addingLink ? '…' : (lang === 'ar' ? 'ربط' : 'Link')}
+              </button>
+            </form>
+          )}
+        </div>
 
         <div className="border-b border-outline-variant flex gap-0">
           {(
