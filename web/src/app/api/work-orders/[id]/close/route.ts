@@ -8,6 +8,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { getOrgId } from '@/lib/auth-helper'
+import { deliverWebhookEvent } from '@/lib/webhookDelivery'
 import type { WorkOrderStatus } from '@/types/work-order'
 
 export const dynamic = 'force-dynamic'
@@ -153,6 +154,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   } catch (auditErr) {
     console.error('[work-orders close POST] audit log failed', auditErr)
   }
+
+  // MKT-19: fire wo.status_changed to registered webhooks (fire-and-forget).
+  void deliverWebhookEvent(profile.organisation_id, 'wo.status_changed', {
+    id,
+    wo_number: (data as { wo_number?: number | null })?.wo_number ?? null,
+    status: newStatus,
+    previous_status: existingWO.status,
+  })
 
   return NextResponse.json({ work_order: data })
 }
