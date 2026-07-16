@@ -6,6 +6,7 @@ import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { archiveConfirmMessage, nextDueOnDaysOfWeek } from './pm-utils'
+import { stampChecklistTasks } from './checklist-stamp'
 
 export default function PMSchedulesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,19 +71,22 @@ export default function PMSchedulesPage() {
     if (!user) { setGenerating(null); return }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setGenerating(null); return }
-    const { error } = await supabase.from('work_orders').insert({
+    const { data: newWO, error } = await supabase.from('work_orders').insert({
       title: schedule.title,
       description: schedule.description || null,
-      priority: 'medium',
+      priority: schedule.priority || 'medium',
       status: schedule.assigned_to ? 'assigned' : 'new',
       source: 'pm_schedule',
+      pm_schedule_id: schedule.id,
       asset_id: schedule.asset_id || null,
       site_id: schedule.site_id || null,
       assigned_to: schedule.assigned_to || null,
       organisation_id: profile.organisation_id,
       created_by: user.id,
-    })
+    }).select('id').single()
     if (!error) {
+      // FM-05: stamp the schedule's checklist onto the generated WO.
+      if (newWO) await stampChecklistTasks(supabase, { organisationId: profile.organisation_id, workOrderId: newWO.id, templateId: schedule.checklist_template_id })
       const nextDue = calculateNextDue(schedule)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const update: any = {

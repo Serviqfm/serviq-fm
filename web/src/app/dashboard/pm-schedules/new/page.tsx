@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { rollNextDue } from '../pm-utils'
+import { stampChecklistTasks } from '../checklist-stamp'
 
 export default function NewPMSchedulePage() {
   const router = useRouter()
@@ -18,12 +19,16 @@ export default function NewPMSchedulePage() {
   const [sites, setSites] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [checklists, setChecklists] = useState<any[]>([])
   const [form, setForm] = useState({
     title: '',
     description: '',
     frequency: 'monthly',
+    priority: 'medium',            // 1C-12: copied onto generated WOs
     site_id: '',
     assigned_to: '',
+    checklist_template_id: '',     // FM-05: stamped onto generated WOs
     next_due_at: '',
     end_date: '',
     estimated_duration_minutes: '',
@@ -46,14 +51,16 @@ export default function NewPMSchedulePage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
     const orgId = profile.organisation_id
-    const [{ data: assetData }, { data: siteData }, { data: techData }] = await Promise.all([
+    const [{ data: assetData }, { data: siteData }, { data: techData }, { data: checklistData }] = await Promise.all([
       supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
       supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
+      supabase.from('checklist_templates').select('id, name, name_ar').eq('organisation_id', orgId).order('name'),
     ])
     if (assetData) setAssets(assetData)
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
+    if (checklistData) setChecklists(checklistData)
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -76,9 +83,11 @@ export default function NewPMSchedulePage() {
       title: form.title,
       description: form.description || null,
       frequency: form.frequency,
+      priority: form.priority,
       asset_id: aid,
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
+      checklist_template_id: form.checklist_template_id || null,
       next_due_at: form.next_due_at || null,
       end_date: form.end_date || null,
       days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -92,7 +101,7 @@ export default function NewPMSchedulePage() {
       is_active: true,
     }))
     const { data: created, error: insertError } = await supabase.from('pm_schedules').insert(rows)
-      .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day')
+      .select('id, title, description, frequency, priority, asset_id, site_id, assigned_to, checklist_template_id, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day')
     if (insertError) { setError(insertError.message); setLoading(false); return }
 
     // Optionally create the first work order immediately — same WO shape as
@@ -101,11 +110,11 @@ export default function NewPMSchedulePage() {
       for (const pm of created) {
         if (!pm.next_due_at) continue
         if (pm.end_date && new Date(pm.next_due_at) > new Date(pm.end_date)) continue
-        const { error: woError } = await supabase.from('work_orders').insert({
+        const { data: newWO, error: woError } = await supabase.from('work_orders').insert({
           organisation_id: pm.organisation_id,
           title: `PM - ${pm.title}`,
           description: pm.description,
-          priority: 'medium',
+          priority: pm.priority ?? 'medium',
           status: pm.assigned_to ? 'assigned' : 'new',
           source: 'pm_schedule',
           pm_schedule_id: pm.id,
@@ -115,8 +124,10 @@ export default function NewPMSchedulePage() {
           due_at: pm.next_due_at,
           sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
           created_by: user.id,
-        })
-        if (woError) continue
+        }).select('id').single()
+        if (woError || !newWO) continue
+        // FM-05: stamp the schedule's checklist onto the first WO.
+        await stampChecklistTasks(supabase, { organisationId: pm.organisation_id, workOrderId: newWO.id, templateId: pm.checklist_template_id })
         const rec = { interval_count: pm.interval_count, interval_unit: pm.interval_unit, anchor_day: pm.anchor_day }
         // Floating: next due is one interval after this WO would complete — approximate
         // from now (cron re-anchors off the real completed_at). Fixed: roll off due date.
@@ -295,6 +306,27 @@ export default function NewPMSchedulePage() {
             <option value=''>{lang === 'ar' ? 'اختر الموقع' : 'Select site'}</option>
             {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الأولوية' : 'Priority'}</label>
+            <select name='priority' value={form.priority} onChange={handleChange} style={fieldStyle}>
+              <option value='low'>{lang === 'ar' ? 'منخفضة' : 'Low'}</option>
+              <option value='medium'>{lang === 'ar' ? 'متوسطة' : 'Medium'}</option>
+              <option value='high'>{lang === 'ar' ? 'عالية' : 'High'}</option>
+              <option value='critical'>{lang === 'ar' ? 'حرجة' : 'Critical'}</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'قائمة المهام (اختياري)' : 'Checklist (optional)'}</label>
+            <select name='checklist_template_id' value={form.checklist_template_id} onChange={handleChange} style={fieldStyle}>
+              <option value=''>{lang === 'ar' ? 'بدون قائمة' : 'No checklist'}</option>
+              {checklists.map(c => <option key={c.id} value={c.id}>{lang === 'ar' && c.name_ar ? c.name_ar : c.name}</option>)}
+            </select>
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'تُنسخ مهام القائمة إلى كل أمر عمل يُنشأ.' : 'The checklist items are copied onto every generated work order.'}
+            </p>
+          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
