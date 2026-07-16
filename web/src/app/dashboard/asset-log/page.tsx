@@ -204,6 +204,11 @@ export default function AssetLogPage() {
               className="bg-surface-container-lowest text-on-surface border border-outline-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors disabled:opacity-50">
               <span className="material-symbols-outlined text-lg">download</span>{t('common.export')}
             </button>
+            <Link href="/dashboard/asset-log/reports">
+              <button className="bg-surface-container-lowest text-on-surface border border-outline-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+                <span className="material-symbols-outlined text-lg">assessment</span>Reports
+              </button>
+            </Link>
             <Link href="/dashboard/asset-log/import">
               <button className="bg-surface-container-lowest text-on-surface border border-outline-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
                 <span className="material-symbols-outlined text-lg">upload</span>{t('common.import')}
