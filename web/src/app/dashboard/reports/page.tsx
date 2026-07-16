@@ -174,10 +174,16 @@ export default function ReportsPage() {
             <h1 className="text-3xl font-bold text-on-surface">{lang === 'ar' ? 'التقارير والتحليلات' : 'Reports & Analytics'}</h1>
             <p className="text-on-surface-variant mt-1 text-sm">{lang === 'ar' ? 'نظرة عامة على أداء العمليات' : 'Deep dive into operational efficiency and asset longevity.'}</p>
           </div>
-          <button onClick={quickExport} className="bg-secondary text-on-secondary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/90 transition-colors shadow-sm self-start sm:self-auto">
-            <span className="material-symbols-outlined text-lg">cloud_download</span>
-            Quick Export
-          </button>
+          <div className="flex gap-3 self-start sm:self-auto">
+            <a href="/dashboard/reports/builder" className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
+              <span className="material-symbols-outlined text-lg">build</span>
+              {lang === 'ar' ? 'منشئ التقارير' : 'Report Builder'}
+            </a>
+            <button onClick={quickExport} className="bg-secondary text-on-secondary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/90 transition-colors shadow-sm">
+              <span className="material-symbols-outlined text-lg">cloud_download</span>
+              Quick Export
+            </button>
+          </div>
         </div>
 
         {/* KPI bento row */}
