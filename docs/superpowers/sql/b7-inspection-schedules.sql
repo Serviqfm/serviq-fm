@@ -112,3 +112,29 @@ CREATE POLICY insp_sched_org_delete ON public.inspection_schedules
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
   );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- work_orders.source CHECK widening — the live DB constrains source to
+-- ('manual','pm_schedule','requester') (out-of-repo constraint; documented in
+-- api/work-orders/route.ts). The inspection cron inserts source='inspection',
+-- which would violate it on every run. Widen the constraint to include
+-- 'inspection'. Idempotent: skipped when the definition already allows it.
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT conname, pg_get_constraintdef(oid) AS def
+      FROM pg_constraint
+     WHERE conrelid = 'public.work_orders'::regclass
+       AND contype = 'c'
+       AND pg_get_constraintdef(oid) ILIKE '%source%'
+  LOOP
+    IF r.def NOT ILIKE '%inspection%' THEN
+      EXECUTE format('ALTER TABLE public.work_orders DROP CONSTRAINT %I', r.conname);
+      EXECUTE 'ALTER TABLE public.work_orders ADD CONSTRAINT work_orders_source_check
+        CHECK (source IN (''manual'',''pm_schedule'',''requester'',''inspection''))';
+      RAISE NOTICE 'B7: widened work_orders source CHECK (%) to include inspection', r.conname;
+    END IF;
+  END LOOP;
+END $$;
