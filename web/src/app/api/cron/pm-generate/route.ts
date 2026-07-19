@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isMonthInSeasonalWindow, nextSeasonStart, rollByInterval, type Recurrence } from '@/app/dashboard/pm-schedules/pm-utils'
+import { stampChecklistTasks } from '@/app/dashboard/pm-schedules/checklist-stamp'
 import { captureAndAlert } from '@/lib/errorLog'
 
 const ROUTE = '/api/cron/pm-generate'
@@ -69,6 +70,8 @@ type PMRow = {
   interval_count?: number | null     // 1C-10 recurrence config
   interval_unit?: string | null
   anchor_day?: number | null
+  checklist_template_id?: string | null  // FM-05: stamped onto generated WOs
+  priority?: string | null               // 1C-12: copied to the WO (default medium)
 }
 
 // Roll next_due_at forward one cycle. Precedence: explicit interval config
@@ -98,7 +101,7 @@ async function run() {
 
   const { data: due, error } = await admin
     .from('pm_schedules')
-    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month, meter_id, meter_interval, last_trigger_reading, scheduling_mode, interval_count, interval_unit, anchor_day')
+    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month, meter_id, meter_interval, last_trigger_reading, scheduling_mode, interval_count, interval_unit, anchor_day, checklist_template_id, priority')
     .eq('is_active', true)
     .eq('is_archived', false)
     .not('next_due_at', 'is', null)
@@ -190,11 +193,11 @@ async function run() {
       // Insert the WO. Skip is_recurring/recurrence_frequency since those
       // columns aren't reliably present across all Supabase projects; the
       // recurrence is captured by pm_schedule_id alone.
-      const { error: insErr } = await admin.from('work_orders').insert({
+      const { data: insWO, error: insErr } = await admin.from('work_orders').insert({
         organisation_id: pm.organisation_id,
         title: `PM - ${pm.title}`,
         description: pm.description,
-        priority: 'medium',
+        priority: pm.priority ?? 'medium',
         status: pm.assigned_to ? 'assigned' : 'new',
         source: 'pm_schedule',
         pm_schedule_id: pm.id,
@@ -203,11 +206,13 @@ async function run() {
         assigned_to: pm.assigned_to,
         due_at: woDueAt,
         sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
-      })
+      }).select('id').single()
       if (insErr) {
         errors.push(`PM ${pm.id}: ${insErr.message}`)
         continue
       }
+      // FM-05: stamp the schedule's checklist onto the new WO.
+      await stampChecklistTasks(admin, { organisationId: pm.organisation_id, workOrderId: insWO.id, templateId: pm.checklist_template_id })
 
       // Roll next_due_at forward. Floating anchors off this WO's completion
       // (completed_at + interval; now + interval for the first WO). Fixed rolls off
@@ -249,7 +254,7 @@ async function run() {
 async function runMeterPass(admin: any): Promise<number> {
   const { data: rows } = await admin
     .from('pm_schedules')
-    .select('id, title, description, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, meter_id, meter_interval, last_trigger_reading')
+    .select('id, title, description, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, meter_id, meter_interval, last_trigger_reading, checklist_template_id, priority')
     .eq('is_active', true)
     .eq('is_archived', false)
     .not('meter_id', 'is', null)
@@ -281,11 +286,11 @@ async function runMeterPass(admin: any): Promise<number> {
         .limit(1)
       if (existing && existing.length > 0) continue
 
-      const { error: insErr } = await admin.from('work_orders').insert({
+      const { data: insWO, error: insErr } = await admin.from('work_orders').insert({
         organisation_id: pm.organisation_id,
         title: `PM - ${pm.title}`,
         description: pm.description,
-        priority: 'medium',
+        priority: pm.priority ?? 'medium',
         status: pm.assigned_to ? 'assigned' : 'new',
         source: 'pm_schedule',
         pm_schedule_id: pm.id,
@@ -294,8 +299,9 @@ async function runMeterPass(admin: any): Promise<number> {
         assigned_to: pm.assigned_to,
         due_at: pm.next_due_at,
         sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
-      })
+      }).select('id').single()
       if (insErr) continue
+      await stampChecklistTasks(admin, { organisationId: pm.organisation_id, workOrderId: insWO.id, templateId: pm.checklist_template_id })
       await admin.from('pm_schedules').update({ last_trigger_reading: reading }).eq('id', pm.id)
       generated++
     } catch {

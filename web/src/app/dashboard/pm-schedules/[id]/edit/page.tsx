@@ -19,9 +19,11 @@ export default function EditPMSchedulePage() {
   const [sites, setSites] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [checklists, setChecklists] = useState<any[]>([])
   const [form, setForm] = useState({
-    title: '', description: '', frequency: 'monthly',
-    asset_id: '', site_id: '', assigned_to: '',
+    title: '', description: '', frequency: 'monthly', priority: 'medium',
+    asset_id: '', site_id: '', assigned_to: '', checklist_template_id: '',
     next_due_at: '', end_date: '', estimated_duration_minutes: '',
     is_seasonal: false, seasonal_start_month: '1', seasonal_end_month: '12',
     scheduling_mode: 'fixed', interval_count: '', interval_unit: 'month', anchor_day: '',
@@ -37,22 +39,26 @@ export default function EditPMSchedulePage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
     const orgId = profile.organisation_id
-    const [{ data: pm }, { data: assetData }, { data: siteData }, { data: techData }] = await Promise.all([
+    const [{ data: pm }, { data: assetData }, { data: siteData }, { data: techData }, { data: checklistData }] = await Promise.all([
       supabase.from('pm_schedules').select('*').eq('id', id).single(),
       supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
       supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
+      supabase.from('checklist_templates').select('id, name, name_ar').eq('organisation_id', orgId).order('name'),
     ])
     if (assetData) setAssets(assetData)
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
+    if (checklistData) setChecklists(checklistData)
     if (pm) setForm({
       title: pm.title ?? '',
       description: pm.description ?? '',
       frequency: pm.frequency ?? 'monthly',
+      priority: pm.priority ?? 'medium',
       asset_id: pm.asset_id ?? '',
       site_id: pm.site_id ?? '',
       assigned_to: pm.assigned_to ?? '',
+      checklist_template_id: pm.checklist_template_id ?? '',
       next_due_at: pm.next_due_at ? pm.next_due_at.slice(0, 16) : '',
       end_date: pm.end_date ? pm.end_date.slice(0, 10) : '',
       estimated_duration_minutes: pm.estimated_duration_minutes ? String(pm.estimated_duration_minutes) : '',
@@ -84,9 +90,11 @@ export default function EditPMSchedulePage() {
       title: form.title,
       description: form.description || null,
       frequency: form.frequency,
+      priority: form.priority,
       asset_id: form.asset_id || null,
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
+      checklist_template_id: form.checklist_template_id || null,
       next_due_at: form.next_due_at || null,
       end_date: form.end_date || null,
       days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -185,6 +193,24 @@ export default function EditPMSchedulePage() {
             <select name='site_id' value={form.site_id} onChange={handleChange} style={fieldStyle}>
               <option value=''>Select site</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الأولوية' : 'Priority'}</label>
+            <select name='priority' value={form.priority} onChange={handleChange} style={fieldStyle}>
+              <option value='low'>{lang === 'ar' ? 'منخفضة' : 'Low'}</option>
+              <option value='medium'>{lang === 'ar' ? 'متوسطة' : 'Medium'}</option>
+              <option value='high'>{lang === 'ar' ? 'عالية' : 'High'}</option>
+              <option value='critical'>{lang === 'ar' ? 'حرجة' : 'Critical'}</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'قائمة المهام (اختياري)' : 'Checklist (optional)'}</label>
+            <select name='checklist_template_id' value={form.checklist_template_id} onChange={handleChange} style={fieldStyle}>
+              <option value=''>{lang === 'ar' ? 'بدون قائمة' : 'No checklist'}</option>
+              {checklists.map(c => <option key={c.id} value={c.id}>{lang === 'ar' && c.name_ar ? c.name_ar : c.name}</option>)}
             </select>
           </div>
         </div>
