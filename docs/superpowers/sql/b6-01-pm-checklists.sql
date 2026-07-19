@@ -34,9 +34,10 @@ ALTER TABLE pm_schedules
   ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 2. generate_due_pm_work_orders() — copy of t8-01's body, + priority + checklist
---    stamping. Everything between BEGIN and the checklist block is unchanged from
---    t8-01; do not drop the de-dupe / meter arm / roll-forward when editing.
+-- 2. generate_due_pm_work_orders() — copy of b4-01's body (fixed/floating +
+--    interval recurrence + one-open-WO de-dupe + meter/hybrid arm), + priority +
+--    checklist stamping. Do not drop the de-dupe / meter arm / floating logic /
+--    pm_roll_next_due roll-forward when editing — b4-01 is the authoritative base.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION generate_due_pm_work_orders()
 RETURNS integer
