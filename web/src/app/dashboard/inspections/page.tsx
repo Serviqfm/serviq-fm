@@ -134,6 +134,11 @@ export default function InspectionsPage() {
               {tab === 'templates' && <span className="ml-1.5 bg-surface-container-low px-2 py-0.5 rounded-full text-xs">{templates.length}</span>}
             </button>
           ))}
+          {/* CORE-26: recurring schedules live on their own page. */}
+          <Link href="/dashboard/inspections/schedules"
+            className="px-5 py-2.5 text-sm -mb-0.5 font-normal text-on-surface-variant border-b-2 border-transparent no-underline">
+            {lang === 'ar' ? 'الجداول' : 'Schedules'}
+          </Link>
         </div>
 
         {selected.length > 0 && (
