@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { registerPushToken, clearPushToken } from '../lib/notifications'
+import { cacheGet, cacheSet } from '../lib/offline'
 
 type AuthContextType = {
   user: any | null
@@ -47,6 +48,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("ERROR:", JSON.stringify(error))
       console.log("USER_ID:", userId)
     }
+    // CORE-07: offline (or transient failure) — serve the cached profile so
+    // the signed-in technician can still use the app.
+    if (!data) {
+      const cached = await cacheGet<any>(`profile:${userId}`)
+      if (cached) {
+        setProfile(cached)
+        setLoading(false)
+        return
+      }
+    }
     // Disabled (incl. self-deleted) or tenant-deactivated (is_active=false)
     // accounts can never stay signed in. 1C-02: mirror the web AuthContext.
     if (data?.disabled || data?.is_active === false) {
@@ -57,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     if (data) {
       data.email = authUser?.email ?? data.email
+      cacheSet(`profile:${userId}`, data)
     }
     setProfile(data)
     setLoading(false)

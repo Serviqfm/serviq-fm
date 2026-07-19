@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, RefreshC
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
+import { cacheGet, cacheSet } from '../lib/offline'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
@@ -92,7 +93,14 @@ export default function WorkOrdersScreen() {
     // admins and managers see all org WOs
 
     const { data } = await query
-    if (data) setWos(data)
+    if (data) {
+      setWos(data)
+      cacheSet(`wos:${profile.id}`, data) // CORE-07: snapshot for offline
+    } else {
+      // Offline (or fetch failed) — serve the last snapshot.
+      const cached = await cacheGet<any[]>(`wos:${profile.id}`)
+      if (cached) setWos(cached)
+    }
     setLoading(false)
   }
 
