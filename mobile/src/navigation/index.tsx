@@ -16,6 +16,7 @@ import WorkOrderDetailScreen from '../screens/WorkOrderDetailScreen'
 import AssetsScreen from '../screens/AssetsScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 import AssetDetailScreen from '../screens/AssetDetailScreen'
+import AssetLogDetailScreen from '../screens/AssetLogDetailScreen'
 import QRScannerScreen from '../screens/QRScannerScreen'
 import CreateWorkOrderScreen from '../screens/CreateWorkOrderScreen'
 import CreateAssetScreen from '../screens/CreateAssetScreen'
@@ -75,6 +76,8 @@ function RootNavigator() {
             options={{ headerShown: true, title: 'Work Order', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='AssetDetail' component={AssetDetailScreen}
             options={{ headerShown: true, title: 'Asset', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
+          <Stack.Screen name='AssetLogDetail' component={AssetLogDetailScreen}
+            options={{ headerShown: true, title: 'Asset Log Item', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='CreateWorkOrder' component={CreateWorkOrderScreen}
             options={{ headerShown: true, title: 'Create Work Order', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='AssetForm' component={CreateAssetScreen}

@@ -51,16 +51,39 @@ export default function QRScannerScreen() {
       return
     }
 
-    if (!assetId) {
-      Alert.alert(
-        t('not_found_title'),
-        t('asset_not_in_org'),
-        [{ text: t('scan_again'), onPress: () => setScanned(false) }]
-      )
+    if (assetId) {
+      navigation.replace('AssetDetail', { id: assetId })
       return
     }
 
-    navigation.replace('AssetDetail', { id: assetId })
+    // Asset Log fallback: the item QR encodes an `al/{uuid}` landing URL (or a
+    // bare uuid). Resolve asset_log_items.qr_token, still org-scoped.
+    const alMatch = data.match(/al\/([0-9a-f-]{36})/i)
+    const alToken = alMatch?.[1] ?? (candidateId /* bare uuid tried above as asset id */ ?? null)
+    if (alToken) {
+      try {
+        const { data: item } = await supabase
+          .from('asset_log_items')
+          .select('id')
+          .eq('organisation_id', profile.organisation_id)
+          .eq('qr_token', alToken)
+          .maybeSingle()
+        if (item?.id) {
+          navigation.replace('AssetLogDetail', { id: item.id })
+          return
+        }
+      } catch {
+        Alert.alert(t('error'), t('qr_lookup_failed'))
+        setScanned(false)
+        return
+      }
+    }
+
+    Alert.alert(
+      t('not_found_title'),
+      t('asset_not_in_org'),
+      [{ text: t('scan_again'), onPress: () => setScanned(false) }]
+    )
   }
 
   if (!permission) {
