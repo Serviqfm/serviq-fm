@@ -552,3 +552,24 @@ Four disjoint tracks (vercel.json cron reconciled: #58 stacked on #56). SQL/secu
   fire-and-forget) wired on wo.status_changed + request.submitted; CRON_SECRET-gated compliance-expiry cron
   (30/7-day admin alerts); /api/v1/sites + /api/v1/requests (api-key auth, scoped). No SQL. Review fix: SSRF guard
   blocks private/metadata webhook hosts at registration. Remaining: wo.created event wiring.
+
+## Wave 4 batch 6 — mobile asset-log · PM checklists · WO linking · asset-log web finish (2026-07-19)
+
+Four disjoint tracks (batch survived two process restarts via workflow resume; all work recovered from
+pushed branches + cache). PM generator re-verified line-by-line: b4-01 floating/interval + the W4.2
+de-dupe preserved; the B6-B agent itself caught and reverted an interim t8-01-body regression pre-merge.
+
+- **AG-8 / AG-9** — PR #60 — mobile Asset Log: QR scan → item detail screen; Move (site→space via the
+  `move_asset_log_item` RPC on the user session) + Condition update with photo (review row + item sync).
+  Requester-hidden, disposed-locked. Mobile-only, no SQL.
+- **FM-05 / 1C-12 (partial)** — PR #63 — PM checklists: `pm_schedules.checklist_template_id` + priority;
+  generated WOs get the template's items stamped into `work_order_tasks` + the schedule's priority — wired
+  in all four generation paths (SQL fn, JS cron calendar+meter, PM-form first-WO, PM-list Generate).
+  **SQL:** `b6-01-pm-checklists.sql` (verified: b4-01 body + additions only; header corrected to name b4-01).
+  Deferred: 1C-12 category/signature parity.
+- **WO-24** — PR #61 — `work_order_links` (blocks/duplicate_of/related; org RLS with both FK WOs bound to
+  the caller's org in WITH CHECK on insert+update; no-self-link + UNIQUE) + Related-WOs section on WO detail
+  with inverse labels. **SQL:** `b6-wo-linking.sql`.
+- **AG-10 / AG-11** — PR #62 — Asset Log reports page (counts by status/type/space, value summary,
+  decommissioned/disposed lists) + CRON_SECRET-gated fail-closed `/api/cron/asset-warranty` (30/7-day
+  admin alerts, NotificationService dedupe), weekly in vercel.json. No SQL.
