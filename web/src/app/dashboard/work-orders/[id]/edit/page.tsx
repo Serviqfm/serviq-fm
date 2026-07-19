@@ -82,7 +82,7 @@ export default function EditWorkOrderPage() {
 
       const [woResult, assetResult, siteResult, techResult, vendorResult, teamResult] = await Promise.all([
         supabase.from('work_orders').select('*').eq('id', id).single(),
-        supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
+        supabase.from('assets').select('id, name, site_id').eq('organisation_id', orgId).eq('status', 'active'),
         supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
         supabase.from('users').select('id, full_name').eq('organisation_id', orgId).in('role', ['technician', 'manager']),
         supabase.from('vendors').select('id, company_name').eq('organisation_id', orgId).eq('is_active', true),
@@ -145,7 +145,21 @@ export default function EditWorkOrderPage() {
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setForm(prev => {
+      const next = { ...prev, [name]: value }
+      // WO-29: picking an asset auto-fills its site; switching site clears a
+      // mismatched asset (the asset dropdown only offers the selected site's assets).
+      if (name === 'asset_id') {
+        const asset = assets.find(a => a.id === value)
+        if (asset?.site_id) next.site_id = asset.site_id
+      }
+      if (name === 'site_id' && value) {
+        const asset = assets.find(a => a.id === next.asset_id)
+        if (asset?.site_id && asset.site_id !== value) next.asset_id = ''
+      }
+      return next
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -314,7 +328,8 @@ export default function EditWorkOrderPage() {
               <label style={labelStyle}>Asset{reqMark('asset_id')}</label>
               <select name='asset_id' value={form.asset_id} onChange={handleChange} required={isReq('asset_id')} style={fieldStyle}>
                 <option value=''>Select asset</option>
-                {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {/* WO-29: once a site is chosen, only its assets are offered. */}
+                {assets.filter(a => !form.site_id || !a.site_id || a.site_id === form.site_id).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
           )}

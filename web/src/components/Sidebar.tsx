@@ -16,6 +16,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'requests',    href: '/dashboard/requests',     en: 'Requests',     ar: 'الطلبات',        icon: 'inbox',          exact: false, roles: ['admin', 'manager'] },
   { key: 'assets',      href: '/dashboard/assets',       en: 'Assets',       ar: 'الأصول',         icon: 'inventory_2',    exact: false },
   { key: 'asset_log',   href: '/dashboard/asset-log',    en: 'Asset Log',    ar: 'سجل الأصول',     icon: 'list_alt',       exact: false },
+  { key: 'asset_log_reports', href: '/dashboard/asset-log/reports', en: 'Asset Log Reports', ar: 'تقارير سجل الأصول', icon: 'summarize', exact: false },
   { key: 'pm',          href: '/dashboard/pm-schedules', en: 'PM Schedules', ar: 'جدول الصيانة',  icon: 'event_repeat',   exact: false },
   { key: 'meters',      href: '/dashboard/meters',       en: 'Meters',       ar: 'العدادات',       icon: 'speed',          exact: false },
   { key: 'sites',       href: '/dashboard/sites',        en: 'Sites',        ar: 'المواقع',        icon: 'location_city',  exact: false, roles: ['admin', 'manager'] },
@@ -27,6 +28,11 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'teams',       href: '/dashboard/teams',        en: 'Teams',        ar: 'الفرق',           icon: 'groups',         exact: false, roles: ['admin', 'manager'] },
   { key: 'invoices',    href: '/dashboard/invoices',     en: 'Invoices',     ar: 'الفواتير',        icon: 'receipt_long',   exact: false, roles: ['admin', 'manager'] },
   { key: 'reports',     href: '/dashboard/reports',      en: 'Reports',      ar: 'التقارير',        icon: 'bar_chart',      exact: false, roles: ['admin', 'manager'] },
+  { key: 'reports_builder', href: '/dashboard/reports/builder', en: 'Report Builder', ar: 'منشئ التقارير', icon: 'dashboard_customize', exact: false, roles: ['admin', 'manager'] },
+  { key: 'compliance',  href: '/dashboard/compliance',   en: 'Compliance',   ar: 'الامتثال',        icon: 'verified_user',  exact: false, roles: ['admin', 'manager'] },
+  { key: 'security',    href: '/dashboard/security',     en: 'Security',     ar: 'الأمان',          icon: 'security',       exact: false },
+  { key: 'billing',     href: '/dashboard/billing',      en: 'Billing',      ar: 'الفوترة',         icon: 'payments',       exact: false, roles: ['admin'] },
+  { key: 'developers',  href: '/dashboard/developers',   en: 'Developers',   ar: 'المطورون',        icon: 'code',           exact: false, roles: ['admin'] },
   { key: 'settings',    href: '/dashboard/settings',     en: 'Settings',     ar: 'الإعدادات',      icon: 'settings',       exact: false },
 ]
 
@@ -96,7 +102,7 @@ export default function Sidebar() {
           .filter(item => {
             // Feature-flag gates
             if (item.key === 'invoices' && !flags.invoicing) return false
-            if (item.key === 'reports' && !flags.advanced_reporting) return false
+            if ((item.key === 'reports' || item.key === 'reports_builder') && !flags.advanced_reporting) return false
             return true
           })
           .map(item => {

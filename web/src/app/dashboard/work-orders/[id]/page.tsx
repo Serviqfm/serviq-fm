@@ -265,6 +265,38 @@ export default function WorkOrderDetailPage() {
     alert(lang === 'ar' ? 'تم حفظ القالب.' : 'Template saved.')
   }
 
+  // WO-12: managers archive closed/completed WOs (hidden from the default list);
+  // Unarchive on an archived WO restores it.
+  async function toggleArchive() {
+    if (!wo) return
+    const archiving = !wo.archived_at
+    if (archiving && !confirm(lang === 'ar' ? 'أرشفة أمر العمل هذا؟ سيتم إخفاؤه من القائمة الافتراضية.' : 'Archive this work order? It will be hidden from the default list.')) return
+    setUpdating(true)
+    const archived_at = archiving ? new Date().toISOString() : null
+    const { error } = await supabase.from('work_orders')
+      .update({ archived_at, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      alert((lang === 'ar' ? 'فشلت العملية: ' : 'Failed: ') + error.message)
+      setUpdating(false)
+      return
+    }
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('audit_logs').insert({
+      entity_type: 'work_order',
+      entity_id: id,
+      action: archiving ? 'Work order archived' : 'Work order unarchived',
+      user_id: user?.id,
+      organisation_id: wo.organisation_id,
+      new_values: { archived_at },
+      old_values: { archived_at: wo.archived_at ?? null },
+      impersonated_by: null,
+    })
+    await fetchWorkOrder()
+    await fetchHistory()
+    setUpdating(false)
+  }
+
   async function reopenWO() {
     // CORE-03: manager/admin reopen with a mandatory reason.
     const reason = window.prompt('Reason for reopening this work order?')
@@ -658,6 +690,12 @@ export default function WorkOrderDetailPage() {
             <a href={'/dashboard/work-orders/new?duplicate_from=' + id}>
               <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>{lang === 'ar' ? 'تكرار' : 'Duplicate'}</button>
             </a>
+            {/* WO-12: archive/unarchive — managers only; archive offered on completed/closed WOs. */}
+            {['admin', 'manager'].includes(currentUser?.role ?? '') && (wo.archived_at || ['completed', 'closed'].includes(wo.status)) && (
+              <button onClick={toggleArchive} disabled={updating} className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>
+                {wo.archived_at ? (lang === 'ar' ? 'إلغاء الأرشفة' : 'Unarchive') : (lang === 'ar' ? 'أرشفة' : 'Archive')}
+              </button>
+            )}
             {/* WO-08 convert-to-template. */}
             <button onClick={saveAsTemplate} className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" style={{ padding: '6px 16px' }}>{lang === 'ar' ? 'حفظ كقالب' : 'Save as Template'}</button>
             <button onClick={async () => {
@@ -726,6 +764,12 @@ export default function WorkOrderDetailPage() {
             )}
             <PriorityBadge priority={wo.priority} />
             <StatusBadge status={wo.status} />
+            {/* WO-12: archived indicator */}
+            {wo.archived_at && (
+              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface-container-low text-on-surface-variant border border-outline-variant">
+                {lang === 'ar' ? 'مؤرشف' : 'Archived'}
+              </span>
+            )}
             {/* WO-25: show the custom sub-state only when it still maps to the current base
                 status (hides a stale sub-state left by a completed/closed transition). */}
             {(() => {
