@@ -123,6 +123,8 @@ export default function NewTemplatePage() {
     { value: 'pass_fail', label: lang === 'ar' ? 'ناجح / فاشل' : 'Pass / Fail' },
     { value: 'yes_no', label: lang === 'ar' ? 'نعم / لا' : 'Yes / No' },
     { value: 'score', label: lang === 'ar' ? 'تقييم (1-5)' : 'Score (1-5)' },
+    { value: 'numeric', label: lang === 'ar' ? 'رقم (نطاق)' : 'Numeric (range)' },
+    { value: 'date', label: lang === 'ar' ? 'تاريخ' : 'Date' },
     { value: 'text', label: lang === 'ar' ? 'نص حر' : 'Free Text' },
     { value: 'photo', label: lang === 'ar' ? 'صورة مطلوبة' : 'Photo Required' },
   ]
@@ -186,6 +188,15 @@ export default function NewTemplatePage() {
               <div style={{ paddingLeft: 28 }}>
                 <input value={item.label_ar} onChange={e => updateItem(item.id, 'label_ar', e.target.value)} placeholder='Item label (Arabic — optional)' style={{ ...fieldStyle, direction: 'rtl', textAlign: 'right' }} />
               </div>
+              {item.type === 'numeric' && (
+                <div style={{ paddingLeft: 28, marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: '#666' }}>{lang === 'ar' ? 'النطاق المقبول:' : 'Acceptable range:'}</span>
+                  <input type='number' step='any' value={item.min ?? ''} onChange={e => updateItem(item.id, 'min', e.target.value === '' ? null : Number(e.target.value))} placeholder={lang === 'ar' ? 'أدنى' : 'Min'} style={{ ...fieldStyle, width: 100 }} />
+                  <span style={{ fontSize: 12, color: '#999' }}>–</span>
+                  <input type='number' step='any' value={item.max ?? ''} onChange={e => updateItem(item.id, 'max', e.target.value === '' ? null : Number(e.target.value))} placeholder={lang === 'ar' ? 'أقصى' : 'Max'} style={{ ...fieldStyle, width: 100 }} />
+                  <span style={{ fontSize: 11, color: '#999' }}>{lang === 'ar' ? 'قيمة خارج النطاق تُعد فاشلة وتُنشئ أمر عمل.' : 'A value outside the range fails and creates a work order.'}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

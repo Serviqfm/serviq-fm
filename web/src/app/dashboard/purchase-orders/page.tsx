@@ -18,6 +18,9 @@ export default function PurchaseOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [receiving, setReceiving] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'sent' | 'received' | 'cancelled'>('all')
+  // FM-17: org-level module toggle (Settings → Purchasing). Default on;
+  // a missing column (pre-migration) leaves it on, like lib/featureFlags.ts.
+  const [moduleEnabled, setModuleEnabled] = useState(true)
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -30,6 +33,9 @@ export default function PurchaseOrdersPage() {
     if (!user) { setLoading(false); if (typeof window !== 'undefined') window.location.href = '/login'; return }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setLoading(false); return }
+    const { data: org } = await supabase
+      .from('organisations').select('purchasing_enabled').eq('id', profile.organisation_id).single()
+    if (org?.purchasing_enabled === false) { setModuleEnabled(false); setLoading(false); return }
     const { data } = await supabase
       .from('purchase_orders')
       .select('*, vendor:vendor_id(company_name), items:purchase_order_items(quantity, unit_cost)')
@@ -62,6 +68,17 @@ export default function PurchaseOrdersPage() {
 
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
+  if (!moduleEnabled) return (
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-xl mx-auto text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
+        <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">shopping_cart_off</span>
+        <p className="text-lg font-semibold mb-1 text-on-surface">Purchase Orders is disabled</p>
+        <p className="text-sm mb-4">An organisation admin turned this module off.</p>
+        <Link href="/dashboard/settings/purchasing" className="text-primary text-sm font-semibold hover:underline">Purchasing Settings</Link>
+      </div>
+    </div>
+  )
+
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
       <div className="max-w-[1440px] mx-auto space-y-6">
@@ -75,6 +92,10 @@ export default function PurchaseOrdersPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/dashboard/settings/purchasing" title="Purchasing Settings"
+              className="flex items-center px-3 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-base">settings</span>
+            </Link>
             <Link href="/dashboard/inventory/ledger"
               className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-colors text-sm font-semibold">
               <span className="material-symbols-outlined text-base">receipt_long</span>Stock Ledger

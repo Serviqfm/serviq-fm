@@ -109,13 +109,25 @@ function NewInspectionForm() {
       return
     }
 
+    // CORE-27: an answered numeric item outside its [min, max] range counts as a fail.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const failedItems = items.filter((item: any) =>
-      item.type === 'pass_fail' && responses[item.id] === 'fail'
-    )
+    const numericOutOfRange = (item: any): boolean => {
+      if (item.type !== 'numeric') return false
+      const raw = responses[item.id]
+      if (raw === undefined || raw === null || raw === '') return false
+      const v = Number(raw)
+      if (Number.isNaN(v)) return false
+      return (item.min != null && v < Number(item.min)) || (item.max != null && v > Number(item.max))
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const passfailItems = items.filter((i: any) => i.type === 'pass_fail')
+    const failedItems = items.filter((item: any) =>
+      (item.type === 'pass_fail' && responses[item.id] === 'fail') || numericOutOfRange(item)
+    )
+
+    // Gradeable items: pass/fail buttons plus numeric items that carry a range.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const passfailItems = items.filter((i: any) => i.type === 'pass_fail' || (i.type === 'numeric' && (i.min != null || i.max != null)))
     const overallResult = passfailItems.length === 0 ? 'pass' :
       failedItems.length === 0 ? 'pass' :
       failedItems.length === passfailItems.length ? 'fail' : 'partial'
@@ -127,6 +139,13 @@ function NewInspectionForm() {
       type: item.type,
       value: responses[item.id] ?? null,
       required: item.required,
+      // CORE-27: keep the range + computed result so detail/PDF can render them.
+      ...(item.type === 'numeric' ? {
+        min: item.min ?? null,
+        max: item.max ?? null,
+        result: numericOutOfRange(item) ? 'fail'
+          : (responses[item.id] !== undefined && responses[item.id] !== null && responses[item.id] !== '' ? 'pass' : null),
+      } : {}),
     }))
 
     const { data: result, error: insertError } = await supabase
@@ -153,9 +172,12 @@ function NewInspectionForm() {
     }
 
     for (const item of failedItems) {
+      const numericDetail = item.type === 'numeric'
+        ? ` — reading ${responses[item.id]} outside range ${item.min ?? '−∞'}–${item.max ?? '∞'}`
+        : ''
       const { error: woError } = await supabase.from('work_orders').insert({
         title: 'Inspection Fail: ' + item.label,
-        description: 'Auto-created from failed inspection: ' + selectedTemplate.name,
+        description: 'Auto-created from failed inspection: ' + selectedTemplate.name + numericDetail,
         priority: 'high',
         status: 'new',
         source: 'manual',
@@ -333,6 +355,40 @@ function NewInspectionForm() {
                     value={responses[item.id] ?? ''}
                     onChange={e => setResponse(item.id, e.target.value)}
                     placeholder='Enter value...'
+                    style={fieldStyle}
+                  />
+                )}
+
+                {item.type === 'numeric' && (() => {
+                  const raw = responses[item.id]
+                  const v = raw === undefined || raw === null || raw === '' ? null : Number(raw)
+                  const outOfRange = v !== null && !Number.isNaN(v) &&
+                    ((item.min != null && v < Number(item.min)) || (item.max != null && v > Number(item.max)))
+                  return (
+                    <div>
+                      <input
+                        type='number' step='any'
+                        value={raw ?? ''}
+                        onChange={e => setResponse(item.id, e.target.value)}
+                        placeholder={lang === 'ar' ? 'أدخل القراءة...' : 'Enter reading...'}
+                        style={{ ...fieldStyle, borderColor: outOfRange ? '#c62828' : '#ddd' }}
+                      />
+                      {(item.min != null || item.max != null) && (
+                        <p style={{ fontSize: 12, margin: '6px 0 0', color: outOfRange ? '#c62828' : '#999' }}>
+                          {lang === 'ar' ? 'النطاق المقبول: ' : 'Acceptable range: '}
+                          {item.min ?? '−∞'} – {item.max ?? '∞'}
+                          {outOfRange && (lang === 'ar' ? ' — خارج النطاق، سيُعد فاشلاً' : ' — out of range, will be marked as failed')}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {item.type === 'date' && (
+                  <input
+                    type='date'
+                    value={responses[item.id] ?? ''}
+                    onChange={e => setResponse(item.id, e.target.value)}
                     style={fieldStyle}
                   />
                 )}

@@ -72,6 +72,7 @@ type PMRow = {
   anchor_day?: number | null
   checklist_template_id?: string | null  // FM-05: stamped onto generated WOs
   priority?: string | null               // 1C-12: copied to the WO (default medium)
+  category?: string | null               // 1C-12: copied to the WO
 }
 
 // Roll next_due_at forward one cycle. Precedence: explicit interval config
@@ -101,7 +102,7 @@ async function run() {
 
   const { data: due, error } = await admin
     .from('pm_schedules')
-    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month, meter_id, meter_interval, last_trigger_reading, scheduling_mode, interval_count, interval_unit, anchor_day, checklist_template_id, priority')
+    .select('id, title, description, frequency, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, lead_time_days, is_archived, end_date, days_of_week, is_seasonal, seasonal_start_month, seasonal_end_month, meter_id, meter_interval, last_trigger_reading, scheduling_mode, interval_count, interval_unit, anchor_day, checklist_template_id, priority, category')
     .eq('is_active', true)
     .eq('is_archived', false)
     .not('next_due_at', 'is', null)
@@ -198,6 +199,7 @@ async function run() {
         title: `PM - ${pm.title}`,
         description: pm.description,
         priority: pm.priority ?? 'medium',
+        category: pm.category ?? null,
         status: pm.assigned_to ? 'assigned' : 'new',
         source: 'pm_schedule',
         pm_schedule_id: pm.id,
@@ -254,7 +256,7 @@ async function run() {
 async function runMeterPass(admin: any): Promise<number> {
   const { data: rows } = await admin
     .from('pm_schedules')
-    .select('id, title, description, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, meter_id, meter_interval, last_trigger_reading, checklist_template_id, priority')
+    .select('id, title, description, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, meter_id, meter_interval, last_trigger_reading, checklist_template_id, priority, category')
     .eq('is_active', true)
     .eq('is_archived', false)
     .not('meter_id', 'is', null)
@@ -291,6 +293,7 @@ async function runMeterPass(admin: any): Promise<number> {
         title: `PM - ${pm.title}`,
         description: pm.description,
         priority: pm.priority ?? 'medium',
+        category: pm.category ?? null,
         status: pm.assigned_to ? 'assigned' : 'new',
         source: 'pm_schedule',
         pm_schedule_id: pm.id,
