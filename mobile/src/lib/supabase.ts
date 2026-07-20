@@ -3,8 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://cnpsplprnnabhrjjeqwp.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNucHNwbHBybm5hYmhyamplcXdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MjM2NDQsImV4cCI6MjA5MTE5OTY0NH0.pttZiw9EgE2sE9qAmrw8ZrW22dUVoJZGofeOq9kWafc'
+// Read from env (Expo inlines EXPO_PUBLIC_* at build time); keep the public
+// literals as fallback so the app still runs with no .env. The anon key is
+// public by design — no secret exposed here.
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://cnpsplprnnabhrjjeqwp.supabase.co'
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNucHNwbHBybm5hYmhyamplcXdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MjM2NDQsImV4cCI6MjA5MTE5OTY0NH0.pttZiw9EgE2sE9qAmrw8ZrW22dUVoJZGofeOq9kWafc'
 
 // SecureStore values are limited to 2048 bytes on some platforms, while a
 // Supabase session JSON can easily exceed that. This adapter transparently

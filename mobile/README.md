@@ -11,7 +11,7 @@ npm run android    # launch on connected Android device / emulator
 npm run ios        # launch on iOS simulator (macOS only)
 ```
 
-Supabase URL + anon key are currently hardcoded in [`src/lib/supabase.ts`](src/lib/supabase.ts). Push notifications need `EXPO_PUBLIC_PROJECT_ID` — see [`.env.example`](.env.example).
+Supabase URL + anon key are read from `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` in [`src/lib/supabase.ts`](src/lib/supabase.ts), falling back to baked-in public values so no `.env` is required. Push notifications need `EXPO_PUBLIC_PROJECT_ID` — see [`.env.example`](.env.example).
 
 ## EAS Build & Submit
 
@@ -77,7 +77,7 @@ mobile/
 │   ├── i18n/index.ts              # translation keys
 │   ├── lib/
 │   │   ├── notifications.ts       # Expo push token registration
-│   │   ├── supabase.ts            # Supabase client (URL/key currently hardcoded)
+│   │   ├── supabase.ts            # Supabase client (URL/key from env, public fallback)
 │   │   └── theme.ts               # brand colors, spacing, shadows
 │   ├── navigation/index.tsx       # bottom tabs + stack
 │   └── screens/                   # Home, WorkOrders, WorkOrderDetail,
