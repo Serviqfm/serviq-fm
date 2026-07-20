@@ -265,7 +265,9 @@ export default function WorkOrderDetailScreen() {
     }
     setSaving(true)
     const now = new Date().toISOString()
-    const updates: any = { status: newStatus, updated_at: now }
+    // WO-25 parity: a base-status change clears any stale custom display sub-state,
+    // matching web's updateStatus (set/clear base + custom_status_id together).
+    const updates: any = { status: newStatus, updated_at: now, custom_status_id: null }
     if (newStatus === 'in_progress' && !wo.started_at) updates.started_at = now
     if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
     if (wo.closed_at) updates.closed_at = null // reopening a closed WO clears the stale close time
@@ -288,7 +290,16 @@ export default function WorkOrderDetailScreen() {
       Alert.alert(t('offline'), t('offline_queued'))
       return
     }
-    await supabase.from('work_orders').update(updates).eq('id', wo.id)
+    const { error: updErr } = await supabase.from('work_orders').update(updates).eq('id', wo.id)
+    if (updErr) {
+      // The CORE-20 enforce_wo_transition trigger rejects illegal transitions (e.g. a
+      // technician acting on a WO not assigned to them, RAISE 42501). Bail BEFORE the
+      // comment + audit inserts so we never record a status change that didn't happen.
+      setSaving(false)
+      Alert.alert(t('error'), updErr.message)
+      await fetchWO()
+      return
+    }
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
       user_id: profile?.id,
@@ -604,8 +615,10 @@ export default function WorkOrderDetailScreen() {
               <Text style={[styles.badgeText, { color: sts.text }]}>{statusLabels[wo.status] ?? wo.status}</Text>
             </View>
           </View>
-          {/* MKT-07: edit title/priority/due/assign. CORE-02: closed WOs are immutable. */}
-          {role !== 'requester' && wo.status !== 'closed' && (
+          {/* MKT-07: edit title/priority/due/assign. CORE-02: closed WOs are immutable.
+              WO-02 parity: technicians may edit only WOs they created; managers/admins any. */}
+          {role !== 'requester' && wo.status !== 'closed'
+            && (role !== 'technician' || wo.created_by === profile?.id) && (
             <TouchableOpacity style={styles.editBtn} onPress={() => setEditVisible(true)}>
               <Ionicons name='create-outline' size={16} color={colors.primary} />
               <Text style={styles.editBtnText}>{lang === 'ar' ? 'تعديل' : 'Edit'}</Text>
