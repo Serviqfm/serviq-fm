@@ -21,6 +21,15 @@
 --     on every write path (including service-role crons and limited techs).
 --   * Wrapped in EXCEPTION WHEN OTHERS: downtime is best-effort and must NEVER
 --     block or fail the work-order write. No RAISE ever escapes.
+--   * Invariant: an asset has AT MOST ONE open downtime period. Enforced by a
+--     unique partial index so the NOT EXISTS guard below is race-safe (a
+--     concurrent second critical WO hits the unique violation, which the trigger
+--     swallows — one open row wins). It also makes availability%/MTBF well-defined.
+
+-- One open downtime period per asset. If pre-existing data already has overlapping
+-- open rows this will error — resolve those (set an ended_at) before re-running.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_downtime_open
+  ON public.asset_downtime (asset_id) WHERE ended_at IS NULL;
 
 -- ── Auto-OPEN: critical WO created → open a downtime period ──────────────────
 CREATE OR REPLACE FUNCTION public.auto_open_downtime_from_wo() RETURNS trigger
@@ -28,7 +37,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_org uuid;
 BEGIN
-  IF NEW.priority = 'critical' AND NEW.asset_id IS NOT NULL THEN
+  -- Skip WOs created already-resolved (e.g. a historical bulk import of a closed
+  -- critical WO) — the AFTER UPDATE closer never fires for a row born completed/
+  -- closed, so opening here would strand a downtime period that never closes.
+  IF NEW.priority = 'critical' AND NEW.asset_id IS NOT NULL
+     AND NEW.status NOT IN ('completed', 'closed') THEN
     -- Only if the asset is not already down (any open period, manual or auto).
     IF NOT EXISTS (
       SELECT 1 FROM public.asset_downtime
