@@ -6,12 +6,17 @@
 -- last_completed_at) and aggregated client-side — O(n) rows over the wire, slow at
 -- real data sizes.
 --
--- Fix: one SECURITY DEFINER function that returns all dashboard aggregates as a
+-- Fix: one SECURITY INVOKER function that returns all dashboard aggregates as a
 -- single json object, scoped to the CALLER's org via auth.uid(). It takes NO org
--- argument — the org is derived from the JWT, never trusted from the client — so a
--- signed-in user can only ever see their own org's numbers. search_path is pinned
--- (search_path-injection hardening) and EXECUTE is granted only to authenticated
--- (the function needs auth.uid(), so anon can't meaningfully call it).
+-- argument — the org is derived from the JWT, never trusted from the client.
+-- INVOKER (not DEFINER) is deliberate and load-bearing: the aggregates run with the
+-- caller's RLS predicates ANDed in, so intra-org narrowing policies still apply —
+-- a limited-technician (1c-13) or site-scoped (t9-01) user counts only the WOs RLS
+-- lets them SELECT, exactly as the old client-side select() did. A DEFINER context
+-- would bypass those policies and leak org-wide counts to scoped users. auth.uid()
+-- reads the JWT GUC and works under INVOKER; the users self/org RLS still lets the
+-- caller read their own organisation_id. search_path is pinned (injection hardening)
+-- and EXECUTE is granted only to authenticated (needs auth.uid(); anon can't call).
 --
 -- Aggregates mirror the former client-side logic exactly:
 --   totalOpenWOs        — WOs with status NOT IN ('completed','closed')
@@ -25,7 +30,7 @@
 -- their org's numbers; the dashboard renders identical KPI values to before.
 
 CREATE OR REPLACE FUNCTION get_dashboard_stats() RETURNS json
-LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+LANGUAGE sql SECURITY INVOKER SET search_path = public, pg_temp AS $$
   WITH org AS (
     SELECT organisation_id AS id FROM users WHERE id = auth.uid()
   ),
