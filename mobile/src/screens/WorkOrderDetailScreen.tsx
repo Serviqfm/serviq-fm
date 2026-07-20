@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import { supabase } from '../lib/supabase'
-import { cacheGet, cacheSet, enqueue, isOnline } from '../lib/offline'
+import { cacheGet, cacheSet, enqueue, enqueuePhoto, isOnline } from '../lib/offline'
 import { closeWorkOrder } from '../lib/webApi'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
@@ -420,6 +420,26 @@ export default function WorkOrderDetailScreen() {
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.4, allowsEditing: false })
     if (result.canceled) return
     setUploading(true)
+    // FM-14: offline — compress now, save locally, queue the upload+attach for
+    // reconnect. The local file URI renders in the grid until the sync lands.
+    if (!isOnline()) {
+      try {
+        const compressed = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 800 } }],
+          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        )
+        const localUri = await enqueuePhoto(wo.id, compressed.uri)
+        const nextWo = { ...wo, photo_urls: [...(wo.photo_urls ?? []), localUri] }
+        setWo(nextWo)
+        cacheOffline(nextWo, allComments)
+        Alert.alert(t('offline'), t('offline_queued'))
+      } catch (e: any) {
+        Alert.alert(t('error'), e.message)
+      }
+      setUploading(false)
+      return
+    }
     try {
       const publicUrl = await uploadImageToStorage(result.assets[0].uri)
       // Re-fetch the latest photo list right before writing to shrink the
@@ -478,6 +498,12 @@ export default function WorkOrderDetailScreen() {
         const isReopen = (wo.status === 'completed' || wo.status === 'closed') && a.next === 'in_progress'
         return isReopen ? isManager : true
       })
+  // CORE-25: cron-generated inspection WOs (CORE-26) embed the run URL in the
+  // description — parse the template id and offer the mobile run screen with
+  // the WO's own site/space pre-filled.
+  const inspectionTemplateId = wo.source === 'inspection'
+    ? wo.description?.match(/template=([0-9a-fA-F-]+)/)?.[1] ?? null
+    : null
   const comments = allComments.filter(c => c.comment_type === 'comment' || c.comment_type === 'status_change' || !c.comment_type)
   const timeLogs = allComments.filter(c => c.comment_type === 'time_log')
   const photos = wo.photo_urls ?? []
@@ -510,6 +536,18 @@ export default function WorkOrderDetailScreen() {
       </View>
 
       <CountdownBanner dueAt={wo.due_at ?? null} />
+
+      {inspectionTemplateId && role !== 'requester' && (
+        <TouchableOpacity style={styles.inspectionBtn}
+          onPress={() => navigation.navigate('RunInspection', {
+            templateId: inspectionTemplateId,
+            siteId: wo.site_id ?? undefined,
+            spaceId: wo.space_id ?? undefined,
+          })}>
+          <Ionicons name='checkbox-outline' size={18} color='white' />
+          <Text style={styles.actionBtnText}>{t('run_inspection')}</Text>
+        </TouchableOpacity>
+      )}
 
       {actions.length > 0 && (
         <View style={styles.actionsRow}>
@@ -847,6 +885,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '600' },
   woTitle: { fontSize: 17, fontWeight: '600', color: colors.text, lineHeight: 24 },
   actionsRow: { flexDirection: 'row', gap: 10, padding: 12, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: colors.border },
+  inspectionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 8, marginBottom: 8, padding: 12, borderRadius: radius.sm, backgroundColor: colors.primary },
   actionBtn: { flex: 1, padding: 12, borderRadius: radius.sm, alignItems: 'center' },
   actionBtnText: { color: 'white', fontSize: 14, fontWeight: '600' },
   tabRow: { flexDirection: 'row', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: colors.border },
