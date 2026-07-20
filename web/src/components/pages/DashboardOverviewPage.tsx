@@ -58,33 +58,23 @@ export default function DashboardOverviewPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setLoading(false); return }
     const orgId = profile.organisation_id
-    const now = new Date()
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString()
 
-    const [{ data: allWOs }, { data: pmSchedules }, { data: auditLogs }] = await Promise.all([
-      supabase.from('work_orders').select('id, status, priority, due_at').eq('organisation_id', orgId),
-      supabase.from('pm_schedules').select('id, is_active, next_due_at, last_completed_at').eq('organisation_id', orgId),
+    // Aggregates are computed server-side (get_dashboard_stats derives the org from
+    // auth.uid()); only the small recent-activity feed is fetched directly.
+    const [{ data: statsRow }, { data: auditLogs }] = await Promise.all([
+      supabase.rpc('get_dashboard_stats'),
       supabase.from('audit_logs').select('id, action, entity_type, created_at, details').eq('organisation_id', orgId).order('created_at', { ascending: false }).limit(4),
     ])
 
-    const wos = allWOs ?? []
-    const openWOs = wos.filter(w => !['completed', 'closed'].includes(w.status))
-    const overdueWOs = openWOs.filter(w => w.due_at && new Date(w.due_at) < now)
-    const pmDueToday = (pmSchedules ?? []).filter(p => p.is_active && p.next_due_at && p.next_due_at <= endOfToday)
-    const activePMs = (pmSchedules ?? []).filter(p => p.is_active)
-    const completedPMs = activePMs.filter(p => p.last_completed_at)
-    const pmCompliance = activePMs.length > 0 ? Math.round((completedPMs.length / activePMs.length) * 1000) / 10 : 0
-
-    const byStatus: Record<string, number> = {}
-    openWOs.forEach(w => { byStatus[w.status] = (byStatus[w.status] || 0) + 1 })
-
+    const s = (statsRow ?? {}) as unknown as Partial<DashboardStats>
+    const totalOpen = s.totalOpenWOs ?? 0
     setStats({
-      totalOpenWOs: openWOs.length,
-      overdueWOs: overdueWOs.length,
-      pmDueToday: pmDueToday.length,
-      pmCompliancePercent: pmCompliance,
-      openByStatus: byStatus,
-      totalOpenForStatus: openWOs.length,
+      totalOpenWOs: totalOpen,
+      overdueWOs: s.overdueWOs ?? 0,
+      pmDueToday: s.pmDueToday ?? 0,
+      pmCompliancePercent: s.pmCompliancePercent ?? 0,
+      openByStatus: s.openByStatus ?? {},
+      totalOpenForStatus: totalOpen,
     })
 
     setActivity((auditLogs ?? []).map(log => ({
