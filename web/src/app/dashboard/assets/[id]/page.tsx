@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import TranslateButton from '@/components/TranslateButton'
 import { useLanguage } from '@/context/LanguageContext'
+import { mtbfDays, downtimeStats } from '@/lib/kpis'
 
 // FIX #1: Move createClient() outside component (singleton) to prevent infinite re-render loop
 const supabase = createClient()
@@ -52,6 +53,15 @@ interface ChildAsset {
   status: string
 }
 
+// B8 / AL-03 — one downtime period on this asset (asset_downtime table).
+interface DowntimePeriod {
+  id: string
+  started_at: string
+  ended_at: string | null
+  cause: string | null
+  work_order_id: string | null
+}
+
 export default function AssetDetailPage() {
   const { id } = useParams()
   // FIX #2: Validate params.id - it could be string array in catch-all routes
@@ -65,15 +75,17 @@ export default function AssetDetailPage() {
   const [pmSchedules, setPmSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [translatedAsset, setTranslatedAsset] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory' | 'children'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory' | 'children' | 'downtime'>('details')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pmHistory, setPmHistory] = useState<any[]>([])
   const [childAssets, setChildAssets] = useState<ChildAsset[]>([])
   const [ancestors, setAncestors] = useState<AncestorAsset[]>([])
+  const [downtime, setDowntime] = useState<DowntimePeriod[]>([])
+  const [downtimeDays, setDowntimeDays] = useState(30) // availability window (AL-03 default 30)
 
   // FIX #1 continued: Wrap fetchAll in useCallback to avoid re-renders
   const fetchAll = useCallback(async () => {
-    const [{ data: assetData }, { data: woData }, { data: pmData }, { data: childData }, { data: pmHistoryData }] = await Promise.all([
+    const [{ data: assetData }, { data: woData }, { data: pmData }, { data: childData }, { data: pmHistoryData }, { data: downtimeData }] = await Promise.all([
       supabase.from('assets').select('*, site:site_id(name), parent:parent_asset_id(id, name)').eq('id', assetId).single(),
       supabase.from('work_orders').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
       supabase.from('pm_schedules').select('*, assignee:assigned_to(full_name)').eq('asset_id', assetId).order('created_at', { ascending: false }),
@@ -85,12 +97,19 @@ export default function AssetDetailPage() {
         .not('pm_schedule_id', 'is', null)
         .in('status', ['completed', 'closed'])
         .order('due_at', { ascending: false }),
+      // B8/AL-03: downtime periods. Table may not exist pre-migration — data
+      // stays null and the tab just shows an empty log.
+      supabase.from('asset_downtime')
+        .select('id, started_at, ended_at, cause, work_order_id')
+        .eq('asset_id', assetId)
+        .order('started_at', { ascending: false }),
     ])
     if (assetData) setAsset(assetData as Asset)
     if (woData) setWorkOrders(woData)
     if (pmData) setPmSchedules(pmData)
     if (childData) setChildAssets(childData as ChildAsset[])
     if (pmHistoryData) setPmHistory(pmHistoryData)
+    if (downtimeData) setDowntime(downtimeData as DowntimePeriod[])
 
     // Walk up the parent chain to build the ancestor breadcrumb (max 4 levels).
     const chain: AncestorAsset[] = []
@@ -111,6 +130,43 @@ export default function AssetDetailPage() {
 
   async function updateStatus(newStatus: string) {
     await supabase.from('assets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', assetId)
+    fetchAll()
+  }
+
+  // B8/AL-03 — Mark Down: open a downtime period + sync status. We sync to
+  // 'under_maintenance' (not 'offline'): it is the only "down" value the asset
+  // badges/list/mobile all understand — 'offline' exists solely in the WO
+  // space-assets commissioning panel. Manual-first: no auto-open from WOs yet.
+  async function markDown() {
+    if (!asset) return
+    const cause = window.prompt(lang === 'ar' ? 'سبب التوقف (اختياري):' : 'Cause of downtime (optional):')
+    if (cause === null) return // cancelled
+    const uid = (await supabase.auth.getUser()).data.user?.id
+    const { error } = await supabase.from('asset_downtime').insert({
+      organisation_id: asset.organisation_id,
+      asset_id: assetId,
+      cause: cause.trim() || null,
+      created_by: uid ?? null,
+    })
+    if (error) {
+      alert((lang === 'ar' ? 'تعذر تسجيل التوقف: ' : 'Could not log downtime: ') + error.message)
+      return
+    }
+    await supabase.from('assets').update({ status: 'under_maintenance', updated_at: new Date().toISOString() }).eq('id', assetId)
+    fetchAll()
+  }
+
+  // B8/AL-03 — Mark Restored: close every open period + sync status back.
+  async function markRestored() {
+    const { error } = await supabase.from('asset_downtime')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('asset_id', assetId)
+      .is('ended_at', null)
+    if (error) {
+      alert((lang === 'ar' ? 'تعذر إنهاء التوقف: ' : 'Could not close downtime: ') + error.message)
+      return
+    }
+    await supabase.from('assets').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', assetId)
     fetchAll()
   }
 
@@ -148,6 +204,15 @@ export default function AssetDetailPage() {
 
   const openWOs = workOrders.filter(w => !['completed','closed'].includes(w.status)).length
   const photos = asset.photo_urls ?? []
+
+  // B8/AL-03 — reliability, computed from downtime rows (lib/kpis math).
+  const openDowntime = downtime.find(d => !d.ended_at)
+  const { downtimeMs, availabilityPct } = downtimeStats(downtime, downtimeDays)
+  // MTBF = mean days between downtime starts; reuse the per-asset gap math.
+  const mtbf = mtbfDays(downtime.map(d => ({ asset_id: assetId, completed_at: d.started_at })))
+  const fmtDur = (ms: number) => ms >= 48 * 3_600_000
+    ? (ms / 86_400_000).toFixed(1) + (lang === 'ar' ? ' يوم' : 'd')
+    : (ms / 3_600_000).toFixed(1) + (lang === 'ar' ? ' ساعة' : 'h')
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
@@ -195,6 +260,14 @@ export default function AssetDetailPage() {
           </p>
         </div>
 
+        {/* B8/AL-03 — red not-operational flag while a downtime period is open */}
+        {openDowntime && (
+          <div className="px-3.5 py-2.5 rounded-lg bg-error/10 border border-error/20 text-sm text-error">
+            {lang === 'ar' ? 'الأصل متوقف منذ ' : 'Asset is down since '}
+            {format(new Date(openDowntime.started_at), 'dd MMM yyyy HH:mm')}
+            {openDowntime.cause ? ' · ' + openDowntime.cause : ''}
+          </div>
+        )}
         {warrantyExpired && (
           <div className="px-3.5 py-2.5 rounded-lg bg-error/10 border border-error/20 text-sm text-error">
             Warranty expired {Math.abs(warrantyDaysLeft!)} days ago ({format(new Date(asset.warranty_expiry!), 'dd MMM yyyy')})
@@ -210,6 +283,17 @@ export default function AssetDetailPage() {
           {asset.status !== 'active' && <button onClick={() => updateStatus('active')} className="px-4 py-1.5 rounded-lg border border-green-300 bg-primary/10 text-primary cursor-pointer text-sm">Mark Active</button>}
           {asset.status !== 'under_maintenance' && <button onClick={() => updateStatus('under_maintenance')} className="px-4 py-1.5 rounded-lg border border-[#f57f17]/20 bg-[#f57f17]/10 text-[#f57f17] cursor-pointer text-sm">Mark Under Maintenance</button>}
           {asset.status !== 'retired' && <button onClick={() => updateStatus('retired')} className="px-4 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-on-surface-variant cursor-pointer text-sm">Retire Asset</button>}
+          {/* B8/AL-03 — downtime logging */}
+          {!openDowntime && asset.status !== 'retired' && (
+            <button onClick={markDown} className="px-4 py-1.5 rounded-lg border border-error/20 bg-error/10 text-error cursor-pointer text-sm">
+              {lang === 'ar' ? 'تسجيل توقف' : 'Mark Down'}
+            </button>
+          )}
+          {openDowntime && (
+            <button onClick={markRestored} className="px-4 py-1.5 rounded-lg border border-green-300 bg-primary/10 text-primary cursor-pointer text-sm">
+              {lang === 'ar' ? 'تسجيل عودة التشغيل' : 'Mark Restored'}
+            </button>
+          )}
           <Link href={'/dashboard/work-orders/new?asset_id=' + asset.id}>
             <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">+ New Work Order</button>
           </Link>
@@ -246,6 +330,7 @@ export default function AssetDetailPage() {
           <button className={tabCls(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
           <button className={tabCls(activeTab === 'qr')} onClick={() => setActiveTab('qr')}>QR Code</button>
           <button className={tabCls(activeTab === 'pmhistory')} onClick={() => setActiveTab('pmhistory')}>PM History ({pmHistory.length})</button>
+          <button className={tabCls(activeTab === 'downtime')} onClick={() => setActiveTab('downtime')}>{lang === 'ar' ? 'التوقفات' : 'Downtime'} ({downtime.length})</button>
           <button className={tabCls(activeTab === 'custom')} onClick={() => setActiveTab('custom')}>Custom Fields</button>
         </div>
 
@@ -441,6 +526,73 @@ export default function AssetDetailPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* B8/AL-03 — downtime log + reliability stats */}
+        {activeTab === 'downtime' && (
+          <div>
+            <div className="flex justify-between items-center flex-wrap gap-2 mb-4">
+              <p className="text-sm text-on-surface-variant m-0">
+                {lang === 'ar' ? 'فترات توقف الأصل ومؤشرات الموثوقية.' : 'Downtime periods and reliability for this asset.'}
+              </p>
+              <select
+                value={downtimeDays}
+                onChange={e => setDowntimeDays(Number(e.target.value))}
+                className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none"
+              >
+                <option value={30}>{lang === 'ar' ? 'آخر 30 يومًا' : 'Last 30 days'}</option>
+                <option value={90}>{lang === 'ar' ? 'آخر 90 يومًا' : 'Last 90 days'}</option>
+                <option value={365}>{lang === 'ar' ? 'آخر 365 يومًا' : 'Last 365 days'}</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
+              {[
+                { label: lang === 'ar' ? 'نسبة التوفر' : 'Availability', value: availabilityPct.toFixed(1) + '%', alert: availabilityPct < 95 },
+                { label: lang === 'ar' ? 'إجمالي التوقف' : 'Total downtime', value: downtimeMs > 0 ? fmtDur(downtimeMs) : '0h', alert: false },
+                { label: lang === 'ar' ? 'متوسط بين الأعطال' : 'MTBF', value: mtbf == null ? '—' : mtbf.toFixed(1) + (lang === 'ar' ? ' يوم' : 'd'), alert: false },
+              ].map(({ label, value, alert: isAlert }) => (
+                <div key={label} className="bg-surface-container-low rounded-lg px-4 py-3">
+                  <p className="text-xs text-on-surface-variant mb-1">{label}</p>
+                  <p className={`text-lg font-bold m-0 ${isAlert ? 'text-error' : 'text-on-surface'}`}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {downtime.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">
+                {lang === 'ar' ? 'لا توجد توقفات مسجلة. استخدم زر «تسجيل توقف» أعلاه.' : 'No downtime recorded yet. Use "Mark Down" above when this asset goes out of service.'}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {downtime.map(d => {
+                  const endMs = d.ended_at ? new Date(d.ended_at).getTime() : Date.now()
+                  const durMs = Math.max(0, endMs - new Date(d.started_at).getTime())
+                  return (
+                    <div key={d.id} className="bg-surface-container-low rounded-lg px-4 py-3 flex justify-between items-center gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-medium text-on-surface m-0">
+                          {format(new Date(d.started_at), 'dd MMM yyyy HH:mm')}
+                          {' → '}
+                          {d.ended_at ? format(new Date(d.ended_at), 'dd MMM yyyy HH:mm') : (lang === 'ar' ? 'مستمر' : 'ongoing')}
+                        </p>
+                        <p className="text-xs text-on-surface-variant mt-1 mb-0">
+                          {fmtDur(durMs)}
+                          {d.cause && <span> · {d.cause}</span>}
+                          {d.work_order_id && (
+                            <span> · <Link href={'/dashboard/work-orders/' + d.work_order_id} className="text-primary hover:underline">{lang === 'ar' ? 'أمر العمل' : 'Work order'}</Link></span>
+                          )}
+                        </p>
+                      </div>
+                      <span className={`${d.ended_at ? 'bg-surface-container-lowest text-on-surface-variant' : 'bg-error/10 text-error'} px-2.5 py-0.5 rounded-full text-xs font-medium`}>
+                        {d.ended_at ? (lang === 'ar' ? 'منتهي' : 'Resolved') : (lang === 'ar' ? 'متوقف الآن' : 'Down now')}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

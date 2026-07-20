@@ -89,6 +89,38 @@ export function activeTechnicians(users: TechRow[], days = 30, now: number = Dat
   ).length
 }
 
+export interface DowntimeRow {
+  started_at?: string | null
+  ended_at?: string | null // null = still down
+}
+
+/**
+ * AL-03: downtime + availability over a trailing window ending at `now`.
+ * Each row contributes its overlap with [now − windowDays, now]; open rows
+ * (ended_at null) count up to `now`. Result clamped to the window.
+ * ponytail: rows are not merged — the UI opens one period at a time, so
+ * overlaps only arise from hand-edited data; merge intervals if that changes.
+ */
+export function downtimeStats(rows: DowntimeRow[], windowDays: number, now: number = Date.now()): {
+  downtimeMs: number
+  availabilityPct: number
+} {
+  const windowMs = windowDays * DAY_MS
+  const windowStart = now - windowMs
+  let downMs = 0
+  for (const r of rows) {
+    if (!r.started_at) continue
+    const s = new Date(r.started_at).getTime()
+    if (Number.isNaN(s)) continue
+    const e = r.ended_at ? new Date(r.ended_at).getTime() : now
+    if (Number.isNaN(e)) continue
+    const overlap = Math.min(e, now) - Math.max(s, windowStart)
+    if (overlap > 0) downMs += overlap
+  }
+  downMs = Math.min(downMs, windowMs)
+  return { downtimeMs: downMs, availabilityPct: 100 * (1 - downMs / windowMs) }
+}
+
 export interface SlaBreach {
   wo_number?: string | null
   title?: string | null
