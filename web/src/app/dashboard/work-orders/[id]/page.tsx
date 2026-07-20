@@ -38,7 +38,7 @@ export default function WorkOrderDetailPage() {
   const [history, setHistory] = useState<any[]>([])
   const { lang } = useLanguage()
   const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
-  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'files' | 'parts' | 'activity' | 'space_assets'>('comments')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'files' | 'parts' | 'labor' | 'costs' | 'activity' | 'space_assets'>('comments')
   const [tasks, setTasks] = useState<WorkOrderTask[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [addingTask, setAddingTask] = useState(false)
@@ -75,6 +75,18 @@ export default function WorkOrderDetailPage() {
   const [newLinkType, setNewLinkType] = useState<'blocks' | 'duplicate_of' | 'related'>('related')
   const [newLinkTarget, setNewLinkTarget] = useState('')
   const [addingLink, setAddingLink] = useState(false)
+  // WO-06 labor time logs + WO-07 additional costs.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [timeLogs, setTimeLogs] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [costs, setCosts] = useState<any[]>([])
+  const [logMinutes, setLogMinutes] = useState('')
+  const [logNote, setLogNote] = useState('')
+  const [addingTimeLog, setAddingTimeLog] = useState(false)
+  const [costDesc, setCostDesc] = useState('')
+  const [costAmount, setCostAmount] = useState('')
+  const [costCategory, setCostCategory] = useState('')
+  const [addingCost, setAddingCost] = useState(false)
   useEffect(() => {
     fetchWorkOrder()
     fetchComments()
@@ -87,8 +99,78 @@ export default function WorkOrderDetailPage() {
     fetchCustomStatuses()
     fetchLinks()
     fetchLinkableWOs()
+    fetchTimeLogs()
+    fetchCosts()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Tables may not exist yet (migration not applied) — errors leave lists empty.
+  async function fetchTimeLogs() {
+    const { data } = await supabase
+      .from('work_order_time_logs')
+      .select('*, user:user_id(full_name)')
+      .eq('work_order_id', id)
+      .order('logged_at', { ascending: false })
+    if (data) setTimeLogs(data)
+  }
+
+  async function fetchCosts() {
+    const { data } = await supabase
+      .from('work_order_costs')
+      .select('*')
+      .eq('work_order_id', id)
+      .order('created_at', { ascending: false })
+    if (data) setCosts(data)
+  }
+
+  async function addTimeLog(e: React.FormEvent) {
+    e.preventDefault()
+    const mins = parseInt(logMinutes, 10)
+    if (!mins || mins <= 0 || !wo) return
+    setAddingTimeLog(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    // Snapshot the technician's current hourly_rate (1C-15) so a later rate change
+    // does not retroactively re-price this labor.
+    let rate: number | null = null
+    if (user) {
+      const { data: profile } = await supabase.from('users').select('hourly_rate').eq('id', user.id).single()
+      rate = profile?.hourly_rate ?? null
+    }
+    await supabase.from('work_order_time_logs').insert({
+      organisation_id: wo.organisation_id,
+      work_order_id: id,
+      user_id: user?.id ?? null,
+      minutes: mins,
+      hourly_rate: rate,
+      note: logNote.trim() || null,
+      created_by: user?.id ?? null,
+    })
+    setLogMinutes('')
+    setLogNote('')
+    await fetchTimeLogs()
+    setAddingTimeLog(false)
+  }
+
+  async function addCost(e: React.FormEvent) {
+    e.preventDefault()
+    const amt = parseFloat(costAmount)
+    if (!costDesc.trim() || isNaN(amt) || amt < 0 || !wo) return
+    setAddingCost(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('work_order_costs').insert({
+      organisation_id: wo.organisation_id,
+      work_order_id: id,
+      description: costDesc.trim(),
+      amount: amt,
+      category: costCategory.trim() || null,
+      created_by: user?.id ?? null,
+    })
+    setCostDesc('')
+    setCostAmount('')
+    setCostCategory('')
+    await fetchCosts()
+    setAddingCost(false)
+  }
 
   async function fetchCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -642,6 +724,17 @@ export default function WorkOrderDetailPage() {
   const mediaExpiry = getMediaExpiryInfo()
   const allPhotos = wo.photo_urls ?? []
 
+  // WO-06/07 cost roll-up. Parts cost is parsed from the persisted "Parts used"
+  // activity comments (the only place parts consumption is stored today).
+  const money = (n: number) => `SAR ${n.toFixed(2)}`
+  const laborCost = timeLogs.reduce((s, t) => s + (t.hourly_rate ? (t.minutes / 60) * Number(t.hourly_rate) : 0), 0)
+  const additionalCost = costs.reduce((s, c) => s + Number(c.amount || 0), 0)
+  const partsCost = activities.reduce((s, a) => {
+    const m = a.body.match(/Parts used:.*\(SAR ([\d.]+)\)/)
+    return s + (m ? parseFloat(m[1]) : 0)
+  }, 0)
+  const woTotal = laborCost + partsCost + additionalCost
+
   const nextStatuses: Record<WorkOrderStatus, WorkOrderStatus[]> = {
     new:         ['assigned', 'in_progress'],
     assigned:    ['in_progress', 'on_hold'],
@@ -1031,6 +1124,8 @@ export default function WorkOrderDetailPage() {
               { key: 'files', label: lang === 'ar' ? 'الملفات' : 'Files' },
               { key: 'history', label: `History (${history.length})` },
               { key: 'parts', label: 'Parts Used' },
+              { key: 'labor', label: `${lang === 'ar' ? 'العمالة' : 'Labor'} (${timeLogs.length})` },
+              { key: 'costs', label: `${lang === 'ar' ? 'التكاليف' : 'Costs'} (${costs.length})` },
               { key: 'activity', label: `Activity Log (${activities.length})` },
             ] as { key: typeof activeTab; label: string }[]
           ).map(({ key, label }) => (
@@ -1234,6 +1329,112 @@ export default function WorkOrderDetailPage() {
             {inventoryItems.length === 0 && (
               <p className="text-sm text-[#f57f17] mt-3">No inventory items found. <a href='/dashboard/inventory/new' className="text-primary hover:underline">Add items to inventory first.</a></p>
             )}
+          </div>
+        )}
+
+        {activeTab === 'labor' && (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">
+              {lang === 'ar'
+                ? 'سجّل وقت العمل. يتم تثبيت الأجر بالساعة من ملف الفني عند التسجيل.'
+                : 'Log labor time. The hourly rate is snapshotted from the technician profile at logging time.'}
+            </p>
+            {!['closed'].includes(wo.status) && (
+              <form onSubmit={addTimeLog} className="flex gap-2.5 items-end flex-wrap mb-6">
+                <div className="min-w-[120px]">
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'الدقائق' : 'Minutes'}</label>
+                  <input type="number" value={logMinutes} onChange={e => setLogMinutes(e.target.value)} min="1" step="1" placeholder="0" className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+                </div>
+                <div className="flex-1 min-w-[180px]">
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'ملاحظة (اختياري)' : 'Note (optional)'}</label>
+                  <input value={logNote} onChange={e => setLogNote(e.target.value)} placeholder={lang === 'ar' ? 'ما الذي تم إنجازه؟' : 'What was worked on?'} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+                </div>
+                <button type="submit" disabled={addingTimeLog || !logMinutes} className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!logMinutes ? 'opacity-50' : ''}`}>
+                  {addingTimeLog ? '...' : (lang === 'ar' ? 'تسجيل الوقت' : 'Log Time')}
+                </button>
+              </form>
+            )}
+            {timeLogs.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">{lang === 'ar' ? 'لم يُسجّل أي وقت بعد.' : 'No labor logged yet.'}</p>
+            ) : (
+              timeLogs.map(t => {
+                const line = t.hourly_rate ? (t.minutes / 60) * Number(t.hourly_rate) : null
+                return (
+                  <div key={t.id} className="bg-surface-container-low rounded-xl px-4 py-3 mb-2 flex justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm m-0 text-on-surface">
+                        {t.minutes} {lang === 'ar' ? 'دقيقة' : 'min'}
+                        {t.hourly_rate ? ` · ${money(Number(t.hourly_rate))}/hr` : ''}
+                        {t.note ? ` — ${t.note}` : ''}
+                      </p>
+                      <p className="text-[11px] text-on-surface-variant mt-0.5 m-0">
+                        {t.user?.full_name ?? '—'} · {format(new Date(t.logged_at), 'dd MMM yyyy, HH:mm')}
+                      </p>
+                    </div>
+                    <span className="text-sm text-on-surface-variant whitespace-nowrap">{line != null ? money(line) : '—'}</span>
+                  </div>
+                )
+              })
+            )}
+            <div className="mt-4 pt-3 border-t border-outline-variant flex justify-between text-sm font-semibold text-on-surface">
+              <span>{lang === 'ar' ? 'إجمالي العمالة' : 'Labor subtotal'}</span>
+              <span>{money(laborCost)}</span>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'costs' && (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">
+              {lang === 'ar' ? 'سجّل التكاليف الإضافية (غير العمالة والقطع).' : 'Log additional costs (beyond labor and parts).'}
+            </p>
+            {!['closed'].includes(wo.status) && (
+              <form onSubmit={addCost} className="flex gap-2.5 items-end flex-wrap mb-6">
+                <div className="flex-[2] min-w-[180px]">
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'الوصف' : 'Description'}</label>
+                  <input value={costDesc} onChange={e => setCostDesc(e.target.value)} placeholder={lang === 'ar' ? 'مثال: أجرة مقاول' : 'e.g. Contractor fee'} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'الفئة (اختياري)' : 'Category (optional)'}</label>
+                  <input value={costCategory} onChange={e => setCostCategory(e.target.value)} placeholder={lang === 'ar' ? 'مثال: مقاول' : 'e.g. Contractor'} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+                </div>
+                <div className="min-w-[110px]">
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'المبلغ' : 'Amount'}</label>
+                  <input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} min="0" step="0.01" placeholder="0.00" className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+                </div>
+                <button type="submit" disabled={addingCost || !costDesc.trim() || !costAmount} className={`bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors ${!costDesc.trim() || !costAmount ? 'opacity-50' : ''}`}>
+                  {addingCost ? '...' : (lang === 'ar' ? 'إضافة تكلفة' : 'Add Cost')}
+                </button>
+              </form>
+            )}
+            {costs.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">{lang === 'ar' ? 'لا توجد تكاليف إضافية بعد.' : 'No additional costs yet.'}</p>
+            ) : (
+              costs.map(c => (
+                <div key={c.id} className="bg-surface-container-low rounded-xl px-4 py-3 mb-2 flex justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm m-0 text-on-surface">{c.description}{c.category ? ` · ${c.category}` : ''}</p>
+                    <p className="text-[11px] text-on-surface-variant mt-0.5 m-0">{format(new Date(c.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                  </div>
+                  <span className="text-sm text-on-surface-variant whitespace-nowrap">{money(Number(c.amount))}</span>
+                </div>
+              ))
+            )}
+            {/* WO total roll-up: labor + parts + additional costs. */}
+            <div className="mt-4 pt-3 border-t border-outline-variant space-y-1.5">
+              <div className="flex justify-between text-sm text-on-surface-variant">
+                <span>{lang === 'ar' ? 'العمالة' : 'Labor'}</span><span>{money(laborCost)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-on-surface-variant">
+                <span>{lang === 'ar' ? 'القطع' : 'Parts'}</span><span>{money(partsCost)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-on-surface-variant">
+                <span>{lang === 'ar' ? 'تكاليف إضافية' : 'Additional costs'}</span><span>{money(additionalCost)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold text-on-surface pt-1.5 border-t border-outline-variant/60">
+                <span>{lang === 'ar' ? 'إجمالي أمر العمل' : 'Work order total'}</span><span>{money(woTotal)}</span>
+              </div>
+            </div>
           </div>
         )}
 
