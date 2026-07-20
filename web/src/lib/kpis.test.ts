@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   mttrHours, mtbfDays, totalMaintenanceCost, activeTechnicians,
-  slaBreaches, slaCompliancePercent, type WoKpiRow, type TechRow,
+  slaBreaches, slaCompliancePercent, downtimeStats, type WoKpiRow, type TechRow,
 } from './kpis'
 
 const H = 3_600_000
@@ -39,6 +39,26 @@ describe('mtbfDays', () => {
   })
   it('ignores assets with a single completion and WOs without asset', () => {
     expect(mtbfDays([{ asset_id: 'a', completed_at: iso(0) }, { completed_at: iso(D) }])).toBeNull()
+  })
+})
+
+describe('downtimeStats', () => {
+  it('sums closed periods inside the window', () => {
+    const { downtimeMs, availabilityPct } = downtimeStats(
+      [{ started_at: iso(-3 * D), ended_at: iso(-2 * D) }], 10, NOW) // 1d down of 10d
+    expect(downtimeMs).toBe(D)
+    expect(availabilityPct).toBe(90)
+  })
+  it('counts open periods up to now and clamps to window start', () => {
+    const { downtimeMs } = downtimeStats(
+      [{ started_at: iso(-20 * D), ended_at: null }], 10, NOW) // down the whole window
+    expect(downtimeMs).toBe(10 * D)
+  })
+  it('ignores periods entirely before the window', () => {
+    const { downtimeMs, availabilityPct } = downtimeStats(
+      [{ started_at: iso(-40 * D), ended_at: iso(-35 * D) }], 30, NOW)
+    expect(downtimeMs).toBe(0)
+    expect(availabilityPct).toBe(100)
   })
 })
 
