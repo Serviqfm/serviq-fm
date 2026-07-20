@@ -17,6 +17,8 @@ import { useLang } from '../context/LangContext'
 import { colors, radius, shadow } from '../lib/theme'
 import { format } from 'date-fns'
 import { Modal, Dimensions } from 'react-native'
+import SelectField from '../components/SelectField'
+import WorkOrderEditSheet from '../components/WorkOrderEditSheet'
 
 function useCountdown(dueAt: string | null) {
   const [timeLeft, setTimeLeft] = useState<string | null>(null)
@@ -86,7 +88,14 @@ export default function WorkOrderDetailScreen() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [zoomPhoto, setZoomPhoto] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'comments' | 'photos' | 'time' | 'activity'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'comments' | 'photos' | 'time' | 'parts' | 'activity'>('details')
+  // MKT-07: edit sheet (title/priority/due/assign) + parts consumption.
+  const [editVisible, setEditVisible] = useState(false)
+  const [technicians, setTechnicians] = useState<any[]>([])
+  const [inventory, setInventory] = useState<any[]>([])
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(null)
+  const [partQty, setPartQty] = useState('')
+  const [addingPart, setAddingPart] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
   const [timerSeconds, setTimerSeconds] = useState(0)
   // CORE-05 / FM-07: completion (close-out) flow routed through the web close endpoint.
@@ -98,7 +107,50 @@ export default function WorkOrderDetailScreen() {
   const startTimeRef = useRef<Date | null>(null)
 
   useEffect(() => { fetchWO() }, [route.params?.id])
+  useEffect(() => { fetchExtras() }, [profile?.organisation_id])
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current) } }, [])
+
+  // MKT-07: assignee picker source (org technicians/managers, mirrors web edit)
+  // + parts consumption source (active inventory items). Best-effort; failures
+  // just leave the pickers empty.
+  async function fetchExtras() {
+    if (!profile?.organisation_id) return
+    const [techRes, invRes] = await Promise.all([
+      supabase.from('users').select('id, full_name')
+        .eq('organisation_id', profile.organisation_id)
+        .in('role', ['technician', 'manager']),
+      supabase.from('inventory_items').select('id, name, unit, stock_quantity, unit_cost')
+        .eq('organisation_id', profile.organisation_id)
+        .eq('is_active', true).order('name'),
+    ])
+    if (techRes.data) setTechnicians(techRes.data)
+    if (invRes.data) setInventory(invRes.data)
+  }
+
+  // MKT-07: parts/consumption logging. Mirrors the web WO detail exactly — there
+  // is no dedicated parts table; the used part is recorded as an '[ACTIVITY]'
+  // comment and the inventory stock is decremented the same way web does.
+  async function addPart() {
+    if (!selectedPartId || !partQty || parseFloat(partQty) <= 0) return
+    const part = inventory.find(i => i.id === selectedPartId)
+    if (!part) return
+    setAddingPart(true)
+    const qty = parseFloat(partQty)
+    const newStock = Math.max(0, (part.stock_quantity ?? 0) - qty)
+    await supabase.from('inventory_items')
+      .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
+      .eq('id', selectedPartId)
+    await supabase.from('work_order_comments').insert({
+      work_order_id: wo.id,
+      user_id: profile?.id,
+      body: '[ACTIVITY] Parts used: ' + qty + ' x ' + part.name + ' (SAR ' + (part.unit_cost ? (qty * part.unit_cost).toFixed(2) : '—') + ')',
+    })
+    setSelectedPartId(null)
+    setPartQty('')
+    await fetchExtras()
+    await fetchWO()
+    setAddingPart(false)
+  }
 
   async function fetchWO() {
     const { data, error: woError } = await supabase
@@ -213,12 +265,17 @@ export default function WorkOrderDetailScreen() {
     }
     setSaving(true)
     const now = new Date().toISOString()
-    const updates: any = { status: newStatus, updated_at: now }
+    // WO-25 parity: a base-status change clears any stale custom display sub-state,
+    // matching web's updateStatus (set/clear base + custom_status_id together).
+    const updates: any = { status: newStatus, updated_at: now, custom_status_id: null }
     if (newStatus === 'in_progress' && !wo.started_at) updates.started_at = now
     if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
     if (wo.closed_at) updates.closed_at = null // reopening a closed WO clears the stale close time
     const body = t('status_changed_to', { status: t(newStatus) })
     // CORE-07: offline — queue the mutation, apply it locally, replay on reconnect.
+    // ponytail: the offline replay path (lib/offline.ts, another track's file) does
+    // not write the CORE-31 audit row; only the online write below does. Move the
+    // audit into replay() if offline transitions must be audited too.
     if (!isOnline()) {
       await enqueue({ kind: 'wo_status', woId: wo.id, updates, body, userId: profile?.id ?? null })
       const nextWo = { ...wo, ...updates }
@@ -233,12 +290,33 @@ export default function WorkOrderDetailScreen() {
       Alert.alert(t('offline'), t('offline_queued'))
       return
     }
-    await supabase.from('work_orders').update(updates).eq('id', wo.id)
+    const { error: updErr } = await supabase.from('work_orders').update(updates).eq('id', wo.id)
+    if (updErr) {
+      // The CORE-20 enforce_wo_transition trigger rejects illegal transitions (e.g. a
+      // technician acting on a WO not assigned to them, RAISE 42501). Bail BEFORE the
+      // comment + audit inserts so we never record a status change that didn't happen.
+      setSaving(false)
+      Alert.alert(t('error'), updErr.message)
+      await fetchWO()
+      return
+    }
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
       user_id: profile?.id,
       body,
       comment_type: 'status_change',
+    })
+    // CORE-31: audit the transition (the mobile direct-write path wrote none).
+    // Mirrors the web WO detail's audit_logs.insert shape exactly.
+    await supabase.from('audit_logs').insert({
+      entity_type: 'work_order',
+      entity_id: wo.id,
+      action: `Status changed to ${newStatus}`,
+      user_id: profile?.id,
+      organisation_id: wo.organisation_id,
+      new_values: { status: newStatus },
+      old_values: { status: wo.status },
+      impersonated_by: null,
     })
     setWo((prev: any) => ({ ...prev, ...updates }))
     await fetchWO()
@@ -504,7 +582,10 @@ export default function WorkOrderDetailScreen() {
   const inspectionTemplateId = wo.source === 'inspection'
     ? wo.description?.match(/template=([0-9a-fA-F-]+)/)?.[1] ?? null
     : null
-  const comments = allComments.filter(c => c.comment_type === 'comment' || c.comment_type === 'status_change' || !c.comment_type)
+  // '[ACTIVITY]' comments (e.g. parts usage) are surfaced in the Parts/Activity
+  // tabs, not the plain Comments thread.
+  const comments = allComments.filter(c => (c.comment_type === 'comment' || c.comment_type === 'status_change' || !c.comment_type) && !c.body?.startsWith('[ACTIVITY]'))
+  const partsUsed = allComments.filter(c => c.body?.startsWith('[ACTIVITY] Parts used:'))
   const timeLogs = allComments.filter(c => c.comment_type === 'time_log')
   const photos = wo.photo_urls ?? []
 
@@ -515,6 +596,7 @@ export default function WorkOrderDetailScreen() {
     { key: 'comments', label: lang === 'ar' ? 'التعليقات' : 'Comments', count: comments.length },
     { key: 'photos',   label: lang === 'ar' ? 'الصور' : 'Photos', count: photos.length },
     { key: 'time',     label: lang === 'ar' ? 'الوقت' : 'Time', count: timeLogs.length },
+    { key: 'parts',    label: lang === 'ar' ? 'القطع' : 'Parts', count: partsUsed.length },
     { key: 'activity', label: lang === 'ar' ? 'النشاط' : 'Activity', count: allComments.length },
   ]
 
@@ -524,13 +606,24 @@ export default function WorkOrderDetailScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 44 : 0}>
       <View style={styles.titleCard}>
-        <View style={styles.badgeRow}>
-          <View style={[styles.badge, { backgroundColor: pri.bg }]}>
-            <Text style={[styles.badgeText, { color: pri.text }]}>{priorityLabels[wo.priority] ?? wo.priority}</Text>
+        <View style={styles.titleTopRow}>
+          <View style={styles.badgeRow}>
+            <View style={[styles.badge, { backgroundColor: pri.bg }]}>
+              <Text style={[styles.badgeText, { color: pri.text }]}>{priorityLabels[wo.priority] ?? wo.priority}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: sts.bg }]}>
+              <Text style={[styles.badgeText, { color: sts.text }]}>{statusLabels[wo.status] ?? wo.status}</Text>
+            </View>
           </View>
-          <View style={[styles.badge, { backgroundColor: sts.bg }]}>
-            <Text style={[styles.badgeText, { color: sts.text }]}>{statusLabels[wo.status] ?? wo.status}</Text>
-          </View>
+          {/* MKT-07: edit title/priority/due/assign. CORE-02: closed WOs are immutable.
+              WO-02 parity: technicians may edit only WOs they created; managers/admins any. */}
+          {role !== 'requester' && wo.status !== 'closed'
+            && (role !== 'technician' || wo.created_by === profile?.id) && (
+            <TouchableOpacity style={styles.editBtn} onPress={() => setEditVisible(true)}>
+              <Ionicons name='create-outline' size={16} color={colors.primary} />
+              <Text style={styles.editBtnText}>{lang === 'ar' ? 'تعديل' : 'Edit'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <Text style={styles.woTitle}>{wo.title}</Text>
       </View>
@@ -770,6 +863,55 @@ export default function WorkOrderDetailScreen() {
           </View>
         )}
 
+        {activeTab === 'parts' && (
+          <View style={styles.card}>
+            {role !== 'requester' && (
+              <>
+                <SelectField
+                  label={lang === 'ar' ? 'القطعة' : 'Part'}
+                  placeholder={lang === 'ar' ? 'اختر قطعة' : 'Select a part'}
+                  value={selectedPartId}
+                  options={inventory.map(i => ({
+                    value: i.id,
+                    label: i.name + ' · ' + (i.stock_quantity ?? 0) + (i.unit ? ' ' + i.unit : ''),
+                  }))}
+                  onChange={setSelectedPartId}
+                />
+                <View style={styles.commentInput}>
+                  <TextInput
+                    style={styles.commentTextInput}
+                    value={partQty}
+                    onChangeText={setPartQty}
+                    placeholder={t('quantity')}
+                    placeholderTextColor={colors.textLight}
+                    keyboardType='numeric'
+                  />
+                  <TouchableOpacity style={styles.sendBtn} onPress={addPart} disabled={addingPart || !selectedPartId}>
+                    {addingPart ? <ActivityIndicator color='white' size='small' /> : <Ionicons name='add' size={22} color='white' />}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+            <Text style={[styles.rowLabel, { marginTop: 12, marginBottom: 10 }]}>
+              {lang === 'ar' ? 'القطع المستخدمة' : 'Parts Used'}
+            </Text>
+            {partsUsed.length === 0
+              ? <Text style={styles.empty}>{lang === 'ar' ? 'لا توجد قطع مسجلة' : 'No parts logged yet'}</Text>
+              : partsUsed.map(p => (
+                <View key={p.id} style={styles.timeLog}>
+                  <Ionicons name='cube-outline' size={16} color={colors.info} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.timeLogText}>{p.body.replace('[ACTIVITY] Parts used: ', '')}</Text>
+                    <Text style={styles.commentTime}>
+                      {(p.author?.full_name ?? '—') + ' · ' + format(new Date(p.created_at), 'dd MMM, HH:mm')}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            }
+          </View>
+        )}
+
         {activeTab === 'activity' && (
           <View style={styles.card}>
             <Text style={[styles.rowLabel, { marginBottom: 12 }]}>
@@ -803,6 +945,17 @@ export default function WorkOrderDetailScreen() {
         )}
 
       </ScrollView>
+
+      {editVisible && (
+        <WorkOrderEditSheet
+          wo={wo}
+          technicians={technicians}
+          isManager={isManager}
+          visible={editVisible}
+          onClose={() => setEditVisible(false)}
+          onSaved={fetchWO}
+        />
+      )}
 
       {zoomPhoto && (
         <Modal transparent animationType='fade' onRequestClose={() => setZoomPhoto(null)}>
@@ -880,7 +1033,10 @@ export default function WorkOrderDetailScreen() {
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   titleCard: { backgroundColor: 'white', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  titleTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flex: 1, flexWrap: 'wrap' },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.infoLight },
+  editBtnText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   badgeText: { fontSize: 11, fontWeight: '600' },
   woTitle: { fontSize: 17, fontWeight: '600', color: colors.text, lineHeight: 24 },

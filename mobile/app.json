@@ -42,7 +42,8 @@
           "androidMode": "default",
           "androidCollapsedTitle": "Serviq FM"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "notification": {
       "icon": "./assets/icon.png",
