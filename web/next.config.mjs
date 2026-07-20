@@ -32,6 +32,9 @@ const securityHeaders = [
 
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
+  // DV-16 — enable src/instrumentation.ts (global error capture). Experimental
+  // in Next 14; stable in Next 15.
+  experimental: { instrumentationHook: true },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },
