@@ -59,6 +59,25 @@ async function run() {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // work_orders.created_by is NOT NULL, but a cron has no acting user. Resolve one
+  // active org admin (guaranteed to exist) per org, memoized across the loop. Mirrors
+  // /api/cron/compliance-expiry and /api/cron/asset-warranty.
+  const adminByOrg = new Map<string, string | null>()
+  async function orgAdmin(orgId: string): Promise<string | null> {
+    if (adminByOrg.has(orgId)) return adminByOrg.get(orgId)!
+    const { data } = await admin
+      .from('users')
+      .select('id')
+      .eq('organisation_id', orgId)
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+    const id = (data as { id: string } | null)?.id ?? null
+    adminByOrg.set(orgId, id)
+    return id
+  }
+
   const now = new Date()
   const { data: due, error } = await admin
     .from('inspection_schedules')
@@ -95,6 +114,12 @@ async function run() {
         + (sched.site_id ? `&site=${sched.site_id}` : '')
         + (spaceId ? `&space=${spaceId}` : '')
 
+      const createdBy = await orgAdmin(sched.organisation_id)
+      if (!createdBy) {
+        errors.push(`Schedule ${sched.id}: no active org admin to stamp created_by`)
+        continue
+      }
+
       const { error: insErr } = await admin.from('work_orders').insert({
         organisation_id: sched.organisation_id,
         title: `Inspection - ${templateName}`,
@@ -106,6 +131,7 @@ async function run() {
         site_id: sched.site_id,
         space_id: spaceId,
         assigned_to: sched.assigned_to,
+        created_by: createdBy,
         due_at: sched.next_due_at,
       })
       if (insErr) {
