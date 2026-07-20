@@ -25,6 +25,25 @@ export function sha256Hex(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex')
 }
 
+// MKT-19: in-memory token bucket per api_key — ~60 req/min, refilled continuously.
+// BEST-EFFORT on serverless: each warm lambda instance has its own bucket map, so
+// the real ceiling is 60/min * (number of concurrent instances) and cold starts
+// reset it. Good enough to stop a runaway loop; move to Upstash/Redis if a hard
+// global limit is ever needed.
+const RATE_LIMIT_PER_MIN = 60
+const buckets = new Map<string, { tokens: number; last: number }>()
+
+function takeToken(keyId: string): boolean {
+  const now = Date.now()
+  const b = buckets.get(keyId) ?? { tokens: RATE_LIMIT_PER_MIN, last: now }
+  b.tokens = Math.min(RATE_LIMIT_PER_MIN, b.tokens + ((now - b.last) / 60000) * RATE_LIMIT_PER_MIN)
+  b.last = now
+  const ok = b.tokens >= 1
+  if (ok) b.tokens -= 1
+  buckets.set(keyId, b)
+  return ok
+}
+
 // Resolves the API key from the request. Returns a NextResponse (error) OR a ctx.
 export async function authenticateApiKey(req: NextRequest): Promise<NextResponse | ApiKeyCtx> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -57,6 +76,13 @@ export async function authenticateApiKey(req: NextRequest): Promise<NextResponse
   }
   if (!row) {
     return jsonError(401, 'unauthorized', 'Invalid or revoked API key')
+  }
+
+  if (!takeToken(row.id as string)) {
+    return NextResponse.json(
+      { error: { code: 'rate_limited', message: `Rate limit exceeded (${RATE_LIMIT_PER_MIN} requests/minute per key)` } },
+      { status: 429, headers: { 'Retry-After': '60' } },
+    )
   }
 
   // Best-effort last-used stamp; never blocks the request.

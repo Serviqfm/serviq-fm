@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { format, isAfter } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { exportCSV } from '@/lib/csv'
+import { usePagination } from '@/lib/usePagination'
+import Pagination from '@/components/Pagination'
 
 interface Technician { id: string; full_name: string }
 
@@ -93,9 +95,7 @@ const DEFAULT_VISIBLE = ['wo_number','title','asset','site','category','priority
 const VISIBLE_COLS_KEY = 'wo-list-visible-cols'
 
 export default function WorkOrdersPage() {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
-  const [loading, setLoading] = useState(true)
   // WO-16: default view excludes completed/closed. 'open' is a virtual filter
   // (any status not completed/closed); real statuses filter server-side.
   const [statusFilter, setStatusFilter] = useState('open')
@@ -105,14 +105,17 @@ export default function WorkOrdersPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  // DV-14: search also matches asset/site names via pre-resolved id lists
+  // (PostgREST or() can't span joined tables). `term` travels with the ids so
+  // the list query never mixes a new term with stale ids.
+  const [searchRef, setSearchRef] = useState<{ term: string; assetIds: string[]; siteIds: string[] }>({ term: '', assetIds: [], siteIds: [] })
   const [selected, setSelected] = useState<string[]>([])
   const [bulkTech, setBulkTech] = useState('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [savedViews, setSavedViews] = useState<any[]>([])
-  const [me, setMe] = useState<{ id: string; organisation_id: string } | null>(null)
+  const [me, setMe] = useState<{ id: string; organisation_id: string; role?: string } | null>(null)
   const [urlParsed, setUrlParsed] = useState(false)
   const [isManager, setIsManager] = useState(false)
   const [showExport, setShowExport] = useState(false)
@@ -123,8 +126,11 @@ export default function WorkOrdersPage() {
   // WO-15: this user's bookmarked WO ids + the "bookmarked only" chip.
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false)
-  // WO-16: "unassigned only" quick filter (client-side; assignee null & no vendor).
+  // WO-16: "unassigned only" quick filter (server-side; assignee null & no vendor).
   const [unassignedOnly, setUnassignedOnly] = useState(false)
+  // DV-14: KPI tiles aggregate the whole visible org, independent of filters/page.
+  const [stats, setStats] = useState({ all: 0, open: 0, overdue: 0, in_progress: 0, urgent: 0, avgCompletion: '0.0' })
+  const [exporting, setExporting] = useState(false)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -147,8 +153,38 @@ export default function WorkOrdersPage() {
     } catch { /* ignore malformed */ }
     loadViews()
     loadBookmarks()
+    fetchTechnicians()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Debounce search so we don't fire a query on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
+
+  // DV-14: resolve the search term to matching asset/site ids (org-scoped by RLS)
+  // so the main query can OR them in. The list refetches off `searchRef`, never
+  // the raw term, so results always match the resolved ids.
+  useEffect(() => {
+    const term = debouncedSearch.trim()
+    if (!term) { setSearchRef({ term: '', assetIds: [], siteIds: [] }); return }
+    let cancelled = false
+    const s = `%${term}%`
+    Promise.all([
+      supabase.from('assets').select('id').ilike('name', s).limit(100),
+      supabase.from('sites').select('id').ilike('name', s).limit(100),
+    ]).then(([a, si]) => {
+      if (cancelled) return
+      setSearchRef({
+        term,
+        assetIds: (a.data ?? []).map((r: { id: string }) => r.id),
+        siteIds: (si.data ?? []).map((r: { id: string }) => r.id),
+      })
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch])
 
   // WO-14: persist column choice whenever it changes.
   useEffect(() => { localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(visibleCols)) }, [visibleCols])
@@ -224,107 +260,145 @@ export default function WorkOrdersPage() {
     setDateFrom(f.from ?? '')
     setDateTo(f.to ?? '')
     setSearch(f.q ?? '')
-    setCurrentPage(1)
   }
-
-  // Gated on urlParsed so the mount fetch runs once with the URL-seeded filters
-  // (no unfiltered-first-response race).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!urlParsed) return; fetchWorkOrders(); fetchTechnicians() }, [urlParsed, statusFilter, priorityFilter, categoryFilter, technicianFilter])
 
   async function fetchTechnicians() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); if (typeof window !== 'undefined') window.location.href = '/login'; return }
+    if (!user) { if (typeof window !== 'undefined') window.location.href = '/login'; return }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
-    if (!profile) { setLoading(false); return }
+    if (!profile) return
     const { data } = await supabase.from('users').select('id, full_name').eq('organisation_id', profile.organisation_id).in('role', ['technician', 'manager'])
     if (data) setTechnicians(data)
   }
 
-  async function fetchWorkOrders() {
-    setLoading(true)
+  const NO_ROWS = '00000000-0000-0000-0000-000000000000' // impossible id — yields an empty result
+
+  // DV-14: every filter applies server-side so pagination + counts stay correct.
+  // Shared by the paginated list query and the full-set CSV export.
+  function buildQuery(withCount: boolean) {
+    let q = supabase.from('work_orders')
+      // WO-12: archived WOs are hidden from the list.
+      .select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)', withCount ? { count: 'exact' } : undefined)
+      .is('archived_at', null)
+      .order('created_at', { ascending: false })
+    // Wait for the profile: CORE-21 technician scoping must be known before showing rows.
+    if (!me) return q.eq('id', NO_ROWS)
     // CORE-21: technicians see only WOs assigned to them or where they're an additional worker.
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: me } = user
-      ? await supabase.from('users').select('id, role').eq('id', user.id).single()
-      : { data: null }
-    // WO-12: archived WOs are hidden from the default list.
-    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').is('archived_at', null).order('created_at', { ascending: false })
-    if (me?.role === 'technician') {
-      query = query.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
-    }
+    if (me.role === 'technician') q = q.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
     // WO-16: 'open' = everything except completed/closed (the default landing view).
-    if (statusFilter === 'open') query = query.not('status', 'in', '(completed,closed)')
-    else if (statusFilter !== 'all') query = query.eq('status', statusFilter)
-    if (priorityFilter !== 'all') query = query.eq('priority', priorityFilter)
-    if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)
-    if (technicianFilter !== 'all') query = query.eq('assigned_to', technicianFilter)
-    const { data, error } = await query
-    if (!error && data) setWorkOrders(data)
-    setLoading(false)
+    if (statusFilter === 'open') q = q.not('status', 'in', '(completed,closed)')
+    else if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+    if (priorityFilter !== 'all') q = q.eq('priority', priorityFilter)
+    if (categoryFilter !== 'all') q = q.eq('category', categoryFilter)
+    if (technicianFilter !== 'all') q = q.eq('assigned_to', technicianFilter)
+    if (dateFrom) q = q.gte('created_at', dateFrom)
+    if (dateTo) q = q.lte('created_at', dateTo + 'T23:59:59')
+    // WO-15: bookmarked-only intersects with this user's bookmark ids.
+    if (bookmarkedOnly) q = q.in('id', bookmarks.size ? Array.from(bookmarks) : [NO_ROWS])
+    // WO-16: unassigned = no technician and no vendor.
+    if (unassignedOnly) q = q.is('assigned_to', null).is('assigned_vendor_id', null)
+    if (searchRef.term) {
+      const s = searchRef.term.replace(/[,()]/g, ' ').trim() // or() syntax can't carry these
+      const ors: string[] = []
+      if (s) ors.push(`title.ilike.%${s}%`)
+      const num = /^wo-?0*(\d+)$/i.exec(s) // "WO-0012" or "12" also matches the WO number
+      if (num) ors.push(`wo_number.eq.${num[1]}`)
+      if (searchRef.assetIds.length) ors.push(`asset_id.in.(${searchRef.assetIds.join(',')})`)
+      if (searchRef.siteIds.length) ors.push(`site_id.in.(${searchRef.siteIds.join(',')})`)
+      q = ors.length ? q.or(ors.join(',')) : q.eq('id', NO_ROWS)
+    }
+    return q
   }
+
+  const {
+    rows: filtered, total, loading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh,
+  } = usePagination<WorkOrder>(
+    () => buildQuery(true),
+    [me, statusFilter, priorityFilter, categoryFilter, technicianFilter, dateFrom, dateTo, searchRef, unassignedOnly, bookmarkedOnly ? bookmarks : 0],
+  )
+
+  // DV-14: whole-org KPI tiles via cheap head-count queries + a bounded sample
+  // for avg completion (independent of the current filters/page, like #52).
+  useEffect(() => {
+    if (!me) return
+    let cancelled = false
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scope = (q: any) => me.role === 'technician' ? q.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`) : q
+    const count = () => scope(supabase.from('work_orders').select('id', { count: 'exact', head: true }).is('archived_at', null))
+    Promise.all([
+      count(),
+      count().not('status', 'in', '(completed,closed)'),
+      count().eq('status', 'in_progress'),
+      count().in('priority', ['critical', 'high']),
+      count().not('status', 'in', '(completed,closed)').lt('due_at', new Date().toISOString()),
+      // ponytail: avg over the 500 most recent completions; a DB aggregate if exactness matters
+      scope(supabase.from('work_orders').select('created_at, completed_at').eq('status', 'completed').is('archived_at', null).order('completed_at', { ascending: false }).limit(500)),
+    ]).then(([allR, openR, ipR, urgR, odR, compR]) => {
+      if (cancelled) return
+      const comp: { created_at: string; completed_at: string }[] = compR.data ?? []
+      const avgH = comp.length
+        ? comp.reduce((sum, w) => w.created_at && w.completed_at ? sum + (new Date(w.completed_at).getTime() - new Date(w.created_at).getTime()) / 3600000 : sum, 0) / comp.length
+        : 0
+      setStats({
+        all: allR.count ?? 0,
+        open: openR.count ?? 0,
+        in_progress: ipR.count ?? 0,
+        urgent: urgR.count ?? 0,
+        overdue: odR.count ?? 0,
+        avgCompletion: avgH.toFixed(1),
+      })
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me])
 
   async function handleBulkAssign() {
     if (!bulkTech || selected.length === 0) return
     setBulkAssigning(true)
     await supabase.from('work_orders').update({ assigned_to: bulkTech, status: 'assigned', updated_at: new Date().toISOString() }).in('id', selected)
     setSelected([]); setBulkTech('')
-    await fetchWorkOrders()
+    refresh()
     setBulkAssigning(false)
   }
 
   function toggleSelect(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
-  function toggleSelectAll() { setSelected(selected.length === filtered.length ? [] : filtered.map(w => w.id)) }
+  // DV-14: select-all is page-scoped and additive, so selections survive paging.
+  function toggleSelectAll() {
+    const pageIds = filtered.map(w => w.id)
+    const allOnPage = pageIds.length > 0 && pageIds.every(id => selected.includes(id))
+    setSelected(allOnPage ? selected.filter(id => !pageIds.includes(id)) : Array.from(new Set([...selected, ...pageIds])))
+  }
 
-  // WO-10: export the current view. Uses the checked rows if any, else all filtered
-  // rows (which already honour the status/priority/category/date/search filters).
-  function runExport() {
+  // WO-10: export the current view. DV-14: fetches the FULL filtered set on demand
+  // (in 1000-row chunks) — not just the current page. Checked rows, if any, are
+  // intersected with the filtered set.
+  async function runExport() {
     const cols = LIST_COLUMNS.filter(c => exportCols.includes(c.key))
     if (cols.length === 0) { alert(lang === 'ar' ? 'اختر عمودًا واحدًا على الأقل' : 'Pick at least one column'); return }
-    const source = selected.length > 0 ? filtered.filter(w => selected.includes(w.id)) : filtered
+    setExporting(true)
+    const all: WorkOrder[] = []
+    for (let start = 0; ; start += 1000) {
+      const { data, error } = await buildQuery(false).range(start, start + 999)
+      if (error || !data) break
+      all.push(...(data as WorkOrder[]))
+      if (data.length < 1000) break
+    }
+    const source = selected.length > 0 ? all.filter(w => selected.includes(w.id)) : all
     const rows = source.map(w => {
       const o: Record<string, string> = {}
       cols.forEach(c => { o[c.label] = c.get(w) })
       return o
     })
     exportCSV(`serviq-fm-work-orders-${format(new Date(), 'yyyy-MM-dd')}.csv`, rows)
+    setExporting(false)
     setShowExport(false)
   }
 
   const isOverdue = useCallback((wo: WorkOrder) =>
     wo.due_at && !['completed','closed'].includes(wo.status) && isAfter(new Date(), new Date(wo.due_at)), [])
 
-  const filtered = workOrders.filter(wo => {
-    const woNum = wo.wo_number ? `WO-${String(wo.wo_number).padStart(4, '0')}` : ''
-    return (
-      (wo.title.toLowerCase().includes(search.toLowerCase()) || wo.asset?.name?.toLowerCase().includes(search.toLowerCase()) || wo.site?.name?.toLowerCase().includes(search.toLowerCase()) || woNum.toLowerCase().includes(search.toLowerCase())) &&
-      (!dateFrom || new Date(wo.created_at) >= new Date(dateFrom)) &&
-      (!dateTo || new Date(wo.created_at) <= new Date(dateTo + 'T23:59:59')) &&
-      (!bookmarkedOnly || bookmarks.has(wo.id)) &&          // WO-15
-      (!unassignedOnly || (!wo.assigned_to && !wo.vendor))  // WO-16
-    )
-  })
-
   // WO-14: columns to render, in LIST_COLUMNS order, honouring the chooser.
   const shownCols = LIST_COLUMNS.filter(c => c.always || visibleCols.includes(c.key))
-
-  const stats = useMemo(() => {
-    const completedOrders = workOrders.filter(wo => wo.status === 'completed')
-    const avgH = completedOrders.length > 0
-      ? completedOrders.reduce((sum, wo) => wo.created_at && wo.completed_at ? sum + (new Date(wo.completed_at).getTime() - new Date(wo.created_at).getTime()) / 3600000 : sum, 0) / completedOrders.length
-      : 0
-    return {
-      all: workOrders.length,
-      open: workOrders.filter(w => !['completed', 'closed'].includes(w.status)).length,
-      overdue: workOrders.filter(w => isOverdue(w)).length,
-      in_progress: workOrders.filter(w => w.status === 'in_progress').length,
-      urgent: workOrders.filter(w => w.priority === 'critical' || w.priority === 'high').length,
-      avgCompletion: avgH.toFixed(1),
-    }
-  }, [workOrders, isOverdue])
-
-  const totalPages = Math.ceil(filtered.length / itemsPerPage)
-  const paginatedItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const inputCls = 'bg-surface-container-low border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
 
@@ -545,7 +619,7 @@ export default function WorkOrdersPage() {
         )}
 
         {/* Table */}
-        {loading ? (
+        {loading || !me ? (
           <div className="text-on-surface-variant py-8 text-center">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
@@ -560,7 +634,7 @@ export default function WorkOrdersPage() {
                 <thead>
                   <tr className="bg-surface-container border-b border-outline-variant/30">
                     <th className="p-3 w-10">
-                      <input type='checkbox' checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} className="rounded" />
+                      <input type='checkbox' checked={filtered.length > 0 && filtered.every(w => selected.includes(w.id))} onChange={toggleSelectAll} className="rounded" />
                     </th>
                     <th className="p-3 w-10" aria-label="Bookmark" />
                     {shownCols.map(c => (
@@ -569,7 +643,7 @@ export default function WorkOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20">
-                  {paginatedItems.map(wo => {
+                  {filtered.map(wo => {
                     const overdue = isOverdue(wo)
                     const isSelected = selected.includes(wo.id)
                     const marked = bookmarks.has(wo.id)
@@ -619,32 +693,11 @@ export default function WorkOrdersPage() {
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className="px-4 py-3 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm text-on-surface-variant">
-                Showing {Math.max(1, (currentPage - 1) * itemsPerPage + 1)}–{Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} results
-              </span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-outline-variant/40 text-on-surface-variant disabled:opacity-40 hover:bg-surface-container-low transition-colors" aria-label="Previous page">
-                  <span className="material-symbols-outlined text-lg">chevron_left</span>
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1).reduce<(number | string)[]>((acc, p, i, arr) => {
-                  if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('…')
-                  acc.push(p); return acc
-                }, []).map((p, i) => p === '…' ? (
-                  <span key={`ellipsis-${i}`} className="px-2 text-on-surface-variant text-sm">…</span>
-                ) : (
-                  <button key={p} onClick={() => setCurrentPage(p as number)}
-                    className={`min-w-[32px] px-2 py-1.5 rounded-lg text-sm font-semibold transition-colors ${currentPage === p ? 'bg-primary text-on-primary' : 'border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low'}`}>
-                    {p}
-                  </button>
-                ))}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-outline-variant/40 text-on-surface-variant disabled:opacity-40 hover:bg-surface-container-low transition-colors" aria-label="Next page">
-                  <span className="material-symbols-outlined text-lg">chevron_right</span>
-                </button>
-              </div>
+            {/* DV-14: server-side pagination controls */}
+            <div className="px-4 pb-4 border-t border-outline-variant/20">
+              <Pagination page={page} pageCount={pageCount} from={from} to={to} total={total}
+                hasPrev={hasPrev} hasNext={hasNext} prev={prev} next={next}
+                label={lang === 'ar' ? 'أوامر العمل' : 'work orders'} />
             </div>
           </div>
         )}
@@ -658,10 +711,10 @@ export default function WorkOrdersPage() {
             <h2 className="text-lg font-bold text-on-surface mb-1">{lang === 'ar' ? 'تصدير إلى CSV' : 'Export to CSV'}</h2>
             <p className="text-sm text-on-surface-variant mb-4">
               {(() => {
-                // Accurate count = what runExport will actually write (checked rows
-                // intersected with the current filter, else all filtered rows).
+                // DV-14: export pulls the FULL filtered set from the server, so the
+                // count is the total match count — or the checked rows if any.
                 const sel = selected.length > 0
-                const n = sel ? filtered.filter(w => selected.includes(w.id)).length : filtered.length
+                const n = sel ? selected.length : total
                 return lang === 'ar'
                   ? `${n} ${sel ? 'صف محدد' : 'صف (بعد التصفية)'}`
                   : `${n} ${sel ? 'selected' : 'filtered'} row${n !== 1 ? 's' : ''}`
@@ -681,8 +734,9 @@ export default function WorkOrdersPage() {
               <button onClick={() => setShowExport(false)} className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors">
                 {lang === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
-              <button onClick={runExport} className="px-5 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary/90 transition-colors">
-                {lang === 'ar' ? 'تنزيل CSV' : 'Download CSV'}
+              <button onClick={runExport} disabled={exporting}
+                className="px-5 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {exporting ? (lang === 'ar' ? 'جارٍ التصدير…' : 'Exporting…') : (lang === 'ar' ? 'تنزيل CSV' : 'Download CSV')}
               </button>
             </div>
           </div>
