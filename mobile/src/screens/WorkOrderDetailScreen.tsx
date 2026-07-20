@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import { supabase } from '../lib/supabase'
+import { cacheGet, cacheSet, enqueue, isOnline } from '../lib/offline'
 import { closeWorkOrder } from '../lib/webApi'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
@@ -125,7 +126,25 @@ export default function WorkOrderDetailScreen() {
     if (tskError) console.log('TASK Error:', JSON.stringify(tskError))
     if (tsk) setTasks(tsk)
 
+    // CORE-07: cache the detail bundle on success; serve it when offline.
+    if (data) {
+      cacheSet(`wo:${route.params.id}`, { wo: data, comments: cmts ?? [], tasks: tsk ?? [] })
+    } else {
+      const cached = await cacheGet<{ wo: any; comments: any[]; tasks: any[] }>(`wo:${route.params.id}`)
+      if (cached) {
+        setWo(cached.wo)
+        setAllComments(cached.comments)
+        setTasks(cached.tasks)
+      }
+    }
+
     setLoading(false)
+  }
+
+  // Persist an optimistic offline change into the detail cache so it survives
+  // an app restart while still disconnected.
+  function cacheOffline(nextWo: any, nextComments: any[]) {
+    cacheSet(`wo:${route.params.id}`, { wo: nextWo, comments: nextComments, tasks })
   }
 
   // FM-06/WO-21: toggle a checklist item, recording done_by/done_at. Optimistic
@@ -162,6 +181,12 @@ export default function WorkOrderDetailScreen() {
     // endpoint (field-config close-out photos, sign-off, audit, manager
     // notification). Open the completion screen instead of writing directly.
     if (newStatus === 'completed' || newStatus === 'closed') {
+      // CORE-07: close-out goes through the web endpoint (multipart photos,
+      // server-side validation) — not queueable offline in this first cut.
+      if (!isOnline()) {
+        Alert.alert(t('offline'), t('offline_complete_blocked'))
+        return
+      }
       // FM-06/WO-21: warn if checklist tasks are still open before completing.
       const openTasks = tasks.filter(t2 => !t2.is_done).length
       const openCloseout = () => {
@@ -192,11 +217,27 @@ export default function WorkOrderDetailScreen() {
     if (newStatus === 'in_progress' && !wo.started_at) updates.started_at = now
     if (wo.completed_at) updates.completed_at = null // reopening clears stale completion time
     if (wo.closed_at) updates.closed_at = null // reopening a closed WO clears the stale close time
+    const body = t('status_changed_to', { status: t(newStatus) })
+    // CORE-07: offline — queue the mutation, apply it locally, replay on reconnect.
+    if (!isOnline()) {
+      await enqueue({ kind: 'wo_status', woId: wo.id, updates, body, userId: profile?.id ?? null })
+      const nextWo = { ...wo, ...updates }
+      const nextComments = [...allComments, {
+        id: 'queued-' + Date.now(), body, comment_type: 'status_change',
+        created_at: now, author: { full_name: profile?.full_name },
+      }]
+      setWo(nextWo)
+      setAllComments(nextComments)
+      cacheOffline(nextWo, nextComments)
+      setSaving(false)
+      Alert.alert(t('offline'), t('offline_queued'))
+      return
+    }
     await supabase.from('work_orders').update(updates).eq('id', wo.id)
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
       user_id: profile?.id,
-      body: t('status_changed_to', { status: t(newStatus) }),
+      body,
       comment_type: 'status_change',
     })
     setWo((prev: any) => ({ ...prev, ...updates }))
@@ -208,6 +249,11 @@ export default function WorkOrderDetailScreen() {
   // required close-out photos and returns a clear message when missing.
   async function submitClose() {
     if (!closeModal) return
+    // CORE-07: connection may have dropped while the sheet was open.
+    if (!isOnline()) {
+      Alert.alert(t('offline'), t('offline_complete_blocked'))
+      return
+    }
     setSaving(true)
     const result = await closeWorkOrder({
       workOrderId: wo.id,
@@ -287,11 +333,31 @@ export default function WorkOrderDetailScreen() {
     const m = Math.floor((secs % 3600) / 60)
     const s = secs % 60
     const timeStr = h > 0 ? (h + 'h ' + m + 'm') : m > 0 ? (m + 'm ' + s + 's') : (s + 's')
+    const body = t('time_logged_by', { time: timeStr, name: profile?.full_name ?? t('technician') })
+
+    // CORE-07: offline — queue the time log (hours are added read-modify-write
+    // at replay time so concurrent web edits are not clobbered).
+    if (!isOnline()) {
+      await enqueue({
+        kind: 'time_log', woId: wo.id, body,
+        addHours: parseFloat((mins / 60).toFixed(2)), userId: profile?.id ?? null,
+      })
+      const nextComments = [...allComments, {
+        id: 'queued-' + Date.now(), body, comment_type: 'time_log',
+        created_at: new Date().toISOString(), author: { full_name: profile?.full_name },
+      }]
+      setAllComments(nextComments)
+      cacheOffline(wo, nextComments)
+      setTimerSeconds(0)
+      startTimeRef.current = null
+      Alert.alert(t('time_logged'), t('offline_queued'))
+      return
+    }
 
     await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
       user_id: profile?.id,
-      body: t('time_logged_by', { time: timeStr, name: profile?.full_name ?? t('technician') }),
+      body,
       comment_type: 'time_log',
     })
     const currentHours = wo.actual_hours ?? 0
@@ -315,6 +381,19 @@ export default function WorkOrderDetailScreen() {
 
   async function addComment() {
     if (!newComment.trim()) return
+    // CORE-07: offline — queue the comment and show it locally.
+    if (!isOnline()) {
+      const body = newComment.trim()
+      await enqueue({ kind: 'comment', woId: wo.id, body, userId: profile?.id ?? null })
+      const nextComments = [...allComments, {
+        id: 'queued-' + Date.now(), body, comment_type: 'comment',
+        created_at: new Date().toISOString(), author: { full_name: profile?.full_name },
+      }]
+      setAllComments(nextComments)
+      cacheOffline(wo, nextComments)
+      setNewComment('')
+      return
+    }
     setSaving(true)
     const { error } = await supabase.from('work_order_comments').insert({
       work_order_id: wo.id,
