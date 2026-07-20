@@ -573,3 +573,28 @@ de-dupe preserved; the B6-B agent itself caught and reverted an interim t8-01-bo
 - **AG-10 / AG-11** — PR #62 — Asset Log reports page (counts by status/type/space, value summary,
   decommissioned/disposed lists) + CRON_SECRET-gated fail-closed `/api/cron/asset-warranty` (30/7-day
   admin alerts, NotificationService dedupe), weekly in vercel.json. No SQL.
+
+## Wave 4 batch 7 — mobile offline · limited technician · recurring inspections · UX seams (2026-07-19)
+
+Four disjoint tracks. 1C-13's RESTRICTIVE policy traced line-by-line (additive, fail-open, zero change
+until the owner flips the flag); a confirmed source-CHECK bug in the inspection cron fixed pre-merge.
+
+- **CORE-07 / MKT-03 (partial)** — PR #65 — mobile offline: AsyncStorage read-cache (WO list/detail/profile),
+  NetInfo offline banner, FIFO mutation queue (status/comments/time logs) with in-order replay + surfaced
+  failures; Complete/Close blocked offline (goes through the web close endpoint). New dep
+  @react-native-community/netinfo — **native module: dev clients need an EAS rebuild**. Remaining: FM-14
+  (queued photo uploads + offline Complete).
+- **1C-13** — PR #66 — Limited Technician: `organisations.limit_technician_visibility` (default off = zero
+  change) + ONE additive AS RESTRICTIVE SELECT policy on work_orders (assignee/additional-worker/creator
+  when flag on + technician; nothing rewritten; fail-open on invisible lookups) + `/dashboard/settings/access`
+  toggle (admin-gated, service-role writes). **SQL:** `1c-13-limited-technician.sql` (+ .test.sql).
+- **CORE-26** — PR #68 — recurring inspections: `inspection_schedules` (org RLS, org-bound FKs, rotation
+  JSONB + cursor for hotel-room cycling) + daily CRON_SECRET-gated `/api/cron/inspection-generate` (creates a
+  WO of source `inspection` deep-linking the pre-filled run page, catch-up-safe roll, rotation advance) +
+  Schedules CRUD tab. **SQL:** `b7-inspection-schedules.sql` — incl. a review fix: idempotently widens the
+  live work_orders.source CHECK to allow 'inspection' (else the cron would fail every run). Remaining:
+  CORE-25 (mobile runs), CORE-27.
+- **WO-12 / WO-29 / nav seams** — PR #67 — WO archive (`archived_at`, manager Archive/Unarchive + audit,
+  excluded from list/calendar/board); WO forms: asset dropdown filtered by site + asset→site autofill; Sidebar
+  links added for developers/security/compliance/billing/asset-log reports/report builder (role-gated, EN/AR).
+  **SQL:** `wo-12-archive.sql`.
