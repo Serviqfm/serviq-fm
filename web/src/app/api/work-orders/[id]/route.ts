@@ -114,6 +114,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     updated_at: new Date().toISOString(),
   }
 
+  // FM-03: SLA-clock bookkeeping (first_response_at + on-hold pause clock) is handled
+  // by the maintain_wo_sla_clock BEFORE UPDATE trigger (w5-2-sla-policies.sql), so it
+  // fires on EVERY status write path — this PATCH, the WO detail page's direct client
+  // update, and the kanban board — not just callers routed through here. Nothing to do
+  // in this route. Resolution breach stays derived (completed_at vs due_at + paused).
+
   const { data, error } = await admin
     .from('work_orders')
     .update(updateRow)

@@ -5,6 +5,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
+import { slaDueDates } from '@/lib/sla'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,6 +87,25 @@ export async function POST(req: NextRequest) {
     // recurrence_frequency below, not by the source column.
     source: 'manual',
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
+  }
+
+  // FM-03: apply the org's SLA policy for this priority. The response target
+  // (sla_response_due_at) is recorded whenever a policy exists — independent of a
+  // manual due date — while the resolution target only fills due_at when the caller
+  // left it empty (an explicit due date is never overwritten). Table/columns may be
+  // absent pre-migration; a missing policy just leaves both empty.
+  {
+    const { data: policy } = await admin
+      .from('sla_policies')
+      .select('response_minutes, resolution_minutes')
+      .eq('organisation_id', profile.organisation_id)
+      .eq('priority', insertRow.priority)
+      .maybeSingle()
+    if (policy) {
+      const { sla_response_due_at, due_at } = slaDueDates(policy, Date.now())
+      insertRow.sla_response_due_at = sla_response_due_at
+      if (!insertRow.due_at && due_at) insertRow.due_at = due_at
+    }
   }
 
   const { data, error } = await admin
