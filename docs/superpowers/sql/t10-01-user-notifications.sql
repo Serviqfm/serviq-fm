@@ -7,7 +7,7 @@
 -- title, body, or link. The in-app alert center needs those + a per-user unread
 -- concept. Spec (CORE-15) explicitly offers `user_notifications` as the alternative.
 --
--- Idempotency for the cron (CORE-16): `dedupe_key` is UNIQUE per (user_id, dedupe_key).
+-- Idempotency for the cron (CORE-16): UNIQUE constraint on (user_id, dedupe_key).
 -- The escalation cron inserts with a stable key per event (e.g. `wo_overdue:<woId>:<dueISO>`)
 -- and swallows the unique-violation on re-run, so each event notifies a user exactly once.
 --
@@ -40,10 +40,21 @@ CREATE TABLE IF NOT EXISTS user_notifications (
   created_at      TIMESTAMPTZ DEFAULT now()
 );
 
--- One notification per (user, event). Partial unique index so multiple NULL
--- dedupe_keys (ad-hoc rows) are allowed while cron events stay once-only.
-CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_dedupe
-  ON user_notifications(user_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+-- One notification per (user, dedupe_key). A real UNIQUE CONSTRAINT (not a
+-- partial index) so PostgREST upsert can target it via onConflict (LOG-01).
+-- Postgres 15+ is NULLS DISTINCT by default, so multiple NULL dedupe_keys
+-- (ad-hoc rows) stay allowed while keyed cron events remain once-only —
+-- identical behaviour to the old partial `WHERE dedupe_key IS NOT NULL` index.
+-- Kept re-runnable via a pg_constraint guard (ADD CONSTRAINT has no IF NOT EXISTS).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_user_notifications_dedupe'
+  ) THEN
+    ALTER TABLE user_notifications
+      ADD CONSTRAINT uq_user_notifications_dedupe UNIQUE (user_id, dedupe_key);
+  END IF;
+END $$;
 
 -- Feed query: a user's rows newest-first, unread first.
 CREATE INDEX IF NOT EXISTS idx_user_notifications_user
