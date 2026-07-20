@@ -35,6 +35,8 @@ export default function HomeScreen() {
         .not('status', 'in', '("completed","closed")')
       // Technicians only see their assigned WOs
       if (profile.role === 'technician') q = q.eq('assigned_to', profile.id)
+      // CORE-19: requesters only see their own submissions.
+      if (profile.role === 'requester') q = q.eq('created_by', profile.id)
       return q
     }
 
@@ -48,6 +50,9 @@ export default function HomeScreen() {
       .limit(5)
     if (profile.role === 'technician') {
       listQuery = listQuery.eq('assigned_to', profile.id)
+    }
+    if (profile.role === 'requester') {
+      listQuery = listQuery.eq('created_by', profile.id)
     }
 
     const [openRes, overdueRes, dueTodayRes, inProgressRes, listRes] = await Promise.all([
@@ -109,7 +114,7 @@ export default function HomeScreen() {
           <Text style={styles.name}>{profile?.full_name?.split(' ')[0] ?? 'User'} 👋</Text>
           <Text style={styles.org}>{profile?.organisation?.name}</Text>
         </View>
-        <TouchableOpacity style={styles.notifBtn}>
+        <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
           <Ionicons name='notifications-outline' size={22} color='white' />
         </TouchableOpacity>
       </View>
@@ -150,12 +155,14 @@ export default function HomeScreen() {
             <Text style={styles.qaLabel}>{t('inspection')}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.qaBtn} onPress={() => navigation.navigate('Assets')}>
-          <View style={[styles.qaIcon, { backgroundColor: colors.warningLight }]}>
-            <Ionicons name='cube-outline' size={24} color={colors.warning} />
-          </View>
-          <Text style={styles.qaLabel}>{t('assets')}</Text>
-        </TouchableOpacity>
+        {profile?.role !== 'requester' && (
+          <TouchableOpacity style={styles.qaBtn} onPress={() => navigation.navigate('Assets')}>
+            <View style={[styles.qaIcon, { backgroundColor: colors.warningLight }]}>
+              <Ionicons name='cube-outline' size={24} color={colors.warning} />
+            </View>
+            <Text style={styles.qaLabel}>{t('assets')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.section}>

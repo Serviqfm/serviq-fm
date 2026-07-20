@@ -12,7 +12,10 @@ const translations = {
     // Navigation
     home: 'Home',
     work_orders: 'Work Orders',
+    my_requests: 'My Requests',
     assets: 'Assets',
+    asset_log: 'Asset Log',
+    notifications: 'Notifications',
     profile: 'Profile',
     // Home
     good_morning: 'Good morning',
@@ -221,7 +224,10 @@ const translations = {
     // Navigation
     home: 'الرئيسية',
     work_orders: 'أوامر العمل',
+    my_requests: 'طلباتي',
     assets: 'الأصول',
+    asset_log: 'سجل الأصول',
+    notifications: 'الإشعارات',
     profile: 'الملف الشخصي',
     // Home
     good_morning: 'صباح الخير',
