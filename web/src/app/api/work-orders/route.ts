@@ -89,10 +89,12 @@ export async function POST(req: NextRequest) {
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
   }
 
-  // FM-03: when the caller didn't set a resolution due date, apply the org's SLA policy
-  // for this priority — sla_response_due_at (response target) + due_at (resolution target).
-  // Table/columns may be absent pre-migration; a missing policy just leaves due_at empty.
-  if (!insertRow.due_at) {
+  // FM-03: apply the org's SLA policy for this priority. The response target
+  // (sla_response_due_at) is recorded whenever a policy exists — independent of a
+  // manual due date — while the resolution target only fills due_at when the caller
+  // left it empty (an explicit due date is never overwritten). Table/columns may be
+  // absent pre-migration; a missing policy just leaves both empty.
+  {
     const { data: policy } = await admin
       .from('sla_policies')
       .select('response_minutes, resolution_minutes')
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
     if (policy) {
       const { sla_response_due_at, due_at } = slaDueDates(policy, Date.now())
       insertRow.sla_response_due_at = sla_response_due_at
-      if (due_at) insertRow.due_at = due_at
+      if (!insertRow.due_at && due_at) insertRow.due_at = due_at
     }
   }
 
