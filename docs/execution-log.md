@@ -598,3 +598,23 @@ until the owner flips the flag); a confirmed source-CHECK bug in the inspection 
   excluded from list/calendar/board); WO forms: asset dropdown filtered by site + asset→site autofill; Sidebar
   links added for developers/security/compliance/billing/asset-log reports/report builder (role-gated, EN/AR).
   **SQL:** `wo-12-archive.sql`.
+
+## Wave 4 batch 8 — mobile inspections · WO-list pagination · asset downtime · partials (2026-07-20)
+
+Four disjoint tracks, all green first pass. Generator re-verified (exact b6-01 body + category stamp only);
+WO-list rewrite spot-checked for every load-bearing feature (saved views/URL sync/bookmarks/archive/scoping).
+
+- **CORE-25 / FM-14** — PR #70 — mobile inspection runs (template picker, pass/fail/na + numeric/score/text/photo
+  items, submits inspection_results, auto-WOs for failures, CORE-26 deep-link) + offline photo queue in
+  lib/offline.ts (upload-on-reconnect before mutation replay). Inspections online-only this cut. Mobile-only.
+- **DV-14 (final) / MKT-19 (rest)** — PR #72 — WO list converted to server-side pagination (50/page; all filters
+  server-side incl. virtual open, bookmarked/unassigned chips, name-search via pre-resolved ids; chunked
+  full-set CSV export; whole-org KPI header; select-all page-scoped) — DV-14 now covers every heavy list page.
+  /api/v1 per-key token-bucket rate limit (60/min, best-effort per instance); wo.created webhook wired.
+- **AL-03 (first PR)** — PR #71 — asset_downtime table (org RLS, org-bound FKs) + Mark Down/Restored on asset
+  detail (status sync), Downtime tab with availability %, total downtime, MTBF (lib/kpis + 3 tests). **SQL:**
+  `b8-asset-downtime.sql`. Remainder: WO-flow status sync, list flag, auto-open on critical WO.
+- **FM-17 / CORE-27 / 1C-12 (rest)** — PR #73 — purchasing enable toggle (new settings/purchasing page, gates PO
+  pages, permissive pre-migration); inspection numeric/date item types (editor + run + report); PM category +
+  requires_signature stamped onto generated WOs (SQL fn = exact b6-01 body + stamps; JS cron mirrored; close
+  route enforces sign-off when flagged). **SQL:** `b8-partials.sql`.
