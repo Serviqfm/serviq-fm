@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { rollNextDue } from '../pm-utils'
 import { stampChecklistTasks } from '../checklist-stamp'
+import { fetchWoCategories, catLabel, type WoCategory } from '@/lib/woCategories'
 
 export default function NewPMSchedulePage() {
   const router = useRouter()
@@ -21,11 +22,13 @@ export default function NewPMSchedulePage() {
   const [technicians, setTechnicians] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [checklists, setChecklists] = useState<any[]>([])
+  const [categories, setCategories] = useState<WoCategory[]>([])
   const [form, setForm] = useState({
     title: '',
     description: '',
     frequency: 'monthly',
     priority: 'medium',            // 1C-12: copied onto generated WOs
+    category: '',                  // 1C-12: copied onto generated WOs
     site_id: '',
     assigned_to: '',
     checklist_template_id: '',     // FM-05: stamped onto generated WOs
@@ -37,6 +40,7 @@ export default function NewPMSchedulePage() {
     interval_unit: 'month',
     anchor_day: '',                // day-of-month (month/year units)
   })
+  const [requiresSignature, setRequiresSignature] = useState(false)  // 1C-12: sign-off enforced at WO close
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
   const [assetSearch, setAssetSearch] = useState('')
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
@@ -61,6 +65,7 @@ export default function NewPMSchedulePage() {
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
     if (checklistData) setChecklists(checklistData)
+    setCategories(await fetchWoCategories(supabase))
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -84,6 +89,8 @@ export default function NewPMSchedulePage() {
       description: form.description || null,
       frequency: form.frequency,
       priority: form.priority,
+      category: form.category || null,
+      requires_signature: requiresSignature,
       asset_id: aid,
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
@@ -101,7 +108,7 @@ export default function NewPMSchedulePage() {
       is_active: true,
     }))
     const { data: created, error: insertError } = await supabase.from('pm_schedules').insert(rows)
-      .select('id, title, description, frequency, priority, asset_id, site_id, assigned_to, checklist_template_id, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day')
+      .select('id, title, description, frequency, priority, category, asset_id, site_id, assigned_to, checklist_template_id, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day')
     if (insertError) { setError(insertError.message); setLoading(false); return }
 
     // Optionally create the first work order immediately — same WO shape as
@@ -115,6 +122,7 @@ export default function NewPMSchedulePage() {
           title: `PM - ${pm.title}`,
           description: pm.description,
           priority: pm.priority ?? 'medium',
+          category: pm.category ?? null,
           status: pm.assigned_to ? 'assigned' : 'new',
           source: 'pm_schedule',
           pm_schedule_id: pm.id,
@@ -328,6 +336,25 @@ export default function NewPMSchedulePage() {
             </p>
           </div>
         </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الفئة (اختياري)' : 'Category (optional)'}</label>
+          <select name='category' value={form.category} onChange={handleChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'بدون فئة' : 'No category'}</option>
+            {categories.map(c => <option key={c.name} value={c.name}>{catLabel(c, lang)}</option>)}
+          </select>
+          <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+            {lang === 'ar' ? 'تُنسخ الفئة إلى كل أمر عمل يُنشأ.' : 'The category is copied onto every generated work order.'}
+          </p>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '10px 14px', cursor: 'pointer' }}>
+          <input type='checkbox' checked={requiresSignature} onChange={e => setRequiresSignature(e.target.checked)} style={{ width: 16, height: 16 }} />
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>
+            {lang === 'ar' ? 'يتطلب توقيعاً عند الإغلاق' : 'Require sign-off at close'}
+          </span>
+          <span style={{ fontSize: 12, color: '#666' }}>
+            {lang === 'ar' ? 'لا يمكن إغلاق أوامر العمل المُنشأة بدون توقيع مكتوب.' : 'Generated work orders cannot be closed without a typed sign-off.'}
+          </span>
+        </label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'تعيين إلى' : 'Assign To'}</label>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
+import { fetchWoCategories, catLabel, type WoCategory } from '@/lib/woCategories'
 
 export default function EditPMSchedulePage() {
   const router = useRouter()
@@ -21,8 +22,10 @@ export default function EditPMSchedulePage() {
   const [technicians, setTechnicians] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [checklists, setChecklists] = useState<any[]>([])
+  const [categories, setCategories] = useState<WoCategory[]>([])
+  const [requiresSignature, setRequiresSignature] = useState(false)
   const [form, setForm] = useState({
-    title: '', description: '', frequency: 'monthly', priority: 'medium',
+    title: '', description: '', frequency: 'monthly', priority: 'medium', category: '',
     asset_id: '', site_id: '', assigned_to: '', checklist_template_id: '',
     next_due_at: '', end_date: '', estimated_duration_minutes: '',
     is_seasonal: false, seasonal_start_month: '1', seasonal_end_month: '12',
@@ -50,11 +53,13 @@ export default function EditPMSchedulePage() {
     if (siteData) setSites(siteData)
     if (techData) setTechnicians(techData)
     if (checklistData) setChecklists(checklistData)
+    setCategories(await fetchWoCategories(supabase))
     if (pm) setForm({
       title: pm.title ?? '',
       description: pm.description ?? '',
       frequency: pm.frequency ?? 'monthly',
       priority: pm.priority ?? 'medium',
+      category: pm.category ?? '',
       asset_id: pm.asset_id ?? '',
       site_id: pm.site_id ?? '',
       assigned_to: pm.assigned_to ?? '',
@@ -71,6 +76,7 @@ export default function EditPMSchedulePage() {
       anchor_day: pm.anchor_day ? String(pm.anchor_day) : '',
     })
     if (pm) setDaysOfWeek(Array.isArray(pm.days_of_week) ? pm.days_of_week : [])
+    if (pm) setRequiresSignature(pm.requires_signature ?? false)
     setLoading(false)
   }
 
@@ -91,6 +97,8 @@ export default function EditPMSchedulePage() {
       description: form.description || null,
       frequency: form.frequency,
       priority: form.priority,
+      category: form.category || null,
+      requires_signature: requiresSignature,
       asset_id: form.asset_id || null,
       site_id: form.site_id || null,
       assigned_to: form.assigned_to || null,
@@ -214,6 +222,28 @@ export default function EditPMSchedulePage() {
             </select>
           </div>
         </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الفئة (اختياري)' : 'Category (optional)'}</label>
+          <select name='category' value={form.category} onChange={handleChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'بدون فئة' : 'No category'}</option>
+            {categories.map(c => <option key={c.name} value={c.name}>{catLabel(c, lang)}</option>)}
+            {form.category && !categories.some(c => c.name === form.category) && (
+              <option value={form.category}>{form.category}</option>
+            )}
+          </select>
+          <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+            {lang === 'ar' ? 'تُنسخ الفئة إلى كل أمر عمل يُنشأ.' : 'The category is copied onto every generated work order.'}
+          </p>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '10px 14px', cursor: 'pointer' }}>
+          <input type='checkbox' checked={requiresSignature} onChange={e => setRequiresSignature(e.target.checked)} style={{ width: 16, height: 16 }} />
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>
+            {lang === 'ar' ? 'يتطلب توقيعاً عند الإغلاق' : 'Require sign-off at close'}
+          </span>
+          <span style={{ fontSize: 12, color: '#666' }}>
+            {lang === 'ar' ? 'لا يمكن إغلاق أوامر العمل المُنشأة بدون توقيع مكتوب.' : 'Generated work orders cannot be closed without a typed sign-off.'}
+          </span>
+        </label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={labelStyle}>Assign To</label>

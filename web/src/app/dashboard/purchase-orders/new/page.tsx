@@ -23,6 +23,8 @@ export default function NewPurchaseOrderPage() {
   const [items, setItems] = useState<Row[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // FM-17: org-level module toggle (Settings → Purchasing). Permissive default.
+  const [moduleEnabled, setModuleEnabled] = useState(true)
 
   const [vendorId, setVendorId] = useState('')
   const [siteId, setSiteId] = useState('')
@@ -37,6 +39,12 @@ export default function NewPurchaseOrderPage() {
   async function loadRefs() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { if (typeof window !== 'undefined') window.location.href = '/login'; return }
+    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+    if (profile) {
+      const { data: org } = await supabase
+        .from('organisations').select('purchasing_enabled').eq('id', profile.organisation_id).single()
+      if (org?.purchasing_enabled === false) { setModuleEnabled(false); return }
+    }
     const [vRes, sRes, iRes] = await Promise.all([
       supabase.from('vendors').select('id, company_name').order('company_name'),
       supabase.from('sites').select('id, name').order('name'),
@@ -91,6 +99,17 @@ export default function NewPurchaseOrderPage() {
     }
     router.push('/dashboard/purchase-orders')
   }
+
+  if (!moduleEnabled) return (
+    <div className="star-pattern bg-surface min-h-screen p-8">
+      <div className="max-w-xl mx-auto text-center py-16 text-on-surface-variant bg-surface-container-lowest border border-outline-variant rounded-[12px]">
+        <span className="material-symbols-outlined text-5xl mb-3 block text-outline-variant">shopping_cart_off</span>
+        <p className="text-lg font-semibold mb-1 text-on-surface">Purchase Orders is disabled</p>
+        <p className="text-sm mb-4">An organisation admin turned this module off.</p>
+        <Link href="/dashboard/settings/purchasing" className="text-primary text-sm font-semibold hover:underline">Purchasing Settings</Link>
+      </div>
+    </div>
+  )
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">

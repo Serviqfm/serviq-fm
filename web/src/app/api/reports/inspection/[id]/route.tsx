@@ -6,7 +6,7 @@ import React from 'react'
 
 export const runtime = 'nodejs'
 
-type InspectionResponse = { item_id?: string; question?: string; value?: string; notes?: string }
+type InspectionResponse = { item_id?: string; question?: string; label?: string; value?: string; notes?: string; result?: string | null; min?: number | null; max?: number | null }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createServerSupabaseClient()
@@ -35,8 +35,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const overallColor = resultColor[overall] ?? '#006b54'
   const overallLabel = resultLabel[overall] ?? '—'
 
-  const passes = responses.filter(r => r.value === 'pass').length
-  const fails = responses.filter(r => r.value === 'fail').length
+  // CORE-27: numeric items carry a computed result ('fail' when out of range).
+  const passes = responses.filter(r => r.value === 'pass' || r.result === 'pass').length
+  const fails = responses.filter(r => r.value === 'fail' || r.result === 'fail').length
 
   const doc = (
     <Document>
@@ -80,8 +81,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
           ) : (
             responses.map((r, i) => (
               <View key={i} style={s.tableRow}>
-                <View style={{ ...s.tableCell, width: '60%' }}><Text>{r.question ?? r.item_id ?? '—'}</Text></View>
-                <View style={{ ...s.tableCell, width: '15%', color: resultColor[r.value ?? ''] ?? '#1E2D4E' }}><Text>{r.value ?? '—'}</Text></View>
+                <View style={{ ...s.tableCell, width: '60%' }}><Text>{r.question ?? r.label ?? r.item_id ?? '—'}{r.min != null || r.max != null ? ` (range ${r.min ?? '−∞'}–${r.max ?? '∞'})` : ''}</Text></View>
+                <View style={{ ...s.tableCell, width: '15%', color: resultColor[r.result ?? r.value ?? ''] ?? '#1E2D4E' }}><Text>{r.value ?? '—'}</Text></View>
                 <View style={{ ...s.tableCell, width: '25%' }}><Text>{r.notes ?? ''}</Text></View>
               </View>
             ))

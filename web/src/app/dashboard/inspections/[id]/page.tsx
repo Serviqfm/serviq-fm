@@ -31,7 +31,8 @@ export default function InspectionDetailPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const responses: any[] = inspection.responses ?? []
-  const failedItems = responses.filter(r => r.value === 'fail')
+  // CORE-27: numeric items store a computed result ('fail' when out of range).
+  const failedItems = responses.filter(r => r.value === 'fail' || r.result === 'fail')
 
   const resultConfig: Record<string, { bg: string; color: string; label: string }> = {
     pass:    { bg: '#e8f5e9', color: '#2e7d32', label: 'Overall Pass' },
@@ -83,13 +84,16 @@ export default function InspectionDetailPage() {
 
       <div style={{ border: '1px solid #eee', borderRadius: 12, overflow: 'hidden' }}>
         {responses.map((r, i) => {
-          const isFail = r.value === 'fail'
-          const isPass = r.value === 'pass'
+          const isFail = r.value === 'fail' || r.result === 'fail'
+          const isPass = r.value === 'pass' || r.result === 'pass'
           return (
             <div key={i} style={{ padding: '14px 16px', borderBottom: '1px solid #f5f5f5', background: isFail ? '#fff8f8' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{i + 1}. {r.label}</p>
-                <p style={{ fontSize: 11, color: '#bbb', margin: '2px 0 0' }}>{r.type.replace('_', '/')}</p>
+                <p style={{ fontSize: 11, color: '#bbb', margin: '2px 0 0' }}>
+                  {r.type.replace('_', '/')}
+                  {r.type === 'numeric' && (r.min != null || r.max != null) && ` · range ${r.min ?? '−∞'}–${r.max ?? '∞'}`}
+                </p>
               </div>
               <div>
                 {r.value !== null && r.value !== undefined && r.value !== '' ? (

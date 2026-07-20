@@ -75,6 +75,7 @@ export default function PMSchedulesPage() {
       title: schedule.title,
       description: schedule.description || null,
       priority: schedule.priority || 'medium',
+      category: schedule.category || null,
       status: schedule.assigned_to ? 'assigned' : 'new',
       source: 'pm_schedule',
       pm_schedule_id: schedule.id,

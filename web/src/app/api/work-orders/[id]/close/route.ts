@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Load existing WO for org-scope, status fallback, and existing photo merge.
   const { data: existingWO, error: loadErr } = await admin
     .from('work_orders')
-    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers, completion_notes')
+    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers, completion_notes, signed_off_by, pm_schedule_id')
     .eq('id', id)
     .single()
   if (loadErr || !existingWO) {
@@ -77,6 +77,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
     if (existingWO.status !== 'completed') {
       return NextResponse.json({ error: 'A work order must be completed before it can be closed' }, { status: 400 })
+    }
+    // 1C-12: a PM schedule flagged requires_signature makes the typed sign-off
+    // mandatory at close. Checked via the schedule (no WO column needed), so it
+    // also covers WOs generated before the flag was set.
+    if (existingWO.pm_schedule_id && !body.signoff?.trim() && !existingWO.signed_off_by) {
+      const { data: pm } = await admin
+        .from('pm_schedules')
+        .select('requires_signature')
+        .eq('id', existingWO.pm_schedule_id)
+        .single()
+      if (pm?.requires_signature) {
+        return NextResponse.json({ error: 'This PM work order requires a typed sign-off to close' }, { status: 400 })
+      }
     }
   }
 
