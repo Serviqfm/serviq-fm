@@ -9,6 +9,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { getOrgId } from '@/lib/auth-helper'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
+import { NotificationService } from '@/lib/NotificationService'
 import type { WorkOrderStatus } from '@/types/work-order'
 
 export const dynamic = 'force-dynamic'
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Load existing WO for org-scope, status fallback, and existing photo merge.
   const { data: existingWO, error: loadErr } = await admin
     .from('work_orders')
-    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers, completion_notes, signed_off_by, pm_schedule_id')
+    .select('id, organisation_id, status, photo_urls, assigned_to, additional_workers, completion_notes, signed_off_by, pm_schedule_id, created_by, title, wo_number')
     .eq('id', id)
     .single()
   if (loadErr || !existingWO) {
@@ -175,6 +176,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     status: newStatus,
     previous_status: existingWO.status,
   })
+
+  // CORE-04: notify org admins/managers + the WO creator when a WO first reaches
+  // `completed`. Guard on the actual transition so a re-save of an already-completed
+  // WO (or the later close step) doesn't re-notify. In-app only via the shared helper;
+  // dedupe_key wo_completed:<id> makes it once-only per recipient (best-effort).
+  if (newStatus === 'completed' && existingWO.status !== 'completed') {
+    try {
+      const label = existingWO.wo_number ? `WO-${existingWO.wo_number}` : existingWO.title
+      const link = `${process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'}/dashboard/work-orders/${id}`
+      const { data: managers } = await admin
+        .from('users')
+        .select('id')
+        .eq('organisation_id', profile.organisation_id)
+        .in('role', ['admin', 'manager'])
+        .eq('is_active', true)
+      const ids = (managers as { id: string }[] | null ?? []).map((m) => m.id)
+      if (existingWO.created_by) ids.push(existingWO.created_by)
+      // Dedupe and drop the actor (they don't self-notify on their own completion).
+      const recipients = ids.filter((uid, i) => uid !== user.id && ids.indexOf(uid) === i)
+      for (const uid of recipients) {
+        await NotificationService.insertInApp(uid, profile.organisation_id, 'wo_i_assigned_updated', {
+          title: `${label} completed`,
+          body: existingWO.title,
+          link,
+          dedupeKey: `wo_completed:${id}`,
+        })
+      }
+    } catch (notifyErr) {
+      console.error('[work-orders close POST] completion notify failed', notifyErr)
+    }
+  }
 
   return NextResponse.json({ work_order: data })
 }

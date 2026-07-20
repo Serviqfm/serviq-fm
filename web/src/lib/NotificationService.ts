@@ -143,8 +143,8 @@ export class NotificationService {
   /**
    * Insert an in-app alert-center row (CORE-15). Separate from email/push: this is
    * the feed the header bell reads. `dedupeKey` makes the insert once-only per user
-   * (CORE-16 escalation cron relies on the partial unique index in
-   * docs/superpowers/sql/t10-01-user-notifications.sql) — a duplicate is swallowed.
+   * (CORE-16 escalation cron relies on the UNIQUE (user_id, dedupe_key) constraint in
+   * docs/superpowers/sql/w5-01-notif-dedupe-constraint.sql) — a duplicate is swallowed.
    * Returns true if a new row was written, false on duplicate/failure.
    */
   static async insertInApp(
@@ -154,8 +154,12 @@ export class NotificationService {
     opts: { title: string; body?: string; link?: string; dedupeKey?: string }
   ): Promise<boolean> {
     try {
+      // upsert ON CONFLICT DO NOTHING: a re-notify (same user+dedupe_key) is a
+      // no-op HTTP 200 instead of a 409, so the hourly crons don't spam the log.
+      // Needs a real UNIQUE constraint on (user_id, dedupe_key) — PostgREST can't
+      // target the partial index (docs/superpowers/sql/w5-01-notif-dedupe-constraint.sql).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (this.supabase.from('user_notifications') as any).insert({
+      const { error } = await (this.supabase.from('user_notifications') as any).upsert({
         user_id: userId,
         organisation_id: organisationId,
         type_key: typeKey,
@@ -163,8 +167,9 @@ export class NotificationService {
         body: opts.body ?? null,
         link: opts.link ?? null,
         dedupe_key: opts.dedupeKey ?? null,
-      });
-      // 23505 = unique_violation: the event already notified this user. Not an error.
+      }, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true });
+      // 23505 = unique_violation: kept as a race guard (a concurrent insert can
+      // still 409 between the conflict check and write). Not an error.
       if (error) {
         if ((error as { code?: string }).code === '23505') return false;
         console.error('Failed to insert in-app notification:', error);
