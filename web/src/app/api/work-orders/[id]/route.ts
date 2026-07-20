@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { slaTransitionPatch } from '@/lib/sla'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +113,31 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       ? ((cleaned.assigned_to || assignedVendorId) ? 'assigned' : 'new')
       : existingWO.status,
     updated_at: new Date().toISOString(),
+  }
+
+  // FM-03: SLA-clock bookkeeping when this PATCH changes the WO status — stamp
+  // first_response_at on first entry into in_progress, and start/stop the on-hold
+  // pause clock. Resolution breach stays derived (completed_at vs due_at + paused),
+  // so no trigger here. Columns may be absent pre-migration; tolerate + skip.
+  // ponytail: the WO detail status control writes in_progress/on_hold via a direct
+  // supabase update, so today that path is handled there; this covers PATCH callers.
+  const newStatus = updateRow.status as string
+  if (newStatus !== existingWO.status) {
+    const { data: slaRow } = await supabase
+      .from('work_orders')
+      .select('first_response_at, sla_paused_at, sla_paused_total_minutes')
+      .eq('id', id)
+      .maybeSingle()
+    if (slaRow) {
+      Object.assign(updateRow, slaTransitionPatch({
+        prevStatus: existingWO.status,
+        newStatus,
+        firstResponseAt: slaRow.first_response_at ?? null,
+        slaPausedAt: slaRow.sla_paused_at ?? null,
+        slaPausedTotalMinutes: slaRow.sla_paused_total_minutes ?? 0,
+        nowMs: Date.now(),
+      }))
+    }
   }
 
   const { data, error } = await admin
