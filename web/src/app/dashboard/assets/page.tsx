@@ -40,6 +40,8 @@ export default function AssetsPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  // AL-03: asset ids with an OPEN asset_downtime period → red "not operational" badge.
+  const [downAssets, setDownAssets] = useState<Set<string>>(new Set())
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -64,6 +66,17 @@ export default function AssetsPage() {
     },
     [statusFilter, categoryFilter, debouncedSearch],
   )
+
+  // AL-03: flag assets that currently have an open downtime period. `assets` is a
+  // stable ref between page loads (usePagination), so this only re-runs per page.
+  useEffect(() => {
+    const ids = assets.map(a => a.id)
+    if (ids.length === 0) { setDownAssets(new Set()); return }
+    let cancelled = false
+    supabase.from('asset_downtime').select('asset_id').is('ended_at', null).in('asset_id', ids)
+      .then(({ data }) => { if (!cancelled) setDownAssets(new Set((data ?? []).map((r: { asset_id: string }) => r.asset_id))) })
+    return () => { cancelled = true }
+  }, [assets, supabase])
 
   // AL-01: deleting a parent silently promoted its children to top level
   // (parent_asset_id is ON DELETE SET NULL). Surface the descendants and make
@@ -279,8 +292,15 @@ export default function AssetsPage() {
                       {/* Card image / icon area */}
                       <div className="relative h-36 bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center overflow-hidden">
                         <span className="material-symbols-outlined text-7xl text-outline-variant/30 group-hover:scale-110 transition-transform duration-500" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
-                        <div className={`absolute top-3 left-3 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${statusCls}`}>
-                          {asset.status?.replace('_', ' ') ?? 'active'}
+                        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5">
+                          <div className={`backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${statusCls}`}>
+                            {asset.status?.replace('_', ' ') ?? 'active'}
+                          </div>
+                          {downAssets.has(asset.id) && (
+                            <div className="flex items-center gap-1 backdrop-blur bg-error/90 text-on-error px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                              <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>Not Operational
+                            </div>
+                          )}
                         </div>
                         <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Link href={`/dashboard/assets/${asset.id}/edit`}>
@@ -369,6 +389,11 @@ export default function AssetsPage() {
                               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLASSES[asset.status] ?? STATUS_CLASSES.active}`}>
                                 {asset.status?.replace('_', ' ') ?? 'active'}
                               </span>
+                              {downAssets.has(asset.id) && (
+                                <span className="mt-1 flex items-center gap-1 w-fit px-2.5 py-0.5 rounded-full text-xs font-semibold bg-error/10 text-error">
+                                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>Not Operational
+                                </span>
+                              )}
                             </td>
                             <td className={`p-3 text-sm ${expired ? 'text-error font-semibold' : warningSoon ? 'text-[#f57f17] font-semibold' : 'text-on-surface-variant'}`}>
                               {asset.warranty_expiry ? `${format(new Date(asset.warranty_expiry), 'dd MMM yyyy')}${expired ? ' (Expired)' : warningSoon ? ' (Soon)' : ''}` : '—'}
