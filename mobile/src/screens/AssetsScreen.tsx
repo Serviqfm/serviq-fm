@@ -29,6 +29,12 @@ export default function AssetsScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
+            onPress={() => navigation.navigate('AssetLog' as never)}
+            accessibilityLabel={t('asset_log')}
+            style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+            <Ionicons name="pricetags-outline" size={22} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => navigation.navigate('QRScanner' as never)}
             style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
             <Ionicons name="qr-code-outline" size={22} color="white" />

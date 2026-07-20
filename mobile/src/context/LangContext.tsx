@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { i18n, setLocale } from '../i18n'
+import { syncRTL } from '../lib/rtl'
 
 type LangContextType = {
   lang: 'ar' | 'en'
@@ -18,10 +19,10 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem('serviq_lang').then(saved => {
-      if (saved === 'ar' || saved === 'en') {
-        setLangState(saved)
-        setLocale(saved)
-      }
+      const l = saved === 'ar' || saved === 'en' ? saved : 'en'
+      if (l !== 'en') { setLangState(l); setLocale(l) }
+      // Align native RTL with the saved language on startup (reloads if it flips).
+      syncRTL(l)
     })
   }, [])
 
@@ -29,6 +30,8 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     setLangState(l)
     setLocale(l)
     AsyncStorage.setItem('serviq_lang', l).catch(() => {})
+    // Flip native layout direction; reloads the app when the direction changes.
+    syncRTL(l)
   }
 
   function t(key: string, options?: Record<string, unknown>) {

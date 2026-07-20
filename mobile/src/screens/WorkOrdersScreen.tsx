@@ -90,6 +90,10 @@ export default function WorkOrdersScreen() {
     if (profile.role === 'technician') {
       query.eq('assigned_to', profile.id)
     }
+    // CORE-19: requesters are scoped to their own submissions, never the org-wide list.
+    if (profile.role === 'requester') {
+      query.eq('created_by', profile.id)
+    }
     // admins and managers see all org WOs
 
     const { data } = await query
