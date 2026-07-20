@@ -1,7 +1,8 @@
 // AG-11 — Asset Log warranty-expiry cron. Runs weekly.
-// Notifies org admins of non-disposed asset_log_items whose warranty_expiry falls
-// in exactly 30 or 7 days. Deduped per (item, window, user) via NotificationService
-// dedupeKey, so re-runs never re-notify — mirrors /api/cron/compliance-expiry.
+// Notifies org admins/managers of warranty_expiry falling in exactly 30 or 7 days,
+// for both the Asset Log (asset_log_items) and MEP assets (assets) — CORE-17.
+// Deduped per (item, window, user) via NotificationService dedupeKey, so re-runs
+// never re-notify — mirrors /api/cron/compliance-expiry.
 //
 // Auth: requires Authorization: Bearer ${CRON_SECRET}, fails closed if unset.
 // Wired in vercel.json -> crons.
@@ -27,6 +28,13 @@ type ItemRow = {
   warranty_expiry: string // DATE
 }
 
+type AssetRow = {
+  id: string
+  organisation_id: string
+  name: string | null
+  warranty_expiry: string // DATE
+}
+
 // YYYY-MM-DD for `days` from today (UTC), matching the DATE column.
 function isoDate(days: number): string {
   const d = new Date()
@@ -44,25 +52,37 @@ async function run() {
 
   let notified = 0
   const errors: string[] = []
-  const adminsByOrg = new Map<string, { id: string }[]>()
+  const recipientsByOrg = new Map<string, { id: string }[]>()
 
-  async function orgAdmins(orgId: string): Promise<{ id: string }[]> {
-    const cached = adminsByOrg.get(orgId)
+  async function orgRecipients(orgId: string): Promise<{ id: string }[]> {
+    const cached = recipientsByOrg.get(orgId)
     if (cached) return cached
     const { data } = await admin
       .from('users')
       .select('id')
       .eq('organisation_id', orgId)
-      .eq('role', 'admin')
+      .in('role', ['admin', 'manager'])
       .eq('is_active', true)
     const rows = (data as { id: string }[]) ?? []
-    adminsByOrg.set(orgId, rows)
+    recipientsByOrg.set(orgId, rows)
     return rows
   }
 
+  // Fan a single warranty alert out to an org's admins/managers, deduped per user.
+  async function notify(orgId: string, key: string, title: string, body: string, link: string) {
+    for (const a of await orgRecipients(orgId)) {
+      if (await NotificationService.insertInApp(a.id, orgId, 'daily_summary_ready', {
+        title, body, link, dedupeKey: `${key}:${a.id}`,
+      })) notified++
+    }
+  }
+
   for (const days of WINDOWS) {
+    const target = isoDate(days)
+    const title = `Warranty expiring in ${days} days`
+
+    // Asset Log items (AG-11).
     try {
-      const target = isoDate(days)
       const { data: rows } = await admin
         .from('asset_log_items')
         .select('id, organisation_id, item_number, name, warranty_expiry')
@@ -72,19 +92,31 @@ async function run() {
 
       for (const it of rows ?? []) {
         const al = 'AL-' + String(it.item_number).padStart(4, '0')
-        const link = `${APP_URL}/dashboard/asset-log/${it.id}`
-        const title = `Warranty expiring in ${days} days`
-        const body = `${al} ${it.name} — warranty expires ${it.warranty_expiry}`
         // dedupe per item + window; the expiry date is fixed so re-runs are silent.
-        const key = `asset_warranty:${it.id}:${days}`
-        for (const a of await orgAdmins(it.organisation_id)) {
-          if (await NotificationService.insertInApp(a.id, it.organisation_id, 'daily_summary_ready', {
-            title, body, link, dedupeKey: `${key}:${a.id}`,
-          })) notified++
-        }
+        await notify(it.organisation_id, `asset_warranty:${it.id}:${days}`, title,
+          `${al} ${it.name} — warranty expires ${it.warranty_expiry}`,
+          `${APP_URL}/dashboard/asset-log/${it.id}`)
       }
     } catch (e) {
-      errors.push(`${days}d: ${e instanceof Error ? e.message : String(e)}`)
+      errors.push(`asset-log ${days}d: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    // MEP assets (CORE-17). Skip retired assets; distinct dedupe namespace.
+    try {
+      const { data: rows } = await admin
+        .from('assets')
+        .select('id, organisation_id, name, warranty_expiry')
+        .neq('status', 'retired')
+        .eq('warranty_expiry', target)
+        .returns<AssetRow[]>()
+
+      for (const a of rows ?? []) {
+        await notify(a.organisation_id, `mep_asset_warranty:${a.id}:${days}`, title,
+          `${a.name ?? 'Asset'} — warranty expires ${a.warranty_expiry}`,
+          `${APP_URL}/dashboard/assets/${a.id}`)
+      }
+    } catch (e) {
+      errors.push(`assets ${days}d: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
