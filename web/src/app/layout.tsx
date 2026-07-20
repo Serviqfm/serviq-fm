@@ -1,5 +1,6 @@
 import "./globals.css";
 import { DM_Sans, Readex_Pro } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import { metadata as brandMetadata } from '@/brand/metadata'
 
 const dmSans = DM_Sans({
@@ -21,7 +22,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${dmSans.className} ${readexPro.className}`}>
-      <body>{children}</body>
+      <body>{children}<Analytics /></body>
     </html>
   );
 }
