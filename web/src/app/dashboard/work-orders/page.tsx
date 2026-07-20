@@ -248,7 +248,8 @@ export default function WorkOrdersPage() {
     const { data: me } = user
       ? await supabase.from('users').select('id, role').eq('id', user.id).single()
       : { data: null }
-    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').order('created_at', { ascending: false })
+    // WO-12: archived WOs are hidden from the default list.
+    let query = supabase.from('work_orders').select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)').is('archived_at', null).order('created_at', { ascending: false })
     if (me?.role === 'technician') {
       query = query.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
     }

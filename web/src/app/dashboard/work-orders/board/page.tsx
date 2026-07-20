@@ -52,6 +52,7 @@ export default function WorkOrderBoardPage() {
       .select('id, wo_number, title, status, priority, due_at, assigned_to, asset:asset_id(name), site:site_id(name), assignee:assigned_to(full_name)')
       .eq('organisation_id', me.organisation_id)
       .not('status', 'eq', 'closed')
+      .is('archived_at', null) // WO-12: hide archived WOs
     // CORE-21: technicians see only their own WOs, same filter as the list/calendar.
     if (me.role === 'technician') query = query.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
     const { data } = await query

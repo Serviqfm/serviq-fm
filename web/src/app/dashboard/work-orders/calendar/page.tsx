@@ -39,6 +39,7 @@ export default function WorkOrderCalendarPage() {
       .eq('organisation_id', me.organisation_id)
       .not('due_at', 'is', null)
       .not('status', 'in', '("completed","closed")')
+      .is('archived_at', null) // WO-12: hide archived WOs
     // CORE-21: technicians only see their own WOs on the calendar too.
     if (me.role === 'technician') query = query.or(`assigned_to.eq.${me.id},additional_workers.cs.{${me.id}}`)
     const { data } = await query

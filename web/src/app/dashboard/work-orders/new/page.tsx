@@ -180,6 +180,11 @@ export default function NewWorkOrderPage() {
         const asset = assets.find(a => a.id === value)
         if (asset?.site_id) next.site_id = asset.site_id
       }
+      // WO-29: switching site clears an asset that belongs to a different site.
+      if (name === 'site_id' && value) {
+        const asset = assets.find(a => a.id === next.asset_id)
+        if (asset?.site_id && asset.site_id !== value) next.asset_id = ''
+      }
       return next
     })
     if (name === 'asset_id') checkDuplicate(value, form.title)
@@ -462,7 +467,8 @@ export default function NewWorkOrderPage() {
                     required={isReq('asset_id')}
                     className={inputCls}>
                     <option value="">{lang === 'ar' ? 'اختر الأصل' : 'Select asset'}</option>
-                    {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {/* WO-29: once a site is chosen, only its assets are offered. */}
+                    {assets.filter(a => !form.site_id || !a.site_id || a.site_id === form.site_id).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                   {assets.length === 0 && <p className="text-xs text-on-surface-variant mt-1">No assets added yet</p>}
                 </div>

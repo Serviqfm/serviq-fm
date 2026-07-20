@@ -25,6 +25,7 @@ export interface WorkOrder {
   started_at: string | null
   completed_at: string | null
   closed_at: string | null
+  archived_at?: string | null
   photo_urls: string[]
   media_expires_at: string
   completion_notes: string | null
