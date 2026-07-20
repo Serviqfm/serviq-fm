@@ -4,18 +4,20 @@
 //  1. Read cache: last-fetched WO list / WO detail / profile snapshots
 //     (cacheGet/cacheSet), served by the screens when a fetch fails offline.
 //  2. Connectivity: NetInfo listener + useOffline() hook for the banner.
-//  3. Mutation queue: status changes, comments and time logs made offline are
-//     stored FIFO and replayed in order on reconnect. Failed items stay in the
-//     queue (surfaced as a count in the banner) and are retried on the next
-//     reconnect or a manual banner tap.
+//  3. Mutation queue: status changes, comments, time logs and photos made
+//     offline are stored FIFO and replayed in order on reconnect. Photos are
+//     replayed first so dependent mutations never land before their media
+//     (FM-14). Failed items stay in the queue (surfaced as a count in the
+//     banner) and are retried on the next reconnect or a manual banner tap.
 //
-// ponytail: last-write-wins, no per-WO ordering across devices, photo uploads
-// and Complete/Close stay online-only — WatermelonDB sync is the upgrade path
-// if fuller offline is ever needed.
+// ponytail: last-write-wins, no per-WO ordering across devices, Complete/Close
+// stays online-only — WatermelonDB sync is the upgrade path if fuller offline
+// is ever needed.
 
 import { useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import NetInfo from '@react-native-community/netinfo'
+import * as FileSystem from 'expo-file-system/legacy'
 import { supabase } from './supabase'
 
 // ---------------------------------------------------------------- read cache
@@ -43,6 +45,8 @@ export type QueuedMutation =
   | { kind: 'wo_status'; woId: string; updates: Record<string, any>; body: string; userId: string | null }
   | { kind: 'comment'; woId: string; body: string; userId: string | null }
   | { kind: 'time_log'; woId: string; body: string; addHours: number; userId: string | null }
+  // FM-14: a compressed photo saved locally, uploaded + attached to the WO on reconnect.
+  | { kind: 'wo_photo'; woId: string; localUri: string; filename: string }
 
 export type QueuedItem = QueuedMutation & {
   id: string
@@ -80,8 +84,42 @@ export async function enqueue(mutation: QueuedMutation): Promise<void> {
   await writeQueue(queue)
 }
 
+// FM-14: queue an offline photo. Copies the compressed image out of the
+// manipulator cache into the app document dir (so it survives app restarts and
+// cache eviction), then queues the upload+attach. Returns the durable local
+// URI so the caller can show the photo immediately.
+export async function enqueuePhoto(woId: string, compressedUri: string): Promise<string> {
+  const filename = 'wo-' + woId + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + '.jpg'
+  const localUri = FileSystem.documentDirectory + filename
+  await FileSystem.copyAsync({ from: compressedUri, to: localUri })
+  await enqueue({ kind: 'wo_photo', woId, localUri, filename })
+  return localUri
+}
+
 async function replay(m: QueuedItem): Promise<void> {
-  if (m.kind === 'wo_status') {
+  if (m.kind === 'wo_photo') {
+    // Upload the locally saved file, then append its public URL to the WO.
+    const response = await fetch(m.localUri)
+    const blob = await response.blob()
+    const arrayBuffer = await new Response(blob).arrayBuffer()
+    // upsert: true — the filename is unique to this queued item, and a retry
+    // after a failed DB write must not error on the already-uploaded object.
+    const { error } = await supabase.storage.from('media').upload(m.filename, arrayBuffer, { contentType: 'image/jpeg', upsert: true })
+    if (error) throw new Error(error.message)
+    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(m.filename)
+    const { data, error: rErr } = await supabase.from('work_orders').select('photo_urls').eq('id', m.woId).single()
+    if (rErr) throw new Error(rErr.message)
+    const current: string[] = data?.photo_urls ?? []
+    if (!current.includes(publicUrl)) {
+      const { error: uErr } = await supabase.from('work_orders').update({
+        photo_urls: [...current, publicUrl],
+        updated_at: new Date().toISOString(),
+      }).eq('id', m.woId)
+      if (uErr) throw new Error(uErr.message)
+    }
+    // Best-effort cleanup of the local copy once it is safely attached.
+    FileSystem.deleteAsync(m.localUri, { idempotent: true }).catch(() => {})
+  } else if (m.kind === 'wo_status') {
     const { error } = await supabase.from('work_orders').update(m.updates).eq('id', m.woId)
     if (error) throw new Error(error.message)
     // ponytail: if the comment insert below fails, a retry re-runs the (idempotent)
@@ -124,8 +162,14 @@ export async function flushQueue(): Promise<void> {
     if (!session) return
     const queue = await readQueue()
     if (queue.length === 0) return
+    // FM-14: upload queued photos first so mutations that reference their
+    // work orders replay against fully-attached media. FIFO within each group.
+    const ordered = [
+      ...queue.filter(q => q.kind === 'wo_photo'),
+      ...queue.filter(q => q.kind !== 'wo_photo'),
+    ]
     const remaining: QueuedItem[] = []
-    for (const item of queue) {
+    for (const item of ordered) {
       try {
         await replay(item)
       } catch (e: any) {

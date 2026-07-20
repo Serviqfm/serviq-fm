@@ -142,6 +142,14 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.qaLabel}>{t('work_orders')}</Text>
         </TouchableOpacity>
+        {profile?.role !== 'requester' && (
+          <TouchableOpacity style={styles.qaBtn} onPress={() => navigation.navigate('RunInspection')}>
+            <View style={[styles.qaIcon, { backgroundColor: colors.errorLight }]}>
+              <Ionicons name='checkbox-outline' size={24} color={colors.error} />
+            </View>
+            <Text style={styles.qaLabel}>{t('inspection')}</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.qaBtn} onPress={() => navigation.navigate('Assets')}>
           <View style={[styles.qaIcon, { backgroundColor: colors.warningLight }]}>
             <Ionicons name='cube-outline' size={24} color={colors.warning} />
