@@ -22,8 +22,9 @@ function NewInspectionForm() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [templateId, setTemplateId] = useState(searchParams.get('template') ?? '')
-  const [siteId, setSiteId] = useState('')
-  const [spaceId, setSpaceId] = useState('')
+  // CORE-26: cron-generated inspection WOs deep-link here with site/space pre-filled.
+  const [siteId, setSiteId] = useState(searchParams.get('site') ?? '')
+  const [spaceId, setSpaceId] = useState(searchParams.get('space') ?? '')
   const [assetId, setAssetId] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [responses, setResponses] = useState<Record<string, any>>({})
@@ -68,7 +69,9 @@ function NewInspectionForm() {
   useEffect(() => {
     if (!siteId) { setSpaces([]); setSpaceId(''); return }
     supabase.from('spaces').select('id, name, floor').eq('site_id', siteId).order('floor').order('name')
-      .then(({ data }) => { setSpaces(data ?? []); setSpaceId('') })
+      // Keep a pre-filled space (deep link) if it belongs to this site; clear otherwise.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data }) => { setSpaces(data ?? []); setSpaceId(prev => (data ?? []).some((s: any) => s.id === prev) ? prev : '') })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId])
 
