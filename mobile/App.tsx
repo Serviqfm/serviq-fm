@@ -19,10 +19,12 @@ ErrorUtils.setGlobalHandler((err: unknown, isFatal?: boolean) => {
   prevHandler?.(err as Error, isFatal) // keep RN's red-box / crash behaviour
 })
 
-// CORE-06 — tapping a work-order push opens its detail screen. The web /api/push
-// sends { woId, woNumber } in the notification data payload.
+// CORE-06 — tapping a work-order push opens its detail screen. Two payload shapes
+// exist in the wild: NotificationService sends { woId, woNumber }; the direct
+// sendPushNotification() calls (WO assigned / status-change / requester close) send
+// { type: 'work_order', id }. Accept both so every current web push deep-links.
 function routeFromNotification(data: any) {
-  const woId = data?.woId
+  const woId = data?.woId ?? (data?.type === 'work_order' ? data?.id : undefined)
   if (typeof woId === 'string' && woId) routeToWorkOrder(woId)
 }
 
