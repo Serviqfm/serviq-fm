@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { deliverWebhookEvent } from '@/lib/webhookDelivery'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,5 +98,18 @@ export async function POST(req: NextRequest) {
     console.error('[work-orders POST] insert failed', error)
     return NextResponse.json({ error: error.message || 'Failed to create work order' }, { status: 500 })
   }
+
+  // MKT-19: fire wo.created to registered webhooks (fire-and-forget, mirrors
+  // the wo.status_changed wiring in [id]/close).
+  void deliverWebhookEvent(profile.organisation_id, 'wo.created', {
+    id: (data as { id?: string })?.id ?? null,
+    wo_number: (data as { wo_number?: number | null })?.wo_number ?? null,
+    title: insertRow.title ?? null,
+    status: insertRow.status,
+    priority: insertRow.priority,
+    site_id: insertRow.site_id,
+    asset_id: insertRow.asset_id,
+  })
+
   return NextResponse.json({ work_order: data })
 }
