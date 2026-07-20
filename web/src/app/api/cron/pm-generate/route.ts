@@ -321,7 +321,9 @@ async function runMeterPass(admin: any, orgAdmin: (orgId: string) => Promise<str
       if (existing && existing.length > 0) continue
 
       const createdBy = await orgAdmin(pm.organisation_id)
-      if (!createdBy) continue
+      // Unreachable in practice (every org has >=1 active admin); log if a data
+      // anomaly ever makes it true so a dropped meter WO isn't silent.
+      if (!createdBy) { console.warn(`pm-generate: meter PM ${pm.id} skipped — org ${pm.organisation_id} has no active admin for created_by`); continue }
 
       const { data: insWO, error: insErr } = await admin.from('work_orders').insert({
         organisation_id: pm.organisation_id,
