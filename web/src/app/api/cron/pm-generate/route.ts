@@ -88,12 +88,36 @@ function rollForward(from: Date, pm: PMRow): Date {
   return addDays(from, FREQ_TO_DAYS[pm.frequency] ?? 30)
 }
 
+// These crons run with no acting user, but work_orders.created_by is NOT NULL.
+// Stamp each generated WO with one active org admin (guaranteed to exist), memoized
+// per org so we don't re-query inside the schedule loop. Mirrors the org-admin
+// resolution in /api/cron/compliance-expiry and /api/cron/asset-warranty.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeOrgAdminResolver(admin: any): (orgId: string) => Promise<string | null> {
+  const cache = new Map<string, string | null>()
+  return async (orgId: string): Promise<string | null> => {
+    if (cache.has(orgId)) return cache.get(orgId)!
+    const { data } = await admin
+      .from('users')
+      .select('id')
+      .eq('organisation_id', orgId)
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+    const id = (data as { id: string } | null)?.id ?? null
+    cache.set(orgId, id)
+    return id
+  }
+}
+
 async function run() {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+  const orgAdmin = makeOrgAdminResolver(admin)
 
   const now = new Date()
   // Fetch schedules due within a wide window; each schedule's exact lead time is
@@ -111,7 +135,7 @@ async function run() {
   if (error) return { error: error.message, generated: 0 }
   // Meter-triggered schedules can fire with no calendar due date, so they aren't
   // caught by the next_due_at window above — evaluate them in a separate pass.
-  const meterGenerated = await runMeterPass(admin)
+  const meterGenerated = await runMeterPass(admin, orgAdmin)
   if (!due || due.length === 0) return { error: null, generated: meterGenerated, scanned: 0 }
 
   let generated = 0
@@ -191,6 +215,13 @@ async function run() {
         ? rollForward(floatingCompletedAt, pm).toISOString()
         : pm.next_due_at
 
+      // created_by is NOT NULL; stamp an org admin (no acting user in a cron).
+      const createdBy = await orgAdmin(pm.organisation_id)
+      if (!createdBy) {
+        errors.push(`PM ${pm.id}: no active org admin to stamp created_by`)
+        continue
+      }
+
       // Insert the WO. Skip is_recurring/recurrence_frequency since those
       // columns aren't reliably present across all Supabase projects; the
       // recurrence is captured by pm_schedule_id alone.
@@ -206,6 +237,7 @@ async function run() {
         asset_id: pm.asset_id,
         site_id: pm.site_id,
         assigned_to: pm.assigned_to,
+        created_by: createdBy,
         due_at: woDueAt,
         sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
       }).select('id').single()
@@ -253,7 +285,7 @@ async function run() {
 // a double WO in the same cycle. Mirrors generate_due_pm_work_orders() in
 // docs/superpowers/sql/t8-01-meters-pm.sql.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function runMeterPass(admin: any): Promise<number> {
+async function runMeterPass(admin: any, orgAdmin: (orgId: string) => Promise<string | null>): Promise<number> {
   const { data: rows } = await admin
     .from('pm_schedules')
     .select('id, title, description, asset_id, site_id, assigned_to, estimated_duration_minutes, organisation_id, next_due_at, meter_id, meter_interval, last_trigger_reading, checklist_template_id, priority, category')
@@ -288,6 +320,9 @@ async function runMeterPass(admin: any): Promise<number> {
         .limit(1)
       if (existing && existing.length > 0) continue
 
+      const createdBy = await orgAdmin(pm.organisation_id)
+      if (!createdBy) continue
+
       const { data: insWO, error: insErr } = await admin.from('work_orders').insert({
         organisation_id: pm.organisation_id,
         title: `PM - ${pm.title}`,
@@ -300,6 +335,7 @@ async function runMeterPass(admin: any): Promise<number> {
         asset_id: pm.asset_id,
         site_id: pm.site_id,
         assigned_to: pm.assigned_to,
+        created_by: createdBy,
         due_at: pm.next_due_at,
         sla_hours: pm.estimated_duration_minutes ? Math.ceil(pm.estimated_duration_minutes / 60) : null,
       }).select('id').single()
