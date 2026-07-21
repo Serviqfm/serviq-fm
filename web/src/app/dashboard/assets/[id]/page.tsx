@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase'
 import { format, differenceInDays } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import QRCode from 'qrcode'
 import TranslateButton from '@/components/TranslateButton'
+import EntityFilesTab from '@/components/EntityFilesTab'
 import { useLanguage } from '@/context/LanguageContext'
 import { mtbfDays, downtimeStats } from '@/lib/kpis'
 
@@ -75,7 +77,9 @@ export default function AssetDetailPage() {
   const [pmSchedules, setPmSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [translatedAsset, setTranslatedAsset] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory' | 'children' | 'downtime'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'workorders' | 'pm' | 'photos' | 'qr' | 'custom' | 'pmhistory' | 'children' | 'downtime' | 'files'>('details')
+  // AL-11: QR rendered locally (qrcode lib), no third-party fetch.
+  const [qrDataUrl, setQrDataUrl] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pmHistory, setPmHistory] = useState<any[]>([])
   const [childAssets, setChildAssets] = useState<ChildAsset[]>([])
@@ -127,6 +131,13 @@ export default function AssetDetailPage() {
   }, [assetId])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  // AL-11: generate the QR data URL client-side (no api.qrserver.com leak).
+  useEffect(() => {
+    if (!asset) return
+    QRCode.toDataURL(window.location.origin + '/dashboard/assets/' + asset.id, { width: 200, margin: 2 })
+      .then(setQrDataUrl).catch(() => setQrDataUrl(''))
+  }, [asset])
 
   async function updateStatus(newStatus: string) {
     await supabase.from('assets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', assetId)
@@ -328,6 +339,7 @@ export default function AssetDetailPage() {
           <button className={tabCls(activeTab === 'workorders')} onClick={() => setActiveTab('workorders')}>Work Orders ({workOrders.length})</button>
           <button className={tabCls(activeTab === 'pm')} onClick={() => setActiveTab('pm')}>PM Schedules ({pmSchedules.length})</button>
           <button className={tabCls(activeTab === 'photos')} onClick={() => setActiveTab('photos')}>Photos ({photos.length})</button>
+          <button className={tabCls(activeTab === 'files')} onClick={() => setActiveTab('files')}>{lang === 'ar' ? 'الملفات' : 'Files'}</button>
           <button className={tabCls(activeTab === 'qr')} onClick={() => setActiveTab('qr')}>QR Code</button>
           <button className={tabCls(activeTab === 'pmhistory')} onClick={() => setActiveTab('pmhistory')}>PM History ({pmHistory.length})</button>
           <button className={tabCls(activeTab === 'downtime')} onClick={() => setActiveTab('downtime')}>{lang === 'ar' ? 'التوقفات' : 'Downtime'} ({downtime.length})</button>
@@ -479,12 +491,18 @@ export default function AssetDetailPage() {
           </div>
         )}
 
+        {activeTab === 'files' && (
+          <EntityFilesTab entityType="asset" entityId={assetId} orgId={asset.organisation_id} />
+        )}
+
         {activeTab === 'qr' && (
           <div className="text-center py-8">
             <p className="text-sm text-on-surface-variant mb-6">Scan this QR code to open this asset on any device. Print and attach it physically to the asset.</p>
             <div className="inline-block p-6 border border-outline-variant rounded-xl bg-surface-container-lowest mb-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/dashboard/assets/' + asset.id : '')} alt={t('assets.qr')} width={200} height={200} />
+              {qrDataUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={qrDataUrl} alt={t('assets.qr')} width={200} height={200} />
+                : <div className="w-[200px] h-[200px]" />}
             </div>
             <p className="text-xs text-outline font-mono">{asset.qr_code}</p>
             <p className="text-sm text-on-surface-variant mt-2">{asset.name} · {asset.site?.name ?? 'No site'}</p>
