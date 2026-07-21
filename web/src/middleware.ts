@@ -148,9 +148,16 @@ export async function middleware(req: NextRequest) {
     try {
       const { data: aal } = await userClient.auth.mfa.getAuthenticatorAssuranceLevel()
       if (aal && aal.nextLevel === 'aal2' && aal.currentLevel === 'aal1') {
-        const url = new URL('/mfa', req.url)
-        url.searchParams.set('next', path)
-        return applyCookies(NextResponse.redirect(url))
+        // The /mfa page can only challenge TOTP. Only step-up when a verified TOTP
+        // factor exists; a verified non-TOTP factor (e.g. phone) would dead-end
+        // there, so fail open in that case rather than lock the admin out.
+        const { data: factors } = await userClient.auth.mfa.listFactors()
+        const hasTotp = !!factors?.totp?.some(f => f.status === 'verified')
+        if (hasTotp) {
+          const url = new URL('/mfa', req.url)
+          url.searchParams.set('next', path)
+          return applyCookies(NextResponse.redirect(url))
+        }
       }
     } catch {
       // fail open
