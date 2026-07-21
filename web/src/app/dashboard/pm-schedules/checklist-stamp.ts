@@ -3,7 +3,7 @@
 //
 // Shared by the PM new-form "create first WO now" block, the PM list "Generate WO"
 // action, and the pm-generate cron. Keep in sync with the SQL fn
-// generate_due_pm_work_orders() (docs/superpowers/sql/b6-01-pm-checklists.sql),
+// generate_due_pm_work_orders() (SQL Files/b6-01-pm-checklists.sql),
 // which does the same stamping for cron/pg_cron-driven generation.
 //
 // Accepts either the browser or the service-role supabase client (same API), so

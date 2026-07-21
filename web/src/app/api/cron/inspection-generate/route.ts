@@ -17,7 +17,7 @@ export const maxDuration = 60
 //
 // Vercel: wired via vercel.json -> { path: '/api/cron/inspection-generate', schedule: '0 6 * * *' }
 // Auth: requires `Authorization: Bearer ${CRON_SECRET}` — no unauthenticated path.
-// Requires docs/superpowers/sql/b7-inspection-schedules.sql; fails closed with
+// Requires SQL Files/b7-inspection-schedules.sql; fails closed with
 // a clear error (and platform alert) if the table is absent.
 
 const FREQ_TO_DAYS: Record<string, number> = {

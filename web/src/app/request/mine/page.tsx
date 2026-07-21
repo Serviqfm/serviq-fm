@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 
 // MKT-10: aggregated history for an authenticated requester — every request THEY
 // submitted (scoped by requester_email = their own email; the RLS self-scope policy
-// in docs/superpowers/sql/w5-6-my-requests.sql enforces this at the DB too).
+// in "SQL Files/w5-6-my-requests.sql" enforces this at the DB too).
 
 type Row = {
   id: string

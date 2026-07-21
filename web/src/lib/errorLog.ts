@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 
 // DV-16 — central capture of unexpected server errors. Writes an error_logs row
-// (docs/superpowers/sql/b2-01-error-logs.sql) and, for cron failures, emails
+// (SQL Files/b2-01-error-logs.sql) and, for cron failures, emails
 // platform admins so PM generation / escalations can't fail silently.
 //
 // Server-only: uses SUPABASE_SERVICE_ROLE_KEY. Never import from client code.

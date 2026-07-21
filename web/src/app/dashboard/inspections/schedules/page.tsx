@@ -1,7 +1,7 @@
 'use client'
 
 // CORE-26 — Recurring/scheduled inspections. CRUD over inspection_schedules
-// (docs/superpowers/sql/b7-inspection-schedules.sql). The daily
+// (SQL Files/b7-inspection-schedules.sql). The daily
 // /api/cron/inspection-generate cron turns due schedules into WOs of source
 // 'inspection'. A non-empty rotation (ordered space list) makes the schedule
 // cycle through spaces one per generation — the hotel room-rotation case.

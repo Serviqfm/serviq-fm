@@ -183,7 +183,7 @@ export class NotificationService {
    * Insert an in-app alert-center row (CORE-15). Separate from email/push: this is
    * the feed the header bell reads. `dedupeKey` makes the insert once-only per user
    * (CORE-16 escalation cron relies on the UNIQUE (user_id, dedupe_key) constraint in
-   * docs/superpowers/sql/w5-01-notif-dedupe-constraint.sql) — a duplicate is swallowed.
+   * SQL Files/w5-01-notif-dedupe-constraint.sql) — a duplicate is swallowed.
    * Returns true if a new row was written, false on duplicate/failure.
    */
   static async insertInApp(
@@ -209,7 +209,7 @@ export class NotificationService {
       // upsert ON CONFLICT DO NOTHING: a re-notify (same user+dedupe_key) is a
       // no-op HTTP 200 instead of a 409, so the hourly crons don't spam the log.
       // Needs a real UNIQUE constraint on (user_id, dedupe_key) — PostgREST can't
-      // target the partial index (docs/superpowers/sql/w5-01-notif-dedupe-constraint.sql).
+      // target the partial index (SQL Files/w5-01-notif-dedupe-constraint.sql).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (this.supabase.from('user_notifications') as any).upsert({
         user_id: userId,

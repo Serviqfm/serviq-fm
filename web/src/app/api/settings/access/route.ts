@@ -3,7 +3,7 @@
 // organisations.limit_technician_visibility toggle. Writes are admin/manager-gated
 // here and go through the service role, so the toggle never depends on client RLS.
 // The DB enforcement itself is the RESTRICTIVE work_orders SELECT policy shipped
-// in docs/superpowers/sql/1c-13-limited-technician.sql.
+// in SQL Files/1c-13-limited-technician.sql.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
