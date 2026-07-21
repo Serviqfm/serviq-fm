@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
-import { NOTIFICATION_TYPES, getAllCategories, getDefaultPreferences } from '@/lib/notificationTypes';
+import { NOTIFICATION_TYPES, getAllCategories, getDefaultPreferences, isEmitted } from '@/lib/notificationTypes';
 
 export default function NotificationsTab() {
   const { isRTL } = useLanguage();
   const supabase = createClient();
   const [preferences, setPreferences] = useState<Record<string, boolean>>(getDefaultPreferences());
+  // CORE-11: '' = follow app default (en), 'en' | 'ar' = explicit per-user override.
+  const [notifLang, setNotifLang] = useState<'' | 'en' | 'ar'>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -37,6 +39,14 @@ export default function NotificationsTab() {
       } else {
         setPreferences(getDefaultPreferences());
       }
+
+      const { data: profile } = await supabase
+        .from('users')
+        .select('notification_language')
+        .eq('id', user.user.id)
+        .maybeSingle();
+      const lang = (profile as { notification_language?: string | null } | null)?.notification_language;
+      setNotifLang(lang === 'en' || lang === 'ar' ? lang : '');
     } catch (error) {
       console.error('Error loading preferences:', error);
       setMessage({ type: 'error', text: 'Failed to load preferences' });
@@ -59,6 +69,11 @@ export default function NotificationsTab() {
         },
         { onConflict: 'user_id' }
       );
+
+      // CORE-11: column-scoped RPC (w5-6-notif-language.sql) — sets only the
+      // caller's own users.notification_language. '' clears the override → NULL.
+      const { error: langErr } = await supabase.rpc('set_notification_language', { lang: notifLang });
+      if (langErr) throw langErr;
 
       setMessage({ type: 'success', text: 'Preferences saved successfully' });
       setTimeout(() => setMessage(null), 3000);
@@ -101,8 +116,29 @@ export default function NotificationsTab() {
         </div>
       )}
 
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 mb-6">
+        <h4 className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-4">
+          Notification Language
+        </h4>
+        <p className="text-sm text-on-surface-variant mb-3">
+          Language used for the emails and alerts we send you.
+        </p>
+        <select
+          value={notifLang}
+          onChange={e => setNotifLang(e.target.value as '' | 'en' | 'ar')}
+          className="bg-surface-container border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface"
+        >
+          <option value="">App default (English)</option>
+          <option value="en">English</option>
+          <option value="ar">العربية</option>
+        </select>
+      </div>
+
       {categories.map(category => {
-        const categoryTypes = Object.values(NOTIFICATION_TYPES).filter(t => t.category === category);
+        const categoryTypes = Object.values(NOTIFICATION_TYPES).filter(
+          t => t.category === category && isEmitted(t)
+        );
+        if (categoryTypes.length === 0) return null; // 1C-29: skip categories with only dead toggles
         const categoryLabel = category
           .replace(/_/g, ' ')
           .split(' ')

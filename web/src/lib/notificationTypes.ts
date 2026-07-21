@@ -46,16 +46,19 @@ export const NOTIFICATION_TYPES = {
     key: 'wo_request_unassigned',
     label: 'An unassigned Work Order Request has been created or updated',
     category: 'work_orders_requests',
+    emitted: false,
   },
   WO_REQUEST_I_CREATED_DECLINED: {
     key: 'wo_request_i_created_declined',
     label: 'A Work Order Request I created has been declined or canceled',
     category: 'work_orders_requests',
+    emitted: false,
   },
   WO_REQUEST_NEW_MESSAGE: {
     key: 'wo_request_new_message',
     label: 'A new message has been received from the public request portal',
     category: 'work_orders_requests',
+    emitted: false,
   },
 
   // Purchase Orders
@@ -63,16 +66,19 @@ export const NOTIFICATION_TYPES = {
     key: 'po_requested_from_portal',
     label: 'A Purchase Order has been requested from the public request portal',
     category: 'purchase_orders',
+    emitted: false,
   },
   PO_CREATED_BY_NON_ADMIN: {
     key: 'po_created_by_non_admin',
     label: 'A Purchase Order has been created by a non-admin user',
     category: 'purchase_orders',
+    emitted: false,
   },
   PO_REQUEST_I_CREATED_UPDATED: {
     key: 'po_request_i_created_updated',
     label: 'A Purchase Order request I created has been updated',
     category: 'purchase_orders',
+    emitted: false,
   },
 
   // Parts/Inventory
@@ -80,6 +86,7 @@ export const NOTIFICATION_TYPES = {
     key: 'part_low_stock',
     label: 'A part becomes low stock',
     category: 'parts_inventory',
+    emitted: false,
   },
 
   // Summary & Reports
@@ -92,10 +99,20 @@ export const NOTIFICATION_TYPES = {
     key: 'wo_due_next_week',
     label: 'There is a Work Orders Due Next Week Report ready to view',
     category: 'summary_reports',
+    emitted: false,
   },
 } as const;
 
 export type NotificationTypeKey = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES]['key'];
+
+// 1C-29: a notification type has `emitted: false` when NO code path ever
+// sends/inserts it (verified by grepping each key against notify/insertInApp
+// call sites). The settings UI hides these dead toggles so users don't set a
+// preference that nothing honours. Flip to omitting the flag once a real
+// emitter ships. Emitted types simply omit the flag (defaults to emitted).
+export function isEmitted(type: { key: string; emitted?: boolean }): boolean {
+  return type.emitted !== false;
+}
 
 export function getNotificationsByCategory(category: string) {
   return Object.values(NOTIFICATION_TYPES).filter(t => t.category === category);
