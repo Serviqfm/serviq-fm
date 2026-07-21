@@ -1,6 +1,14 @@
 // Tiny CSV helpers for import/export on the dashboard tables.
 // Handles quoted fields with embedded commas, escaped quotes (""), and CRLF/LF.
 
+// Neutralize CSV formula injection: a leading = + - @ (or tab/CR) makes Excel /
+// Sheets treat a cell as a formula. Prefix an apostrophe so it renders as text.
+// Plain numbers (incl. negatives) are left alone so they stay numeric. Used both
+// on export and when echoing untrusted cells back in API messages (1C-28).
+export function sanitizeCell(s: string): string {
+  return /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? "'" + s : s
+}
+
 export function exportCSV(filename: string, rows: Record<string, unknown>[]): void {
   if (rows.length === 0) {
     alert('No rows to export.')
@@ -9,11 +17,7 @@ export function exportCSV(filename: string, rows: Record<string, unknown>[]): vo
   const cols = Object.keys(rows[0])
   const esc = (v: unknown) => {
     if (v === null || v === undefined) return ''
-    let s = typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v))
-    // Neutralize CSV formula injection: a leading = + - @ (or tab/CR) makes Excel /
-    // Sheets treat the cell as a formula. A leading apostrophe forces it to text.
-    // Plain numbers (incl. negatives) are left alone so they stay numeric.
-    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s
+    const s = sanitizeCell(typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v)))
     return `"${s.replace(/"/g, '""')}"`
   }
   const csv = [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n')
