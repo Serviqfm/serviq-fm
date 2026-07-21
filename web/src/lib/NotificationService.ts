@@ -2,6 +2,8 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import type { NotificationTypeKey } from './notificationTypes';
 
+export type NotificationLang = 'en' | 'ar';
+
 function getResend() {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -46,6 +48,26 @@ export class NotificationService {
   }
 
   /**
+   * Resolve the recipient's preferred notification language (CORE-11).
+   * users.notification_language ('en'|'ar'|null) → 'en'. Fails open to 'en'.
+   * (No org-level default_language column exists yet; add it to the chain here
+   * and in w5-6-notif-language.sql if one is introduced.)
+   */
+  static async getRecipientLanguage(userId: string): Promise<NotificationLang> {
+    try {
+      const { data } = await this.supabase
+        .from('users')
+        .select('notification_language')
+        .eq('id', userId)
+        .maybeSingle() as { data: { notification_language?: string | null } | null };
+      return data?.notification_language === 'ar' ? 'ar' : 'en';
+    } catch (err) {
+      console.error('Error resolving notification language:', err);
+      return 'en'; // ponytail: fail open to en, never block a notification on this
+    }
+  }
+
+  /**
    * Send email and push notifications if user preferences allow
    */
   static async notify(
@@ -58,14 +80,31 @@ export class NotificationService {
       pushTitle: string;
       pushBody: string;
       pushData?: Record<string, string>;
+      // CORE-11: optional per-language variants. When present, the recipient's
+      // notification_language picks the variant; the top-level fields above are
+      // the fallback (used as-is when `localized` is omitted — existing callers
+      // are unchanged and pay no extra DB round-trip).
+      localized?: Partial<Record<NotificationLang, {
+        subject: string;
+        htmlContent: string;
+        pushTitle: string;
+        pushBody: string;
+      }>>;
     }
   ): Promise<void> {
     const enabled = await this.isEnabled(userId, typeKey);
     if (!enabled) return;
 
+    let { subject, htmlContent, pushTitle, pushBody } = options;
+    if (options.localized) {
+      const lang = await this.getRecipientLanguage(userId);
+      const v = options.localized[lang] ?? options.localized.en;
+      if (v) ({ subject, htmlContent, pushTitle, pushBody } = v);
+    }
+
     await Promise.allSettled([
-      this.sendEmail(userId, typeKey, options.email, options.subject, options.htmlContent),
-      this.sendPush(userId, typeKey, options.pushTitle, options.pushBody, options.pushData),
+      this.sendEmail(userId, typeKey, options.email, subject, htmlContent),
+      this.sendPush(userId, typeKey, pushTitle, pushBody, options.pushData),
     ]);
   }
 
@@ -151,9 +190,22 @@ export class NotificationService {
     userId: string,
     organisationId: string,
     typeKey: NotificationTypeKey,
-    opts: { title: string; body?: string; link?: string; dedupeKey?: string }
+    opts: {
+      title: string;
+      body?: string;
+      link?: string;
+      dedupeKey?: string;
+      // CORE-11: optional per-language title/body. title/body above are the fallback.
+      localized?: Partial<Record<NotificationLang, { title: string; body?: string }>>;
+    }
   ): Promise<boolean> {
     try {
+      let { title, body } = opts;
+      if (opts.localized) {
+        const lang = await this.getRecipientLanguage(userId);
+        const v = opts.localized[lang] ?? opts.localized.en;
+        if (v) ({ title, body } = v);
+      }
       // upsert ON CONFLICT DO NOTHING: a re-notify (same user+dedupe_key) is a
       // no-op HTTP 200 instead of a 409, so the hourly crons don't spam the log.
       // Needs a real UNIQUE constraint on (user_id, dedupe_key) — PostgREST can't
@@ -163,8 +215,8 @@ export class NotificationService {
         user_id: userId,
         organisation_id: organisationId,
         type_key: typeKey,
-        title: opts.title,
-        body: opts.body ?? null,
+        title,
+        body: body ?? null,
         link: opts.link ?? null,
         dedupe_key: opts.dedupeKey ?? null,
       }, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true });
