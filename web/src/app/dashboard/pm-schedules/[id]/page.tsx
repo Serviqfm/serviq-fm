@@ -6,7 +6,7 @@ import { format, isPast } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { archiveConfirmMessage, nextDueOnDaysOfWeek, applySeasonalWindow } from '../pm-utils'
+import { archiveConfirmMessage, nextDueOnDaysOfWeek, applySeasonalWindow, setPmScheduleActive, clearOpenGeneratedWorkOrders, DELETE_CLEARABLE_STATUSES } from '../pm-utils'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function calculateNextDue(schedule: any): string {
@@ -137,12 +137,16 @@ export default function PMScheduleDetailPage() {
 
   async function toggleActive() {
     if (!schedule) return
-    await supabase.from('pm_schedules').update({ is_active: !schedule.is_active }).eq('id', id)
+    // 1C-16: pause cancels never-started auto WOs; resume rebaselines next_due_at.
+    await setPmScheduleActive(supabase, schedule, !schedule.is_active)
     fetchAll()
   }
 
   async function deleteSchedule() {
     if (!confirm('Delete this PM schedule? This cannot be undone.')) return
+    // 1C-17: remove still-open generated WOs first (schedule delete SET NULLs the FK,
+    // making them unfindable after). Completed/closed WOs are kept for history.
+    await clearOpenGeneratedWorkOrders(supabase, id as string, DELETE_CLEARABLE_STATUSES)
     await supabase.from('pm_schedules').delete().eq('id', id)
     window.location.href = '/dashboard/pm-schedules'
   }
