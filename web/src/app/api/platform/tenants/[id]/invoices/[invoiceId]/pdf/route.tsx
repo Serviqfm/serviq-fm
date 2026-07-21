@@ -4,6 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { renderToBuffer, Document, Page, Text, View } from '@react-pdf/renderer'
 import { reportStyles as s } from '@/lib/pdf-report-styles'
 import { formatSAR } from '@/lib/currency'
+import { generateZATCAQRData } from '@/lib/zatca'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -55,6 +56,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
   const items = (inv.line_items ?? []) as LineItem[]
   const issueDate = inv.issue_date ? new Date(String(inv.issue_date)).toLocaleDateString('en-GB') : '—'
   const dueDate = inv.due_date ? new Date(String(inv.due_date)).toLocaleDateString('en-GB') : '—'
+
+  // ZATCA Phase 2 TLV/QR. Seller is the platform (ServIQ-FM), so its VAT number comes
+  // from platform config; fall open to a placeholder so PDF generation never breaks.
+  const qrData = generateZATCAQRData({
+    sellerName: 'ServIQ-FM',
+    vatNumber: process.env.SERVIQ_VAT_NUMBER || '300000000000003',
+    invoiceDate: inv.issue_date ? new Date(String(inv.issue_date)).toISOString() : new Date().toISOString(),
+    totalWithVAT: Number(inv.total_cents) / 100,
+    vatAmount: Number(inv.vat_cents) / 100,
+  })
 
   const doc = (
     <Document>
@@ -129,6 +140,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
             <Text style={s.paragraph}>{String(inv.notes)}</Text>
           </>
         )}
+
+        <View style={{ alignItems: 'center', marginTop: 24 }}>
+          <Text style={{ fontSize: 9, color: '#A0B0BF' }}>ZATCA Phase 2 — Scan to verify</Text>
+          <Text style={{ fontSize: 8, color: '#4A5568', marginTop: 8 }}>QR Data: {qrData.slice(0, 40)}...</Text>
+        </View>
 
         <View style={s.footer}>
           <Text style={s.footerText}>ServIQ-FM · Status: {String(inv.status)} · Generated {generatedAt}</Text>
