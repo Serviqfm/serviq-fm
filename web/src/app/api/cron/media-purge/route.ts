@@ -60,18 +60,27 @@ async function run(dryRun: boolean) {
   const cutoff = cutoffIso(months)
 
   // Only closed WOs, past the retention window, that still hold media.
-  const { data, error } = await admin
-    .from('work_orders')
-    .select('id, organisation_id, closed_at, photo_urls')
-    .eq('status', 'closed')
-    .not('closed_at', 'is', null)
-    .lt('closed_at', cutoff)
-    .not('photo_urls', 'is', null)
-    .returns<WORow[]>()
-
-  if (error) throw new Error(`query failed: ${error.message}`)
-
-  const rows = (data ?? []).filter((w) => Array.isArray(w.photo_urls) && w.photo_urls.length > 0)
+  // Paginate so we cover the WHOLE eligible backlog — a plain select caps at
+  // PostgREST's 1000-row default, which would silently under-purge and misreport
+  // eligible_work_orders. Loop until a short page comes back.
+  const PAGE = 1000
+  const rows: WORow[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await admin
+      .from('work_orders')
+      .select('id, organisation_id, closed_at, photo_urls')
+      .eq('status', 'closed')
+      .not('closed_at', 'is', null)
+      .lt('closed_at', cutoff)
+      .not('photo_urls', 'is', null)
+      .order('closed_at', { ascending: true })
+      .range(from, from + PAGE - 1)
+      .returns<WORow[]>()
+    if (error) throw new Error(`query failed: ${error.message}`)
+    const page = (data ?? []).filter((w) => Array.isArray(w.photo_urls) && w.photo_urls.length > 0)
+    rows.push(...page)
+    if (!data || data.length < PAGE) break
+  }
 
   let purgedWOs = 0
   let purgedFiles = 0
