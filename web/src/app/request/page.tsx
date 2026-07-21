@@ -181,6 +181,7 @@ export default function RequesterPortalPage() {
         <button onClick={reset} className="bg-primary text-on-primary px-6 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors w-full">
           Submit Another Request
         </button>
+        <a href="/request/mine" className="block text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors mt-4">View all my requests / عرض كل طلباتي</a>
       </div>
     </div>
   )
@@ -203,7 +204,10 @@ export default function RequesterPortalPage() {
       <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30 shadow-sm">
         <div className="flex justify-between items-center w-full px-8 max-w-[1440px] mx-auto h-16 md:h-20">
           <Logo href="/" size={140} />
-          <a href="/dashboard" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Manager Login</a>
+          <div className="flex items-center gap-6">
+            <a href="/request/mine" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">My Requests / طلباتي</a>
+            <a href="/dashboard" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Manager Login</a>
+          </div>
         </div>
       </header>
 
