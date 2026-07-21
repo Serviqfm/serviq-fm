@@ -104,7 +104,7 @@ describe('clearOpenGeneratedWorkOrders (1C-16/1C-17)', () => {
     expect(c.op).toBe('delete')
     expect(c.in['pm_schedule_id']).toEqual(['sched-1'])
     expect(c.eq['source']).toBe('pm_schedule')
-    expect(c.in['status']).toEqual(['new', 'assigned', 'in_progress'])
+    expect(c.in['status']).toEqual(['new', 'assigned', 'in_progress', 'on_hold'])
   })
   it('accepts an array of ids for bulk delete', async () => {
     const { db, calls } = fakeDb()
