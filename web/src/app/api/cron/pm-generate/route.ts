@@ -283,7 +283,7 @@ async function run() {
 // with BOTH next_due_at and meter_id is hybrid: the calendar loop above and this pass
 // each fire on their own condition (whichever comes first); the WO-exists de-dupe stops
 // a double WO in the same cycle. Mirrors generate_due_pm_work_orders() in
-// docs/superpowers/sql/t8-01-meters-pm.sql.
+// SQL Files/t8-01-meters-pm.sql.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function runMeterPass(admin: any, orgAdmin: (orgId: string) => Promise<string | null>): Promise<number> {
   const { data: rows } = await admin

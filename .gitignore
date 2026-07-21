@@ -9,5 +9,5 @@ Thumbs.db
 # Owner local housekeeping / stray root deps
 node_modules/
 Planning/
-SQL Files/
 Misc/
+# "SQL Files/" is now a tracked location (owner-run migrations live here) — not ignored.
