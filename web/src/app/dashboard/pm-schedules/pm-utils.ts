@@ -118,6 +118,57 @@ export function applySeasonalWindow(
   return nextSeasonStart(date, startMonth)
 }
 
+// --- 1C-16 / 1C-17 — schedule-lifecycle side effects on generated work orders ---
+// Pausing or deleting a schedule must not strand its already-generated OPEN work
+// orders. The app has no "cancel" WO status and CORE-20 blocks a browser
+// new->closed transition, so the only way to retire a never-actioned auto WO is to
+// DELETE it (DELETE is not gated by the BEFORE UPDATE lifecycle trigger). Filtering
+// on both pm_schedule_id AND source='pm_schedule' never touches a hand-made WO, and
+// completed/closed WOs are always left for history (schedule delete SET NULLs their
+// pm_schedule_id — see sprint-j-01).
+export const PAUSE_CLEARABLE_STATUSES = ['new', 'assigned']              // never started
+export const DELETE_CLEARABLE_STATUSES = ['new', 'assigned', 'in_progress', 'on_hold'] // all open base states
+
+// Delete this schedule's open auto-generated WOs in the given states. Accepts one id
+// or many (bulk delete). Must run BEFORE the schedule row is removed, since deleting
+// it SET NULLs pm_schedule_id and the WOs become unfindable by schedule.
+export async function clearOpenGeneratedWorkOrders(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  scheduleIds: string | string[],
+  statuses: string[],
+): Promise<void> {
+  const ids = (Array.isArray(scheduleIds) ? scheduleIds : [scheduleIds]).filter(Boolean)
+  if (ids.length === 0) return
+  await db.from('work_orders').delete()
+    .in('pm_schedule_id', ids)
+    .eq('source', 'pm_schedule')
+    .in('status', statuses)
+}
+
+// Toggle is_active with the 1C-16 side effects: pausing cancels never-started auto
+// WOs so a paused schedule stops cluttering the queue; resuming rebaselines
+// next_due_at forward from now (past any seasonal inactive window) so a stale
+// backlog does not fire on the next cron tick.
+export async function setPmScheduleActive(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schedule: any,
+  active: boolean,
+): Promise<void> {
+  if (active) {
+    const next = applySeasonalWindow(
+      rollNextDue(new Date(), schedule.frequency, schedule.days_of_week, schedule),
+      schedule.is_seasonal, schedule.seasonal_start_month, schedule.seasonal_end_month,
+    ).toISOString()
+    await db.from('pm_schedules').update({ is_active: true, next_due_at: next }).eq('id', schedule.id)
+  } else {
+    await clearOpenGeneratedWorkOrders(db, schedule.id, PAUSE_CLEARABLE_STATUSES)
+    await db.from('pm_schedules').update({ is_active: false }).eq('id', schedule.id)
+  }
+}
+
 export function archiveConfirmMessage(lang: string, count = 1): string {
   if (lang === 'ar') {
     return count > 1

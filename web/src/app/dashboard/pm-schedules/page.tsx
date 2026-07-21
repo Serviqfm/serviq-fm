@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { archiveConfirmMessage, nextDueOnDaysOfWeek } from './pm-utils'
+import { archiveConfirmMessage, nextDueOnDaysOfWeek, setPmScheduleActive, clearOpenGeneratedWorkOrders, DELETE_CLEARABLE_STATUSES } from './pm-utils'
 import { stampChecklistTasks } from './checklist-stamp'
 
 export default function PMSchedulesPage() {
@@ -106,6 +106,8 @@ export default function PMSchedulesPage() {
   async function deleteSelected() {
     if (!confirm(selected.length + ' schedule(s)?')) return
     setDeleting(true)
+    // 1C-17: clear still-open generated WOs before the FK is SET NULL by the delete.
+    await clearOpenGeneratedWorkOrders(supabase, selected, DELETE_CLEARABLE_STATUSES)
     await supabase.from('pm_schedules').delete().in('id', selected)
     setSelected([])
     await fetchSchedules()
@@ -130,6 +132,8 @@ export default function PMSchedulesPage() {
 
   async function deleteOne(id: string) {
     if (!confirm(t('common.confirm_delete'))) return
+    // 1C-17: clear still-open generated WOs before the FK is SET NULL by the delete.
+    await clearOpenGeneratedWorkOrders(supabase, id, DELETE_CLEARABLE_STATUSES)
     await supabase.from('pm_schedules').delete().eq('id', id)
     fetchSchedules()
   }
@@ -142,8 +146,10 @@ export default function PMSchedulesPage() {
     setSelected(prev => prev.length === activeList.length ? [] : activeList.map(s => s.id))
   }
 
-  async function toggleActive(id: string, current: boolean) {
-    await supabase.from('pm_schedules').update({ is_active: !current }).eq('id', id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function toggleActive(schedule: any) {
+    // 1C-16: pause cancels never-started auto WOs; resume rebaselines next_due_at.
+    await setPmScheduleActive(supabase, schedule, !schedule.is_active)
     fetchSchedules()
   }
 
@@ -334,7 +340,7 @@ export default function PMSchedulesPage() {
                               <Link href={'/dashboard/pm-schedules/' + s.id + '/edit'}>
                                 <button className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
                               </Link>
-                              <button onClick={() => toggleActive(s.id, s.is_active)}
+                              <button onClick={() => toggleActive(s)}
                                 className="px-2.5 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">
                                 {s.is_active ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تفعيل' : 'Resume')}
                               </button>
