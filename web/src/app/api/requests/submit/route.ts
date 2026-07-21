@@ -3,11 +3,18 @@ import { createClient } from '@supabase/supabase-js'
 import { sendRequestConfirmation } from '@/lib/email'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
+import { makeIpRateLimiter } from '@/lib/rateLimit'
+
+// DV-10: public + unauthenticated, so cap submissions per IP to blunt spam loops.
+const rateLimit = makeIpRateLimiter(10)
 
 // Public portal endpoint — intentionally unauthenticated (anonymous requesters
 // submit via QR-code links). Inputs are validated against the database and
 // escaped before being interpolated into notification emails.
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req)
+  if (limited) return limited
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
