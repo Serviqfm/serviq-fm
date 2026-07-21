@@ -618,3 +618,76 @@ WO-list rewrite spot-checked for every load-bearing feature (saved views/URL syn
   pages, permissive pre-migration); inspection numeric/date item types (editor + run + report); PM category +
   requires_signature stamped onto generated WOs (SQL fn = exact b6-01 body + stamps; JS cron mirrored; close
   route enforces sign-off when flagged). **SQL:** `b8-partials.sql`.
+
+---
+
+## Wave 5 — Closing wave (2026-07-21)
+
+Post-closing-report push to burn down the 37 build-recommended items plus two live production
+bugs surfaced by Supabase logs and an external code review (all findings verified against source
+before building — the review's two "Critical/High" secret-leak claims were downgraded to Low: the
+mobile key is the public anon key, and the middleware service-role env is never client-exposed).
+Six disjoint-track batches, isolated-worktree build → adversarial verify → PR. Owner ran SQL and
+merged between batches.
+
+### W5.1 — production fixes + hygiene (PRs #76–79)
+- **LOG-02** (PR #76) — PM/inspection crons inserted work_orders without the NOT NULL created_by →
+  every auto-generated WO was 400ing in prod. Now stamps a resolved active org-admin. No SQL.
+- **LOG-01 + CORE-04** (PR #77) — notif dedupe 409 log-spam fixed via upsert ignoreDuplicates;
+  managers/admins notified once on WO→completed. **SQL: w5-01-notif-dedupe-constraint.sql** (partial
+  index → UNIQUE constraint; review fix made it truly re-runnable).
+- **Hygiene** (PR #78) — mobile anon key → EXPO_PUBLIC_* env (no rotation; public key); README
+  UTF-16→UTF-8; impersonation.test.ts (5 tests); .gitignore hardened (node_modules/, Planning/,
+  SQL Files/, Misc/).
+- **DV-16** (PR #79) — mobile global error handler (active) + web onRequestError (dormant on Next
+  14.2, activates on Next 15). error_logs already existed.
+
+### W5.2 — WO costs + SLA (PRs #80–83)
+- **WO-06/07** — Labor + Costs tabs on the WO detail + computed total. **SQL: w5-2-wo-labor-costs.sql**.
+- **FM-21** — invoice draft/sent/paid/void workflow. **SQL: w5-2-invoice-status.sql**.
+- **FM-03** — SLA policy engine (per-priority targets, auto due_at, first_response_at, on-hold
+  pause clock). **SQL: w5-2-sla-policies.sql**. Review: engine wired to a write-path-agnostic path.
+- **DV-20** — dashboard aggregation moved server-side. **SQL: w5-2-dashboard-stats.sql**. Review
+  CRITICAL fix: SECURITY DEFINER → INVOKER so intra-org RLS (limited-tech / site-scope) still applies.
+
+### W5.3 — mobile parity (PRs #85–86)
+- **CORE-06/09/19, AG-15, DV-32** (PR #85) — push-tap deep-link (both payload shapes — review fix),
+  in-app notification list, Asset Log browse, requester nav-gating, RTL. No SQL.
+- **MKT-07, CORE-31** (PR #86) — WO execution parity (parts, assign, edit, native date picker) +
+  audit logging. Review fixes: no false audit on a trigger-rejected transition; WO-02 edit gate.
+
+### W5.4 — assets (PRs #87–90)
+- **WO-05/AL-11** (PR #87) — asset Files tab + local QR (removed api.qrserver.com leak).
+- **AL-03** (PR #88) — downtime loop (list flag + auto open/close triggers). **SQL:
+  w5-4-downtime-triggers.sql**. Review fixes: skip already-resolved WOs; unique index = one open
+  period/asset.
+- **CORE-17** (PR #89) — MEP asset warranty alerts (was asset_log-only).
+- **AG-12** (PR #90) — Asset Log partial-quantity batch split. **SQL: w5-4-assetlog-split.sql**.
+
+### W5.5 — billing + security-ops (PRs #91–95, 0 SQL)
+- **MKT-21/DV-31** (PR #91) — MFA login-time AAL gate (fail-open; TOTP-scoped — review fix) +
+  middleware token write-back.
+- **AP-02/12** (PR #92) — plan_tier seat + api_access enforcement (fail-open on unknown plan).
+- **CORE-18** (PR #93) — PDPL media-retention purge cron (dry-run, paginated — review fix,
+  CRON_SECRET-gated, **left out of vercel.json — owner-enabled after preview**).
+- **DV-10** (PR #94) — in-app rate limit on submit + push.
+- **AP-13** (PR #95) — ZATCA QR on Serviq's own tenant invoices.
+
+### W5.6 — PM lifecycle + misc UX (PRs #96–100)
+- **1C-16/17** (PR #96) — PM pause cancels un-started WOs / resume rebaselines / delete clears open
+  generated WOs (incl. on_hold — review fix). No SQL.
+- **CORE-11/1C-29** (PR #97) — per-recipient notification language + 8 dead toggles hidden. **SQL:
+  w5-6-notif-language.sql**. Review fix: manager overdue alert stays English.
+- **MKT-10** (PR #98) — requester My Requests history. **SQL: w5-6-my-requests.sql**.
+- **1C-20/21** (PR #99) — user list search/filter/sort + self-service profile edit. No SQL.
+- **1C-28** (PR #100) — bulk CSV user onboarding (org-pinned, batch seat-limit, CSV-injection safe).
+
+### Owner-blocked (flagged, not built)
+- **DV-06** — supabase/migrations DR baseline (needs the Supabase CLI: `db pull` + commit).
+- **AP-01** — Stripe activation (env/keys/webhook in Vercel; failed-charge handling to follow).
+- **DV-10 (WAF half)** — Vercel WAF edge rules (dashboard config).
+- Owner env to set: `IMPERSONATION_SIGNING_KEY`, `SERVIQ_VAT_NUMBER`, `MEDIA_RETENTION_MONTHS` (opt).
+
+Adversarial review caught, across the wave: a dashboard SECURITY DEFINER intra-org RLS bypass
+(CRITICAL-class), a dead SLA engine, a stranded-downtime trigger path, a false-audit-on-rejection,
+a silent 1000-row purge cap, and a non-idempotent migration — all fixed pre-merge.
