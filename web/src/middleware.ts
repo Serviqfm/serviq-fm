@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export const config = {
   matcher: ['/platform/:path*', '/dashboard/:path*'],
@@ -35,6 +35,9 @@ function hexToBytes(hex: string): Uint8Array {
 }
 async function deriveSigningKeyBytes(): Promise<Uint8Array | null> {
   // Mirror lib/impersonation.ts getSigningKey() fallback so sign/verify agree.
+  // PROD MUST set IMPERSONATION_SIGNING_KEY (hex). The SUPABASE_SERVICE_ROLE_KEY
+  // fallback below is a dev convenience — rotating the service key would silently
+  // invalidate all live impersonation cookies.
   const explicit = process.env.IMPERSONATION_SIGNING_KEY
   if (explicit) return hexToBytes(explicit)
   const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -75,9 +78,13 @@ async function verifyImpersonationCookieEdge(token: string | undefined | null): 
   }
 }
 
-async function getUserFromRequest(req: NextRequest) {
-  // We need a mutable cookie set so @supabase/ssr can refresh tokens during the call.
-  // For middleware, we wrap the cookie store: we forward to req.cookies for reads.
+// DV-31: build a user-session Supabase client whose refreshed cookies are captured
+// so we can write them back onto whatever response we return (redirect/rewrite/next).
+// Previously setAll was a no-op, so a token Supabase refreshed mid-middleware was lost
+// and the user re-authed on the next load. The same client is reused for the MKT-21
+// AAL check so getAuthenticatorAssuranceLevel() runs on the user session, not admin.
+function makeUserClient(req: NextRequest) {
+  const refreshed: { name: string; value: string; options: CookieOptions }[] = []
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -87,24 +94,25 @@ async function getUserFromRequest(req: NextRequest) {
           return req.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // If Supabase refreshes the access token mid-middleware, we'd want to write
-          // it back. For now we ignore (the client-side will re-auth on next page load
-          // if refresh is needed). This avoids the complexity of carrying a NextResponse
-          // through the function.
-          for (const { name, value, options } of cookiesToSet) {
-            // no-op
-            void name; void value; void options
-          }
+          for (const c of cookiesToSet) refreshed.push(c)
         },
       },
     }
   )
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch {
-    return null
+  // Copy any refreshed auth cookies onto the outgoing response before we return it.
+  const applyCookies = <T extends NextResponse>(res: T): T => {
+    for (const { name, value, options } of refreshed) res.cookies.set(name, value, options)
+    return res
   }
+  const getUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      return user
+    } catch {
+      return null
+    }
+  }
+  return { supabase, getUser, applyCookies }
 }
 
 export async function middleware(req: NextRequest) {
@@ -113,9 +121,10 @@ export async function middleware(req: NextRequest) {
   // /platform/* gate (covers '/platform' exact too — the matcher allows it but
   // startsWith('/platform/') would miss the bare path)
   if (path === '/platform' || path.startsWith('/platform/')) {
-    const user = await getUserFromRequest(req)
+    const { supabase: userClient, getUser, applyCookies } = makeUserClient(req)
+    const user = await getUser()
     if (!user) {
-      return NextResponse.redirect(new URL('/login/employee', req.url))
+      return applyCookies(NextResponse.redirect(new URL('/login/employee', req.url)))
     }
     const supabase = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -128,16 +137,40 @@ export async function middleware(req: NextRequest) {
       .eq('id', user.id)
     if (count === 0) {
       // Mask portal existence — return 404
-      return NextResponse.rewrite(new URL('/404', req.url))
+      return applyCookies(NextResponse.rewrite(new URL('/404', req.url)))
     }
-    return NextResponse.next()
+
+    // MKT-21: MFA login-time AAL gate. If the admin has an enrolled factor
+    // (nextLevel === 'aal2') but this session hasn't stepped up (currentLevel
+    // === 'aal1'), force the second factor before reaching /platform. FAIL OPEN:
+    // any error, or no enrolled factor (nextLevel !== 'aal2'), lets them through
+    // unchanged — we never lock out admins who haven't set up MFA.
+    try {
+      const { data: aal } = await userClient.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (aal && aal.nextLevel === 'aal2' && aal.currentLevel === 'aal1') {
+        // The /mfa page can only challenge TOTP. Only step-up when a verified TOTP
+        // factor exists; a verified non-TOTP factor (e.g. phone) would dead-end
+        // there, so fail open in that case rather than lock the admin out.
+        const { data: factors } = await userClient.auth.mfa.listFactors()
+        const hasTotp = !!factors?.totp?.some(f => f.status === 'verified')
+        if (hasTotp) {
+          const url = new URL('/mfa', req.url)
+          url.searchParams.set('next', path)
+          return applyCookies(NextResponse.redirect(url))
+        }
+      }
+    } catch {
+      // fail open
+    }
+    return applyCookies(NextResponse.next())
   }
 
   // /dashboard/* gate (covers '/dashboard' exact too)
   if (path === '/dashboard' || path.startsWith('/dashboard/')) {
-    const user = await getUserFromRequest(req)
+    const { getUser, applyCookies } = makeUserClient(req)
+    const user = await getUser()
     if (!user) {
-      return NextResponse.redirect(new URL('/login/client', req.url))
+      return applyCookies(NextResponse.redirect(new URL('/login/client', req.url)))
     }
 
     const impersonationCookie = req.cookies.get(IMPERSONATION_COOKIE_NAME)
@@ -147,10 +180,10 @@ export async function middleware(req: NextRequest) {
       // platform admin who minted it — a stolen/replayed cookie under another
       // session is treated as no-impersonation.
       if (verified.valid && verified.platformAdminId === user.id) {
-        return NextResponse.next()
+        return applyCookies(NextResponse.next())
       }
       // Stale/invalid/mismatched cookie — clear it and continue with normal flow
-      const res = NextResponse.next()
+      const res = applyCookies(NextResponse.next())
       res.cookies.delete(IMPERSONATION_COOKIE_NAME)
       return res
     }
@@ -182,32 +215,32 @@ export async function middleware(req: NextRequest) {
         .eq('id', user.id)
         .maybeSingle()
       if (!simple) {
-        return NextResponse.redirect(new URL('/login/client?reason=no_profile', req.url))
+        return applyCookies(NextResponse.redirect(new URL('/login/client?reason=no_profile', req.url)))
       }
-      return NextResponse.next()
+      return applyCookies(NextResponse.next())
     }
 
     const profile = full.data
     if (!profile) {
-      return NextResponse.redirect(new URL('/login/client?reason=no_profile', req.url))
+      return applyCookies(NextResponse.redirect(new URL('/login/client?reason=no_profile', req.url)))
     }
     if (profile.is_active === false || profile.disabled === true || profile.organisations?.offboarded_at) {
-      return NextResponse.redirect(new URL('/login/client?reason=disabled', req.url))
+      return applyCookies(NextResponse.redirect(new URL('/login/client?reason=disabled', req.url)))
     }
 
     // Force a password change after a temp-password first login (DV-09). /change-password
     // is a top-level route not covered by this matcher, so there is no redirect loop.
     if (profile.must_change_password === true) {
-      return NextResponse.redirect(new URL('/change-password', req.url))
+      return applyCookies(NextResponse.redirect(new URL('/change-password', req.url)))
     }
 
     // CORE-19: requesters are submit-and-track only — keep them out of the dashboard.
     // /request is top-level (not under this matcher), so there is no redirect loop.
     if (profile.role === 'requester') {
-      return NextResponse.redirect(new URL('/request', req.url))
+      return applyCookies(NextResponse.redirect(new URL('/request', req.url)))
     }
 
-    return NextResponse.next()
+    return applyCookies(NextResponse.next())
   }
 
   return NextResponse.next()
