@@ -15,11 +15,22 @@ const ROLE_BADGE: Record<string, string> = {
   requester:  'bg-surface-container text-on-surface-variant',
 }
 
+// Sort options for the user list (label built inline for bilingual).
+const SORT_OPTIONS = [
+  { key: 'name',   col: 'full_name',      asc: true  },
+  { key: 'recent', col: 'created_at',     asc: false },
+  { key: 'active', col: 'last_sign_in_at', asc: false },
+] as const
+
 export default function UsersPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [sortKey, setSortKey] = useState<(typeof SORT_OPTIONS)[number]['key']>('name')
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [resendResult, setResendResult] = useState<{ email: string; fullName: string } | null>(null)
   // Whole-org role/active counts (all users, not just the current page).
@@ -39,11 +50,27 @@ export default function UsersPage() {
     })
   }, [supabase])
 
+  // Debounce search so we don't fire a query on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { rows: users, total, loading: listLoading, page, pageCount, from, to, hasPrev, hasNext, prev, next, refresh } = usePagination<any>(
-    () => supabase.from('users').select('*', { count: 'exact' })
-      .eq('organisation_id', orgId!).order('full_name', { ascending: true }),
-    [orgId],
+    () => {
+      const sort = SORT_OPTIONS.find(s => s.key === sortKey) ?? SORT_OPTIONS[0]
+      let q = supabase.from('users').select('*', { count: 'exact' })
+        .eq('organisation_id', orgId!)
+        .order(sort.col, { ascending: sort.asc, nullsFirst: false })
+      if (roleFilter !== 'all') q = q.eq('role', roleFilter)
+      if (debouncedSearch) {
+        const s = `%${debouncedSearch}%`
+        q = q.or(`full_name.ilike.${s},full_name_ar.ilike.${s},email.ilike.${s}`)
+      }
+      return q
+    },
+    [orgId, roleFilter, debouncedSearch, sortKey],
   )
 
   // Whole-org counts for the stat cards, refreshed alongside the list.
@@ -154,11 +181,18 @@ export default function UsersPage() {
             <p className="text-on-surface-variant mt-1 text-sm">{counts.total} {t('users.in_org')}</p>
           </div>
           {['admin', 'manager'].includes(currentUser?.role) && (
-            <Link href='/dashboard/users/new'>
-              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-                <span className="material-symbols-outlined text-lg">person_add</span>{t('btn.add_user')}
-              </button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href='/dashboard/users/import'>
+                <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-2">
+                  <span className="material-symbols-outlined text-lg">upload_file</span>{lang === 'ar' ? 'استيراد المستخدمين' : 'Import Users'}
+                </button>
+              </Link>
+              <Link href='/dashboard/users/new'>
+                <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                  <span className="material-symbols-outlined text-lg">person_add</span>{t('btn.add_user')}
+                </button>
+              </Link>
+            </div>
           )}
         </div>
 
@@ -209,6 +243,30 @@ export default function UsersPage() {
           </div>
         )}
 
+        {/* Search / filter / sort toolbar */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-3 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="relative flex-1 min-w-0">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant text-lg pointer-events-none">search</span>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder={lang === 'ar' ? 'البحث بالاسم أو البريد الإلكتروني' : 'Search by name or email'}
+              className="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-xl text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+          </div>
+          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
+            className="py-2 px-3 bg-surface-container-low border border-outline-variant/40 rounded-xl text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+            <option value="all">{lang === 'ar' ? 'كل الأدوار' : 'All roles'}</option>
+            <option value="admin">{t('users.role.admin')}</option>
+            <option value="manager">{t('users.role.manager')}</option>
+            <option value="technician">{t('users.role.technician')}</option>
+            <option value="requester">{t('users.role.requester')}</option>
+          </select>
+          <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)}
+            className="py-2 px-3 bg-surface-container-low border border-outline-variant/40 rounded-xl text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+            <option value="name">{lang === 'ar' ? 'الاسم (أ-ي)' : 'Name (A–Z)'}</option>
+            <option value="recent">{lang === 'ar' ? 'الأحدث إضافة' : 'Recently added'}</option>
+            <option value="active">{lang === 'ar' ? 'آخر نشاط' : 'Last active'}</option>
+          </select>
+        </div>
+
         {/* Table */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
@@ -221,6 +279,11 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
+                {users.length === 0 && (
+                  <tr><td colSpan={6} className="p-8 text-center text-sm text-on-surface-variant">
+                    {lang === 'ar' ? 'لا يوجد مستخدمون مطابقون' : 'No matching users'}
+                  </td></tr>
+                )}
                 {users.map(u => {
                   const isMe = u.id === currentUser?.id
                   return (

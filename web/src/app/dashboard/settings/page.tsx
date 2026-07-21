@@ -28,6 +28,12 @@ export default function SettingsPage() {
     vertical: '', timezone: 'Asia/Riyadh',
   })
 
+  // 1C-21: self-service profile — the user's OWN editable fields only.
+  const [profileForm, setProfileForm] = useState({ full_name: '', full_name_ar: '', phone: '', job_title: '' })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
+  const [profileError, setProfileError] = useState('')
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData() }, [])
 
@@ -41,6 +47,12 @@ export default function SettingsPage() {
     if (profile) {
       setUser(profile)
       setOrg(profile.organisation)
+      setProfileForm({
+        full_name: profile.full_name ?? '',
+        full_name_ar: profile.full_name_ar ?? '',
+        phone: profile.phone ?? '',
+        job_title: profile.job_title ?? '',
+      })
       // Default to 'organisation' for admins/managers, 'account' for technicians (who can't see org/storage).
       if (profile.role === 'admin' || profile.role === 'manager') {
         setActiveTab('organisation')
@@ -75,6 +87,29 @@ export default function SettingsPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+  }
+
+  // Self-scoped write: RLS + the user-privilege-lock trigger already restrict a
+  // direct update to the caller's OWN row and to non-privileged fields, so this
+  // can only ever touch full_name/full_name_ar/phone/job_title on your own record.
+  async function saveProfile() {
+    if (!user) return
+    setSavingProfile(true)
+    setProfileError('')
+    const { error } = await supabase.from('users').update({
+      full_name: profileForm.full_name,
+      full_name_ar: profileForm.full_name_ar,
+      phone: profileForm.phone,
+      job_title: profileForm.job_title,
+    }).eq('id', user.id)
+    setSavingProfile(false)
+    if (error) {
+      setProfileError(lang === 'ar' ? 'فشل حفظ الملف الشخصي' : 'Failed to save profile')
+      return
+    }
+    setUser({ ...user, ...profileForm })
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 3000)
   }
 
   const plan = org?.plan_tier ?? 'small'
@@ -368,21 +403,90 @@ export default function SettingsPage() {
               </div>
 
               <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
-                <h3 className="text-base font-semibold text-on-surface mb-4">
-                  {lang === 'ar' ? 'معلومات الحساب' : 'Account Information'}
+                <h3 className="text-base font-semibold text-on-surface mb-1">
+                  {lang === 'ar' ? 'ملفي الشخصي' : 'My Profile'}
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: lang === 'ar' ? 'الاسم' : 'Name',                     value: user?.full_name ?? '-' },
-                    { label: lang === 'ar' ? 'البريد الإلكتروني' : 'Email',         value: user?.email ?? '-' },
-                    { label: lang === 'ar' ? 'الدور' : 'Role',                     value: user?.role ?? '-' },
-                    { label: lang === 'ar' ? 'المؤسسة' : 'Organisation',           value: org?.name ?? '-' },
-                  ].map(item => (
-                    <div key={item.label} className="bg-surface-container-low rounded-lg px-3.5 py-3">
-                      <p className="text-[11px] text-on-surface-variant font-medium mb-1">{item.label}</p>
-                      <p className="text-sm font-medium text-on-surface">{item.value}</p>
-                    </div>
-                  ))}
+                <p className="text-xs text-on-surface-variant mb-5">
+                  {lang === 'ar' ? 'حدّث معلوماتك الشخصية. للتغيير الدور أو المؤسسة تواصل مع مشرف.' : 'Update your own details. Contact an admin to change your role or organisation.'}
+                </p>
+
+                {profileSaved && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-[10px] px-4 py-3 mb-4 text-primary text-sm">
+                    {lang === 'ar' ? 'تم حفظ الملف الشخصي' : 'Profile saved'}
+                  </div>
+                )}
+                {profileError && (
+                  <div className="bg-error/10 border border-error/20 rounded-[10px] px-4 py-3 mb-4 text-error text-sm">
+                    {profileError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'الاسم (إنجليزي)' : 'Full Name (English)'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={profileForm.full_name}
+                      onChange={e => setProfileForm(f => ({ ...f, full_name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'الاسم (عربي)' : 'Full Name (Arabic)'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      style={{ direction: 'rtl' }}
+                      value={profileForm.full_name_ar}
+                      onChange={e => setProfileForm(f => ({ ...f, full_name_ar: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'رقم الهاتف' : 'Phone'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={profileForm.phone}
+                      onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="+966 50 000 0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                      {lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}
+                    </label>
+                    <input
+                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      value={profileForm.job_title}
+                      onChange={e => setProfileForm(f => ({ ...f, job_title: e.target.value }))}
+                    />
+                  </div>
+                  {/* Read-only — self-service cannot change these */}
+                  <div className="bg-surface-container-low rounded-lg px-3.5 py-3">
+                    <p className="text-[11px] text-on-surface-variant font-medium mb-1">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</p>
+                    <p className="text-sm font-medium text-on-surface">{user?.email ?? '-'}</p>
+                  </div>
+                  <div className="bg-surface-container-low rounded-lg px-3.5 py-3">
+                    <p className="text-[11px] text-on-surface-variant font-medium mb-1">{lang === 'ar' ? 'الدور' : 'Role'}</p>
+                    <p className="text-sm font-medium text-on-surface">{user?.role ?? '-'}</p>
+                  </div>
+                  <div className="bg-surface-container-low rounded-lg px-3.5 py-3 col-span-2">
+                    <p className="text-[11px] text-on-surface-variant font-medium mb-1">{lang === 'ar' ? 'المؤسسة' : 'Organisation'}</p>
+                    <p className="text-sm font-medium text-on-surface">{org?.name ?? '-'}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={saveProfile}
+                    disabled={savingProfile}
+                    className={`bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors${savingProfile ? ' opacity-70' : ''}`}
+                  >
+                    {savingProfile ? t('common.saving') : t('common.save')}
+                  </button>
                 </div>
               </div>
 
