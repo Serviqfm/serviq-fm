@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveAdmin, generateApiKey, VALID_SCOPES } from '../_helpers'
+import { planAllowsApiAccess } from '@/lib/planLimits'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,23 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const ctx = await resolveAdmin()
   if (ctx instanceof NextResponse) return ctx
+
+  // AP-12: gate key issuance on the plan's api_access flag. FAIL OPEN — unknown/null
+  // plan_tier or any lookup error ALLOWS issuance so existing orgs are never blocked.
+  const { data: orgRow } = await ctx.admin
+    .from('organisations')
+    .select('plan_tier')
+    .eq('id', ctx.orgId)
+    .single()
+  if (!planAllowsApiAccess(orgRow?.plan_tier as string | null | undefined)) {
+    return NextResponse.json(
+      {
+        error: `API access is not included in your plan. Upgrade your plan to issue API keys.`,
+        error_ar: 'الوصول إلى واجهة برمجة التطبيقات غير متضمن في خطتك. يرجى ترقية الخطة لإصدار مفاتيح API.',
+      },
+      { status: 403 }
+    )
+  }
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
   const name = typeof body.name === 'string' ? body.name.trim() : ''
