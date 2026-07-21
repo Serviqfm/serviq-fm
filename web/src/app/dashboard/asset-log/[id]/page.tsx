@@ -497,19 +497,35 @@ function ConditionTab({ id, item, reviews, isAr, onDone }: { id: string; item: R
 
 function MoveModal({ item, spaces, isAr, onClose, onDone }: { item: Row; spaces: Row[]; isAr: boolean; onClose: () => void; onDone: () => void }) {
   const supabase = createClient()
+  const available = Number(item.quantity) || 1
+  const splittable = available > 1
   const [spaceId, setSpaceId] = useState('')
+  const [qty, setQty] = useState(available) // default: move the whole batch
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
   async function move() {
+    if (splittable && (qty < 1 || qty > available)) {
+      setErr(isAr ? `الكمية يجب أن تكون بين 1 و ${available}` : `Quantity must be between 1 and ${available}`)
+      return
+    }
     setBusy(true); setErr('')
-    // Authenticated browser client — the RPC reads auth.uid() for org scoping.
-    const { error } = await supabase.rpc('move_asset_log_item', {
-      p_item_id: item.id,
-      p_to_space_id: spaceId || null,
-      p_note: note || null,
-    })
+    // Authenticated browser client — both RPCs read auth.uid() for org scoping.
+    // Partial quantity splits the batch; full quantity is a plain move.
+    const partial = splittable && qty < available
+    const { error } = partial
+      ? await supabase.rpc('split_asset_log_item', {
+          p_item_id: item.id,
+          p_to_space_id: spaceId || null,
+          p_quantity: qty,
+          p_note: note || null,
+        })
+      : await supabase.rpc('move_asset_log_item', {
+          p_item_id: item.id,
+          p_to_space_id: spaceId || null,
+          p_note: note || null,
+        })
     setBusy(false)
     if (error) { setErr(error.message); return }
     onDone()
@@ -523,6 +539,17 @@ function MoveModal({ item, spaces, isAr, onClose, onDone }: { item: Row; spaces:
         <option value="">{isAr ? 'غير مخصص (تخزين)' : 'Unassigned (storage)'}</option>
         {spaces.map(s => <option key={s.id} value={s.id}>{s.site?.name ? s.site.name + ' → ' : ''}{s.name}{s.floor ? ' (' + s.floor + ')' : ''}</option>)}
       </select>
+      {splittable && (
+        <>
+          <label className="text-xs text-on-surface-variant">{isAr ? `الكمية المراد نقلها (من ${available})` : `Quantity to move (of ${available})`}</label>
+          <input type="number" min={1} max={available} value={qty}
+            onChange={e => setQty(Math.trunc(Number(e.target.value) || 0))}
+            className="w-full px-3 py-2 border border-outline-variant/40 rounded-xl text-sm mb-3" />
+          {qty > 0 && qty < available && (
+            <p className="text-xs text-on-surface-variant mb-3 -mt-2">{isAr ? `سيتم تقسيم الدفعة: يبقى ${available - qty} في الموقع الحالي` : `Batch will be split: ${available - qty} stays at the current location`}</p>
+          )}
+        </>
+      )}
       <input value={note} onChange={e => setNote(e.target.value)} placeholder={isAr ? 'ملاحظة (اختياري)' : 'Note (optional)'} className="w-full px-3 py-2 border border-outline-variant/40 rounded-xl text-sm" />
       {err && <p className="text-error text-sm mt-2">{err}</p>}
       <div className="flex justify-end gap-2 mt-4">
