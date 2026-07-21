@@ -316,14 +316,9 @@ export async function notifyWOOverdue(
       pushTitle: `⚠️ Team: ${woNumber}`,
       pushBody: `${daysOverdue} days overdue`,
       pushData: { woId, woNumber, overdue: String(daysOverdue) },
-      localized: {
-        ar: {
-          subject: `تنبيه المدير: ${woNumber} متأخر ${daysOverdue} يوم`,
-          htmlContent: htmlContentAr,
-          pushTitle: `⚠️ الفريق: ${woNumber}`,
-          pushBody: `متأخر ${daysOverdue} يوم`,
-        },
-      },
+      // No `localized`: getRecipientLanguage resolves the WORKER's language (userId),
+      // but this alert goes to managerEmail — a localized block would give the manager
+      // the worker's language. Keep the manager alert on the English default.
     });
   }
 }
