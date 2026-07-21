@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { generateTempPassword } from '@/lib/tempPassword'
+import { seatLimitReached, planLimits } from '@/lib/planLimits'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,6 +54,33 @@ export async function POST(req: NextRequest) {
     // SECURITY: organisation_id always comes from the caller's profile — never
     // from the request body (prevents cross-org user creation).
     const organisation_id = callerProfile.organisation_id
+
+    // AP-02: seat-limit enforcement. FAIL OPEN — an unknown/null plan_tier, an unlimited
+    // tier, or any lookup error ALLOWS creation so existing orgs are never blocked.
+    {
+      const { data: orgRow } = await serverSupabase
+        .from('organisations')
+        .select('plan_tier')
+        .eq('id', organisation_id)
+        .single()
+      const planTier = orgRow?.plan_tier as string | null | undefined
+      if (planLimits(planTier)?.maxSeats != null) {
+        const { count } = await serverSupabase
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('organisation_id', organisation_id)
+          .eq('is_active', true)
+        if (typeof count === 'number' && seatLimitReached(planTier, count)) {
+          return NextResponse.json(
+            {
+              error: `Your plan's user limit has been reached. Upgrade your plan to add more team members.`,
+              error_ar: 'لقد وصلت مؤسستك إلى الحد الأقصى لعدد المستخدمين في خطتك. يرجى ترقية الخطة لإضافة المزيد من الأعضاء.',
+            },
+            { status: 403 }
+          )
+        }
+      }
+    }
 
     // Server-side field config enforcement (defense-in-depth)
     const enforcement = await enforceFieldConfig(organisation_id, 'users_new', {
