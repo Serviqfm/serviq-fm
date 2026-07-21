@@ -127,7 +127,7 @@ export function applySeasonalWindow(
 // completed/closed WOs are always left for history (schedule delete SET NULLs their
 // pm_schedule_id — see sprint-j-01).
 export const PAUSE_CLEARABLE_STATUSES = ['new', 'assigned']              // never started
-export const DELETE_CLEARABLE_STATUSES = ['new', 'assigned', 'in_progress']
+export const DELETE_CLEARABLE_STATUSES = ['new', 'assigned', 'in_progress', 'on_hold'] // all open base states
 
 // Delete this schedule's open auto-generated WOs in the given states. Accepts one id
 // or many (bulk delete). Must run BEFORE the schedule row is removed, since deleting
