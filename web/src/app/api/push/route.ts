@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { makeIpRateLimiter } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
+
+// DV-10: cap client-initiated pushes per IP. Internal server-to-server calls
+// (NotificationService, cron) present the shared secret and bypass this.
+const rateLimit = makeIpRateLimiter(30);
 
 function getExpoClient() {
   return new Expo({
@@ -37,6 +42,9 @@ export async function POST(request: Request) {
     const isInternal = Boolean(internalSecret) && authHeader === `Bearer ${internalSecret}`;
 
     if (!isInternal) {
+      const limited = rateLimit(request);
+      if (limited) return limited;
+
       const serverSupabase = await createServerSupabaseClient();
       const { data: { user: caller } } = await serverSupabase.auth.getUser();
       if (!caller) {
