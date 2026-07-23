@@ -22,6 +22,7 @@ export default function VendorDetailPage() {
   const [savingInvoice, setSavingInvoice] = useState(false)
   const [rating, setRating] = useState(0)
   const [savingRating, setSavingRating] = useState(false)
+  const [statusBusy, setStatusBusy] = useState<string | null>(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll(); fetchVendorWOs() }, [id])
@@ -37,6 +38,24 @@ export default function VendorDetailPage() {
     if (v) { setVendor(v); setRating(v.average_rating ?? 0) }
     if (inv) setInvoices(inv)
     setLoading(false)
+  }
+
+  // MKT-18 — guarded transitions via /api/vendor-invoices/[id]/status
+  // (pending → approved → paid; disputed from pending/approved; paid terminal).
+  async function setInvoiceStatus(invId: string, status: 'approved' | 'paid' | 'disputed') {
+    setStatusBusy(invId)
+    const res = await fetch(`/api/vendor-invoices/${invId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    setStatusBusy(null)
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      alert(body.error || 'Failed to update invoice status')
+      return
+    }
+    fetchAll()
   }
 
   async function saveRating(newRating: number) {
@@ -105,6 +124,11 @@ export default function VendorDetailPage() {
   })
 
   const cardStyle = { background: '#f9f9f9', borderRadius: 8, padding: '12px 16px' }
+
+  const actionBtnStyle = (color: string, bg: string, busy: boolean) => ({
+    background: bg, color, border: 'none', borderRadius: 8, padding: '4px 10px',
+    fontSize: 12, fontWeight: 500 as const, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+  })
 
   const totalInvoiced = invoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
   const totalPaid = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
@@ -284,7 +308,7 @@ export default function VendorDetailPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #eee' }}>
-                    {['Invoice No.','Amount','VAT','Date','Status'].map(h => (
+                    {['Invoice No.','Amount','VAT','Date','Status','Actions'].map(h => (
                       <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 500, color: '#666' }}>{h}</th>
                     ))}
                   </tr>
@@ -302,6 +326,19 @@ export default function VendorDetailPage() {
                           <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500 }}>
                             {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
                           </span>
+                        </td>
+                        <td style={{ padding: '10px 16px' }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                            {inv.status === 'pending' && (
+                              <button onClick={() => setInvoiceStatus(inv.id, 'approved')} disabled={statusBusy === inv.id} style={actionBtnStyle('#283593', '#e8eaf6', statusBusy === inv.id)}>Approve</button>
+                            )}
+                            {inv.status === 'approved' && (
+                              <button onClick={() => setInvoiceStatus(inv.id, 'paid')} disabled={statusBusy === inv.id} style={actionBtnStyle('#1b5e20', '#e8f5e9', statusBusy === inv.id)}>Mark Paid</button>
+                            )}
+                            {(inv.status === 'pending' || inv.status === 'approved') && (
+                              <button onClick={() => setInvoiceStatus(inv.id, 'disputed')} disabled={statusBusy === inv.id} style={actionBtnStyle('#b71c1c', '#fce4ec', statusBusy === inv.id)}>Dispute</button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )

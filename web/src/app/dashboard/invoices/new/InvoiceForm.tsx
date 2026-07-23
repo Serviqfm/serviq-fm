@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatSAR } from '@/lib/zatca'
+import { laborFromTimeLogs } from '@/lib/invoicePrefill'
 
 type SparePart = { name: string; qty: number; unit_cost: number; total: number }
 type Surcharge = { label: string; amount: number }
@@ -66,17 +67,28 @@ export default function InvoiceForm() {
 
     setServiceCharges(String(woData.actual_cost ?? 0))
 
-    const hrs  = hoursFromDates(woData.started_at, woData.completed_at)
     const rate = Number(woData.assignee?.hourly_rate ?? 0)
-    setLaborHours(String(hrs))
-    setLaborRate(String(rate))
 
-    const { data: comments } = await supabase
-      .from('work_order_comments')
-      .select('body')
-      .eq('work_order_id', woId)
-      .order('created_at', { ascending: true })
+    const [{ data: comments }, { data: timeLogs }, { data: woCosts }] = await Promise.all([
+      supabase.from('work_order_comments').select('body').eq('work_order_id', woId).order('created_at', { ascending: true }),
+      supabase.from('work_order_time_logs').select('minutes, hourly_rate').eq('work_order_id', woId),
+      supabase.from('work_order_costs').select('description, amount').eq('work_order_id', woId).order('created_at', { ascending: true }),
+    ])
     if (comments) setSpareParts(parsePartsFromComments(comments))
+
+    // WO-06 — prefill labor from logged time (snapshotted rates); fall back to the
+    // old started/completed heuristic when nothing was logged. Fields stay editable.
+    const labor = laborFromTimeLogs(timeLogs ?? [], rate)
+    setLaborHours(String(labor ? labor.hours : hoursFromDates(woData.started_at, woData.completed_at)))
+    setLaborRate(String(labor ? labor.rate : rate))
+
+    // WO-07 — prefill WO additional costs as editable surcharge line items.
+    if (woCosts?.length) {
+      setSurcharges(woCosts.map(c => ({
+        label:  c.description ?? '',
+        amount: parseFloat(Number(c.amount ?? 0).toFixed(2)),
+      })))
+    }
 
     setLoading(false)
   }
