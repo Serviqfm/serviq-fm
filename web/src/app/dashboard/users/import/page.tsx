@@ -8,6 +8,9 @@ import { useLanguage } from '@/context/LanguageContext'
 
 const TEMPLATE_HEADERS = 'email,full_name,full_name_ar,role,phone,team'
 const TEMPLATE_EXAMPLE = 'ahmed@company.com,Ahmed Al-Rashidi,أحمد الراشدي,technician,+966 5x xxx xxxx,HVAC Crew'
+// 1C-28: teams-only import — a CSV with `name` (no `email`) creates teams only.
+const TEAMS_TEMPLATE_HEADERS = 'name,name_ar'
+const TEAMS_TEMPLATE_EXAMPLE = 'HVAC Crew,فريق التكييف'
 
 type ImportResult = { created: number; errors: string[]; warnings: string[] }
 
@@ -19,6 +22,7 @@ export default function UserImportPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<ImportResult | null>(null)
+  const [teamsMode, setTeamsMode] = useState(false)
   const [error, setError] = useState('')
 
   // Import is manager/admin only (the API also enforces this). Bounce others.
@@ -33,13 +37,15 @@ export default function UserImportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function downloadTemplate() {
-    const csv = TEMPLATE_HEADERS + '\n' + TEMPLATE_EXAMPLE
+  function downloadTemplate(teams = false) {
+    const csv = teams
+      ? TEAMS_TEMPLATE_HEADERS + '\n' + TEAMS_TEMPLATE_EXAMPLE
+      : TEMPLATE_HEADERS + '\n' + TEMPLATE_EXAMPLE
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'serviq-fm-user-import-template.csv'
+    a.download = teams ? 'serviq-fm-team-import-template.csv' : 'serviq-fm-user-import-template.csv'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -58,6 +64,7 @@ export default function UserImportPage() {
         e.target.value = ''
         return
       }
+      setTeamsMode(!('email' in rows[0]) && 'name' in rows[0])
       const res = await fetch('/api/users/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,9 +98,13 @@ export default function UserImportPage() {
           <li>{ar ? 'الأدوار المسموحة: technician / manager / requester / admin (يمكن للمدير فقط إنشاء مدير نظام)' : <>role: technician / manager / requester / admin (only an admin can create admins)</>}</li>
           <li>{ar ? 'العمود team اختياري — سيتم إنشاء الفريق إن لم يكن موجودًا وإضافة المستخدم إليه' : <><strong>team</strong> is optional — it is created if it does not exist and the user is added to it</>}</li>
           <li>{ar ? 'يُرسَل بريد ترحيبي بكلمة مرور مؤقتة لكل مستخدم يُنشأ' : 'A welcome email with a temporary password is sent to each created user'}</li>
+          <li>{ar ? 'لاستيراد الفرق فقط: ملف بعمودي name و name_ar بدون عمود email' : <>Teams only: a CSV with <strong>name</strong> and <strong>name_ar</strong> columns (no email column) creates teams without users</>}</li>
         </ol>
-        <button onClick={downloadTemplate} style={{ marginTop: '1rem', padding: '8px 18px', background: '#1565c0', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+        <button onClick={() => downloadTemplate()} style={{ marginTop: '1rem', padding: '8px 18px', background: '#1565c0', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
           {ar ? 'تنزيل قالب CSV' : 'Download CSV Template'}
+        </button>
+        <button onClick={() => downloadTemplate(true)} style={{ marginTop: '1rem', marginInlineStart: 8, padding: '8px 18px', background: 'white', color: '#1565c0', border: '1px solid #1565c0', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+          {ar ? 'قالب الفرق فقط' : 'Teams-Only Template'}
         </button>
       </div>
 
@@ -109,7 +120,9 @@ export default function UserImportPage() {
         <div style={{ marginTop: '1.5rem' }}>
           <div style={{ background: results.created > 0 ? '#e8f5e9' : '#fff8e1', border: '1px solid ' + (results.created > 0 ? '#a5d6a7' : '#ffe082'), borderRadius: 10, padding: '1.25rem', marginBottom: '1rem' }}>
             <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px', color: results.created > 0 ? '#2e7d32' : '#f57f17' }}>
-              {results.created} {ar ? 'مستخدم تم إنشاؤه' : (results.created === 1 ? 'user created' : 'users created')}
+              {results.created} {teamsMode
+                ? (ar ? 'فريق تم إنشاؤه' : (results.created === 1 ? 'team created' : 'teams created'))
+                : (ar ? 'مستخدم تم إنشاؤه' : (results.created === 1 ? 'user created' : 'users created'))}
             </p>
             {results.errors.length > 0 && <p style={{ fontSize: 13, color: '#c62828', margin: 0 }}>{results.errors.length} {ar ? 'صف به أخطاء' : (results.errors.length === 1 ? 'row had errors' : 'rows had errors')}</p>}
           </div>

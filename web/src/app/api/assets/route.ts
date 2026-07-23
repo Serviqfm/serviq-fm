@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
   const spaceId = typeof body.space_id === 'string' && body.space_id.trim() !== ''
     ? body.space_id.trim()
     : null
+  // MKT-14: criticality — constrained to the DB CHECK set; anything else stores null.
+  const criticality = typeof body.criticality === 'string' && ['low', 'medium', 'high', 'critical'].includes(body.criticality)
+    ? body.criticality
+    : null
 
   // Build payload that matches catalog keys for enforcement.
   const enforcePayload: Record<string, unknown> = {
@@ -126,6 +130,7 @@ export async function POST(req: NextRequest) {
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
     parent_asset_id: parentAssetId,
     space_id: spaceId,
+    criticality,
     status: 'active',
     qr_code: qrCode,
   }

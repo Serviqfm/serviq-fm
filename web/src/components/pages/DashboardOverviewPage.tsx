@@ -25,6 +25,13 @@ interface ActivityItem {
   iconColor: string
 }
 
+interface UpcomingPM {
+  id: string
+  title: string
+  next_due_at: string
+  assetName: string | null
+}
+
 function timeAgo(isoStr: string): string {
   const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000)
   if (diff < 60) return `${diff}s ago`
@@ -47,6 +54,7 @@ export default function DashboardOverviewPage() {
     pmCompliancePercent: 0, openByStatus: {}, totalOpenForStatus: 0,
   })
   const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [upcomingPM, setUpcomingPM] = useState<UpcomingPM[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -61,9 +69,15 @@ export default function DashboardOverviewPage() {
 
     // Aggregates are computed server-side (get_dashboard_stats derives the org from
     // auth.uid()); only the small recent-activity feed is fetched directly.
-    const [{ data: statsRow }, { data: auditLogs }] = await Promise.all([
+    const [{ data: statsRow }, { data: auditLogs }, { data: pmRows }] = await Promise.all([
       supabase.rpc('get_dashboard_stats'),
-      supabase.from('audit_logs').select('id, action, entity_type, created_at, details').eq('organisation_id', orgId).order('created_at', { ascending: false }).limit(4),
+      supabase.from('audit_logs').select('id, action, entity_type, created_at, details').eq('organisation_id', orgId).order('created_at', { ascending: false }).limit(20),
+      // CORE-14: active PM schedules due within the next 7 days (same query shape as the PM calendar page).
+      supabase.from('pm_schedules').select('id, title, next_due_at, asset:asset_id(name)')
+        .eq('organisation_id', orgId).eq('is_active', true)
+        .not('next_due_at', 'is', null)
+        .lte('next_due_at', new Date(Date.now() + 7 * 86400000).toISOString())
+        .order('next_due_at', { ascending: true }).limit(10),
     ])
 
     const s = (statsRow ?? {}) as unknown as Partial<DashboardStats>
@@ -85,6 +99,14 @@ export default function DashboardOverviewPage() {
       details: log.details ?? null,
       ...activityIcon(log.entity_type, log.action),
     })))
+
+    setUpcomingPM((pmRows ?? []).map(pm => ({
+      id: pm.id,
+      title: pm.title,
+      next_due_at: pm.next_due_at as string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assetName: (pm.asset as any)?.name ?? null,
+    })))
     setLoading(false)
   }
 
@@ -99,7 +121,8 @@ export default function DashboardOverviewPage() {
   const onHold = stats.openByStatus['on_hold'] ?? 0
   const inProgress = stats.openByStatus['in_progress'] ?? 0
   const totalForBars = stats.totalOpenForStatus || 1
-  const assignedPct = Math.round(((assigned + inProgress) / totalForBars) * 100)
+  const assignedPct = Math.round((assigned / totalForBars) * 100)
+  const inProgressPct = Math.round((inProgress / totalForBars) * 100)
   const newPct = Math.round((newUnassigned / totalForBars) * 100)
   const onHoldPct = Math.round((onHold / totalForBars) * 100)
   const today = format(new Date(), 'MMM dd, yyyy')
@@ -214,7 +237,8 @@ export default function DashboardOverviewPage() {
               </Link>
             </div>
             <div className="p-8 flex-1 flex flex-col gap-8">
-              <StatusBar label="Assigned (In Progress)" value={assigned + inProgress} percent={assignedPct} color="bg-primary" valueColor="text-primary" sublabel="Technician dispatched" />
+              <StatusBar label="Assigned" value={assigned} percent={assignedPct} color="bg-primary" valueColor="text-primary" sublabel="Technician dispatched" />
+              <StatusBar label="In Progress" value={inProgress} percent={inProgressPct} color="bg-secondary" valueColor="text-secondary" sublabel="Work underway" />
               <StatusBar label="New (Unassigned)" value={newUnassigned} percent={newPct} color="bg-tertiary" valueColor="text-tertiary" sublabel="Awaiting triage" />
               <StatusBar label="On Hold (Pending Spare Parts)" value={onHold} percent={onHoldPct} color="bg-error" valueColor="text-error" sublabel="Blocked status" />
             </div>
@@ -260,6 +284,60 @@ export default function DashboardOverviewPage() {
           </div>
         </div>
 
+        {/* Upcoming PM + Quick Actions (CORE-14) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Upcoming PM (7 days) */}
+          <div className="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden flex flex-col">
+            <div className="p-4 bg-primary/5 border-b border-outline-variant/30 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-on-surface">Upcoming PM (7 days)</h3>
+                <p className="text-xs text-outline" dir="rtl" style={{ fontFamily: 'Readex Pro, sans-serif' }}>الصيانة الوقائية القادمة (٧ أيام)</p>
+              </div>
+              <Link href="/dashboard/pm-schedules/calendar" className="text-primary text-xs font-semibold uppercase tracking-wider flex items-center gap-1 hover:underline">
+                View Calendar
+                <span className="material-symbols-outlined text-base">arrow_forward</span>
+              </Link>
+            </div>
+            <div className="p-4 flex-1 overflow-y-auto max-h-[320px] flex flex-col gap-3">
+              {upcomingPM.length === 0 ? (
+                <p className="text-sm text-on-surface-variant">No PM due in the next 7 days</p>
+              ) : (
+                upcomingPM.map((pm, idx) => {
+                  const overdue = new Date(pm.next_due_at).getTime() < Date.now()
+                  return (
+                    <div key={pm.id} className={`flex items-center gap-3 ${idx < upcomingPM.length - 1 ? 'pb-3 border-b border-outline-variant/10' : ''}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${overdue ? 'bg-error/10' : 'bg-primary/10'}`}>
+                        <span className={`material-symbols-outlined text-xl ${overdue ? 'text-error' : 'text-primary'}`}>schedule</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-on-surface truncate">{pm.title}</p>
+                        {pm.assetName && <p className="text-xs text-on-surface-variant truncate">{pm.assetName}</p>}
+                      </div>
+                      <span className={`text-xs font-semibold flex-shrink-0 ${overdue ? 'text-error' : 'text-on-surface-variant'}`}>
+                        {format(new Date(pm.next_due_at), 'MMM dd')}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden flex flex-col">
+            <div className="p-4 bg-primary/5 border-b border-outline-variant/30">
+              <h3 className="text-xl font-bold text-on-surface">Quick Actions</h3>
+              <p className="text-xs text-outline" dir="rtl" style={{ fontFamily: 'Readex Pro, sans-serif' }}>إجراءات سريعة</p>
+            </div>
+            <div className="p-4 flex-1 flex flex-col gap-3">
+              <QuickAction href="/dashboard/work-orders/new" icon="add_task" labelEn="New Work Order" labelAr="طلب عمل جديد" />
+              <QuickAction href="/dashboard/pm-schedules/new" icon="event_repeat" labelEn="New PM Schedule" labelAr="جدول صيانة وقائية جديد" />
+              <QuickAction href="/dashboard/reports" icon="monitoring" labelEn="Reports" labelAr="التقارير" />
+            </div>
+          </div>
+        </div>
+
         {/* PM shortcut (replaces the former fabricated "Platform Insight" banner — CORE-12) */}
         <div className="bg-tertiary text-white rounded-[12px] p-8 relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 -mr-20 -mt-20 rounded-full" />
@@ -286,6 +364,21 @@ export default function DashboardOverviewPage() {
 
       </div>
     </div>
+  )
+}
+
+function QuickAction({ href, icon, labelEn, labelAr }: { href: string; icon: string; labelEn: string; labelAr: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant bg-surface-container-low hover:bg-primary/5 transition-colors group">
+      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+        <span className="material-symbols-outlined text-xl">{icon}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-on-surface">{labelEn}</p>
+        <p className="text-xs text-outline" dir="rtl" style={{ fontFamily: 'Readex Pro, sans-serif' }}>{labelAr}</p>
+      </div>
+      <span className="material-symbols-outlined text-base text-outline group-hover:text-primary transition-colors">arrow_forward</span>
+    </Link>
   )
 }
 

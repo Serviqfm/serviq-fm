@@ -42,6 +42,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     closeout_photo_urls?: string[]
     signoff?: string
     completion_notes?: string
+    // MKT-15: optional failure code applied at closure (SQL Files/w6-1-failure-codes.sql).
+    failure_code_id?: string
   }
 
   const newStatus = body.status
@@ -125,6 +127,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: enforcement.error }, { status: 400 })
   }
 
+  // MKT-15: optional failure code — must belong to the caller's org (the admin
+  // client bypasses RLS, so verify org-scope in app code).
+  const failureCodeId = typeof body.failure_code_id === 'string' && body.failure_code_id ? body.failure_code_id : null
+  if (failureCodeId) {
+    const { data: fc } = await admin
+      .from('failure_codes')
+      .select('id')
+      .eq('id', failureCodeId)
+      .eq('organisation_id', profile.organisation_id)
+      .maybeSingle()
+    if (!fc) {
+      return NextResponse.json({ error: 'Invalid failure code' }, { status: 400 })
+    }
+  }
+
   const updateRow: Record<string, unknown> = {
     status: newStatus,
     updated_at: new Date().toISOString(),
@@ -137,6 +154,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // WO-01: store the sign-off in its own column instead of overwriting the
     // technician's completion_notes.
     ...(body.signoff ? { signed_off_by: body.signoff } : {}),
+    // MKT-15: optional failure code at closure. Only written when provided so
+    // the route still works before SQL Files/w6-1-failure-codes.sql is applied.
+    ...(failureCodeId ? { failure_code_id: failureCodeId } : {}),
   }
 
   const { data, error } = await admin

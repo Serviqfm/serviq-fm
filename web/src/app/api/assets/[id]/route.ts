@@ -41,6 +41,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const spaceId = typeof body.space_id === 'string' && body.space_id.trim() !== ''
     ? body.space_id.trim()
     : null
+  // MKT-14: criticality — only touched when the caller sends the field; constrained
+  // to the DB CHECK set, anything else stores null.
+  const hasCriticalityField = Object.prototype.hasOwnProperty.call(body, 'criticality')
+  const criticality = typeof body.criticality === 'string' && ['low', 'medium', 'high', 'critical'].includes(body.criticality)
+    ? body.criticality
+    : null
 
   const enforcePayload: Record<string, unknown> = {
     name: body.name,
@@ -126,6 +132,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   if (hasParentField) updateRow.parent_asset_id = parentAssetId
   if (hasSpaceField) updateRow.space_id = spaceId
+  if (hasCriticalityField) updateRow.criticality = criticality
 
   const { data, error } = await admin
     .from('assets')
