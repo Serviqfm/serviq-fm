@@ -15,3 +15,28 @@ export const CATEGORIES: { value: string; labelKey: string }[] = [
   { value: 'Vehicle', labelKey: 'cat_vehicle' },
   { value: 'Other', labelKey: 'cat_other' },
 ]
+
+// FM-20: org-managed categories from work_order_categories (mirrors web's
+// fetchWoCategories). Returns ready-to-use SelectField options, or null when the
+// table is empty/missing/errors so the caller keeps the hardcoded CATEGORIES
+// fallback (pre-migration / offline). The stored value stays the English name.
+import { supabase } from './supabase'
+
+export async function fetchOrgCategoryOptions(
+  lang: string,
+): Promise<{ value: string; label: string }[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('work_order_categories')
+      .select('name, name_ar')
+      .eq('is_active', true)
+      .order('sort_order')
+    if (error || !data || data.length === 0) return null
+    return data.map((c: { name: string; name_ar: string | null }) => ({
+      value: c.name,
+      label: lang === 'ar' && c.name_ar ? c.name_ar : c.name,
+    }))
+  } catch {
+    return null
+  }
+}
