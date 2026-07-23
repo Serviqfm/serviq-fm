@@ -28,6 +28,7 @@ export default function EditAssetPage() {
   const [form, setForm] = useState({
     name: '',
     category: '',
+    criticality: '',
     site_id: '',
     space_id: '',
     parent_asset_id: '',
@@ -70,6 +71,7 @@ export default function EditAssetPage() {
       setForm({
         name: asset.name ?? '',
         category: asset.category ?? '',
+        criticality: asset.criticality ?? '',
         site_id: asset.site_id ?? '',
         space_id: asset.space_id ?? '',
         parent_asset_id: asset.parent_asset_id ?? '',
@@ -111,6 +113,7 @@ export default function EditAssetPage() {
       body: JSON.stringify({
         name: form.name,
         category: form.category,
+        criticality: form.criticality,
         site_id: form.site_id,
         space_id: form.space_id,
         parent_asset_id: form.parent_asset_id,
@@ -185,6 +188,16 @@ export default function EditAssetPage() {
               </select>
             </div>
           )}
+        </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الأهمية' : 'Criticality'}</label>
+          <select name='criticality' value={form.criticality} onChange={handleChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'اختر الأهمية' : 'Select criticality'}</option>
+            <option value='low'>{lang === 'ar' ? 'منخفضة' : 'Low'}</option>
+            <option value='medium'>{lang === 'ar' ? 'متوسطة' : 'Medium'}</option>
+            <option value='high'>{lang === 'ar' ? 'عالية' : 'High'}</option>
+            <option value='critical'>{lang === 'ar' ? 'حرجة' : 'Critical'}</option>
+          </select>
         </div>
         <div>
           <label style={labelStyle}>{lang === 'ar' ? 'الأصل الرئيسي (اختياري)' : 'Parent Asset (optional)'}</label>
