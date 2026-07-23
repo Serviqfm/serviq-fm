@@ -9,6 +9,7 @@ import FormFieldsTab from './FormFieldsTab'
 import CustomFieldsTab from './CustomFieldsTab'
 import CategoriesTab from './CategoriesTab'
 import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
+import ChangeEmailCard from '@/components/settings/ChangeEmailCard'
 
 export default function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,6 +34,8 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
   const [profileError, setProfileError] = useState('')
+  // 1C-21: an email change awaiting confirmation (GoTrue exposes it as new_email).
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData() }, [])
@@ -45,6 +48,14 @@ export default function SettingsPage() {
       .select('*, organisation:organisation_id(*)')
       .eq('id', authUser.id).single()
     if (profile) {
+      // 1C-21: after a confirmed email change auth.users.email is the source of
+      // truth — sync public.users.email here on the next Settings visit
+      // (best-effort own-row update; RLS + the privilege-lock trigger allow it).
+      if (authUser.email && profile.email !== authUser.email) {
+        await supabase.from('users').update({ email: authUser.email }).eq('id', authUser.id)
+        profile.email = authUser.email
+      }
+      setPendingEmail((authUser as { new_email?: string }).new_email ?? null)
       setUser(profile)
       setOrg(profile.organisation)
       setProfileForm({
@@ -489,6 +500,8 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
+
+              <ChangeEmailCard lang={lang} currentEmail={user?.email ?? null} initialPendingEmail={pendingEmail} />
 
               <ChangePasswordCard lang={lang} />
 
