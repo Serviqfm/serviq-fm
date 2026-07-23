@@ -8,6 +8,7 @@ import PushAuditTab from './PushAuditTab'
 import FormFieldsTab from './FormFieldsTab'
 import CustomFieldsTab from './CustomFieldsTab'
 import CategoriesTab from './CategoriesTab'
+import FailureCodesTab from './FailureCodesTab'
 import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
 import ChangeEmailCard from '@/components/settings/ChangeEmailCard'
 
@@ -19,7 +20,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories'>('account')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories' | 'failure_codes'>('account')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -147,12 +148,13 @@ export default function SettingsPage() {
           <div className="flex gap-0 mb-8 border-b border-outline-variant">
             {(() => {
               const isElevated = user?.role === 'admin' || user?.role === 'manager'
-              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories'; label: string }[] = []
+              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories' | 'failure_codes'; label: string }[] = []
               if (isElevated) {
                 tabs.push(
-                  { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
-                  { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
-                  { key: 'categories',   label: lang === 'ar' ? 'الفئات' : 'Categories' },
+                  { key: 'organisation',  label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
+                  { key: 'storage',       label: lang === 'ar' ? 'التخزين' : 'Storage' },
+                  { key: 'categories',    label: lang === 'ar' ? 'الفئات' : 'Categories' },
+                  { key: 'failure_codes', label: lang === 'ar' ? 'رموز الأعطال' : 'Failure Codes' },
                 )
               }
               tabs.push(
@@ -540,6 +542,10 @@ export default function SettingsPage() {
 
           {activeTab === 'categories' && (user?.role === 'admin' || user?.role === 'manager') && (
             <CategoriesTab />
+          )}
+
+          {activeTab === 'failure_codes' && (user?.role === 'admin' || user?.role === 'manager') && (
+            <FailureCodesTab />
           )}
         </div>
       </div>

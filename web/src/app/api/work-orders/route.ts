@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as Record<string, unknown>
 
   // Separate non-catalog/system fields from the field-config-gated fields.
-  // is_recurring is a UI-only field (used to decide `source`), not a column.
-  const isRecurring = body.is_recurring === true || body.is_recurring === 'true'
+  // Recurrence is owned by PM schedules, not work_orders — the old is_recurring/
+  // recurrence_frequency UI fields were removed (1C-19), so they are no longer in
+  // the field catalog or this payload.
   const photoUrls = Array.isArray(body.photo_urls) ? (body.photo_urls as string[]) : []
 
   // Build payload that matches catalog keys for enforcement.
@@ -45,8 +46,6 @@ export async function POST(req: NextRequest) {
     assigned_to: body.assigned_to,
     due_at: body.due_at,
     sla_hours: body.sla_hours,
-    is_recurring: isRecurring ? 'true' : '',
-    recurrence_frequency: body.recurrence_frequency,
     photos: photoUrls.length > 0 ? photoUrls : '',
   }
 
