@@ -71,6 +71,29 @@ CREATE POLICY fc_org_delete ON public.failure_codes
     AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
   );
 
+-- Composite unique key so the WO reference can be org-bound (a plain FK on id
+-- alone would let a leaked cross-org code UUID be stored via direct PostgREST,
+-- silently dropping that WO from its true org's Failures-by-Code counts).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'failure_codes_id_org_key') THEN
+    ALTER TABLE public.failure_codes ADD CONSTRAINT failure_codes_id_org_key UNIQUE (id, organisation_id);
+  END IF;
+END $$;
+
 -- Optional failure code captured at WO closure (nullable — not required to close).
 ALTER TABLE public.work_orders
-  ADD COLUMN IF NOT EXISTS failure_code_id UUID REFERENCES public.failure_codes(id);
+  ADD COLUMN IF NOT EXISTS failure_code_id UUID;
+
+-- Org-bound composite FK: (failure_code_id, organisation_id) must match a code in
+-- the SAME org. NULL failure_code_id is unconstrained (MATCH SIMPLE), so closing
+-- without a code is unaffected. Keeps the close-route guard as belt-and-braces.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'work_orders_failure_code_org_fk') THEN
+    ALTER TABLE public.work_orders
+      ADD CONSTRAINT work_orders_failure_code_org_fk
+      FOREIGN KEY (failure_code_id, organisation_id)
+      REFERENCES public.failure_codes(id, organisation_id);
+  END IF;
+END $$;
