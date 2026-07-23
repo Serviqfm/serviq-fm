@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { supabase } from '../lib/supabase'
+import { isOnline, enqueue } from '../lib/offline'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
 import { colors } from '../lib/theme'
@@ -60,12 +61,24 @@ export default function QRScannerScreen() {
     if (verifyAssetId) {
       if (assetId && assetId === verifyAssetId) {
         // Arrival activity row (shows in the WO Activity tab). [ACTIVITY] prefix
-        // matches the existing parts-usage convention.
-        await supabase.from('work_order_comments').insert({
-          work_order_id: verifyWoId,
-          user_id: profile?.id,
-          body: '[ACTIVITY] Asset confirmed on-site via QR scan',
+        // matches the existing parts-usage convention. A tech scanning an on-site
+        // asset is often offline (basement/remote), so queue instead of claiming a
+        // false success when the write can't reach the server.
+        const body = '[ACTIVITY] Asset confirmed on-site via QR scan'
+        const queueIt = () => enqueue({ kind: 'comment', woId: verifyWoId!, body, userId: profile?.id ?? null })
+        if (!isOnline()) {
+          await queueIt()
+          Alert.alert(t('asset_confirmed'), t('offline_queued'), [{ text: t('ok'), onPress: () => navigation.goBack() }])
+          return
+        }
+        const { error: confErr } = await supabase.from('work_order_comments').insert({
+          work_order_id: verifyWoId, user_id: profile?.id, body,
         })
+        if (confErr) {
+          await queueIt()
+          Alert.alert(t('asset_confirmed'), t('offline_queued'), [{ text: t('ok'), onPress: () => navigation.goBack() }])
+          return
+        }
         Alert.alert(t('asset_confirmed'), t('asset_confirmed_msg'), [
           { text: t('ok'), onPress: () => navigation.goBack() },
         ])
