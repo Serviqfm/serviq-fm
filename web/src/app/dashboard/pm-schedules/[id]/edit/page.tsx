@@ -27,7 +27,7 @@ export default function EditPMSchedulePage() {
   const [form, setForm] = useState({
     title: '', description: '', frequency: 'monthly', priority: 'medium', category: '',
     asset_id: '', site_id: '', assigned_to: '', checklist_template_id: '',
-    next_due_at: '', end_date: '', estimated_duration_minutes: '',
+    next_due_at: '', end_date: '', lead_time_days: '', estimated_duration_minutes: '',
     is_seasonal: false, seasonal_start_month: '1', seasonal_end_month: '12',
     scheduling_mode: 'fixed', interval_count: '', interval_unit: 'month', anchor_day: '',
   })
@@ -66,6 +66,7 @@ export default function EditPMSchedulePage() {
       checklist_template_id: pm.checklist_template_id ?? '',
       next_due_at: pm.next_due_at ? pm.next_due_at.slice(0, 16) : '',
       end_date: pm.end_date ? pm.end_date.slice(0, 10) : '',
+      lead_time_days: pm.lead_time_days != null ? String(pm.lead_time_days) : '',
       estimated_duration_minutes: pm.estimated_duration_minutes ? String(pm.estimated_duration_minutes) : '',
       is_seasonal: pm.is_seasonal ?? false,
       seasonal_start_month: pm.seasonal_start_month ? String(pm.seasonal_start_month) : '1',
@@ -105,6 +106,7 @@ export default function EditPMSchedulePage() {
       checklist_template_id: form.checklist_template_id || null,
       next_due_at: form.next_due_at || null,
       end_date: form.end_date || null,
+      lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null,
       days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
       estimated_duration_minutes: form.estimated_duration_minutes ? parseInt(form.estimated_duration_minutes) : null,
       is_seasonal: form.is_seasonal,
@@ -263,6 +265,13 @@ export default function EditPMSchedulePage() {
             <input name='end_date' type='date' value={form.end_date} onChange={handleChange} style={fieldStyle} />
             <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
               {lang === 'ar' ? 'لن يتم إنشاء أوامر عمل بعد هذا التاريخ.' : 'No work orders will be generated after this date.'}
+            </p>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'أيام التجهيز المسبق' : 'Lead time (days)'}</label>
+            <input name='lead_time_days' type='number' min='0' value={form.lead_time_days} onChange={handleChange} placeholder='2' style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'يُنشأ أمر العمل قبل تاريخ الاستحقاق بهذا العدد من الأيام (الافتراضي 2).' : 'The work order is created this many days before the due date (default 2).'}
             </p>
           </div>
         </div>
