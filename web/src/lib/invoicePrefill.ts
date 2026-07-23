@@ -17,8 +17,13 @@ export function laborFromTimeLogs(
       s + ((Number(t.minutes) || 0) / 60) * (t.hourly_rate == null ? fallbackRate : Number(t.hourly_rate)),
     0
   )
+  // Derive the rate from the ROUNDED hours the form will actually store, so
+  // hours × rate reproduces the true logged cost to within hours×0.005 (sub-cent
+  // for typical jobs) instead of rate×0.005. (totalMin is an integer ≥ 1, so
+  // rounded hours ≥ 0.02 — never zero.)
+  const hours = parseFloat((totalMin / 60).toFixed(2))
   return {
-    hours: parseFloat((totalMin / 60).toFixed(2)),
-    rate:  parseFloat((cost / (totalMin / 60)).toFixed(2)),
+    hours,
+    rate: parseFloat((cost / hours).toFixed(2)),
   }
 }

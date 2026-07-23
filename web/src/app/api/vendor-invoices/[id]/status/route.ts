@@ -40,12 +40,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: `Cannot move ${inv.status} → ${status}` }, { status: 409 })
     }
 
-    const { error } = await supabase
+    // Compare-and-swap on the status we validated against, so two concurrent
+    // transitions can't both pass the check and race a paid invoice back open.
+    const { data: updated, error } = await supabase
       .from('vendor_invoices')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('organisation_id', profile.organisation_id)
+      .eq('status', inv.status)
+      .select('id')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!updated || updated.length === 0) {
+      return NextResponse.json({ error: 'Invoice changed — refresh and retry' }, { status: 409 })
+    }
 
     return NextResponse.json({ ok: true, status })
   } catch (err) {
