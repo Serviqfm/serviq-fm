@@ -23,6 +23,7 @@ const translations = {
     good_evening: 'Good evening',
     my_work_orders: 'My Work Orders',
     overdue: 'Overdue',
+    overdue_banner: '%{n} overdue work orders',
     due_today: 'Due Today',
     open: 'Open',
     scan_qr: 'Scan QR',
@@ -122,6 +123,17 @@ const translations = {
     grant_access: 'Grant Access',
     opening_asset: 'Opening asset...',
     point_at_qr: 'Point at an asset QR code',
+    // CORE-10: scan-to-confirm-asset
+    scan_to_confirm_asset: 'Scan to confirm asset',
+    confirm_asset_hint: "Scan this work order's asset QR to confirm you're on-site",
+    asset_confirmed: 'Asset Confirmed',
+    asset_confirmed_msg: 'Arrival recorded on the work order.',
+    asset_mismatch: 'Wrong Asset',
+    asset_mismatch_msg: "That code doesn't match this work order's asset.",
+    ok: 'OK',
+    // WO-33: auto-timer toggle
+    auto_timer: 'Auto time tracking',
+    auto_timer_desc: 'Start the timer when work begins and log it on completion',
     // Asset Log
     asset_log_not_found: 'Item not found',
     type: 'Type',
@@ -235,6 +247,7 @@ const translations = {
     good_evening: 'مساء النور',
     my_work_orders: 'أوامر عملي',
     overdue: 'متأخر',
+    overdue_banner: '%{n} أوامر عمل متأخرة',
     due_today: 'مستحق اليوم',
     open: 'مفتوح',
     scan_qr: 'مسح QR',
@@ -334,6 +347,17 @@ const translations = {
     grant_access: 'منح الإذن',
     opening_asset: 'جاري فتح الأصل...',
     point_at_qr: 'وجّه الكاميرا نحو رمز QR الخاص بالأصل',
+    // CORE-10: scan-to-confirm-asset
+    scan_to_confirm_asset: 'امسح لتأكيد الأصل',
+    confirm_asset_hint: 'امسح رمز QR الخاص بأصل أمر العمل لتأكيد وجودك في الموقع',
+    asset_confirmed: 'تم تأكيد الأصل',
+    asset_confirmed_msg: 'تم تسجيل الوصول في أمر العمل.',
+    asset_mismatch: 'أصل غير مطابق',
+    asset_mismatch_msg: 'هذا الرمز لا يطابق أصل أمر العمل.',
+    ok: 'حسناً',
+    // WO-33: auto-timer toggle
+    auto_timer: 'تتبع الوقت تلقائياً',
+    auto_timer_desc: 'ابدأ المؤقت عند بدء العمل وسجّله عند الاكتمال',
     // Asset Log
     asset_log_not_found: 'العنصر غير موجود',
     type: 'النوع',
