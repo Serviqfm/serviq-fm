@@ -206,7 +206,13 @@ export default function WorkOrdersScreen() {
         }
       />
 
-      {profile?.role !== 'requester' && (
+      {/* CORE-23: requesters submit through the request queue; everyone else creates a WO. */}
+      {profile?.role === 'requester' ? (
+        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('RequestSubmit')}
+          accessibilityLabel={t('new_request')}>
+          <Ionicons name='add' size={28} color='white' />
+        </TouchableOpacity>
+      ) : (
         <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('CreateWorkOrder')}
           accessibilityLabel={t('create_work_order')}>
           <Ionicons name='add' size={28} color='white' />
