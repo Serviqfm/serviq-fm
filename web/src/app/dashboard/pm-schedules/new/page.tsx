@@ -34,7 +34,11 @@ export default function NewPMSchedulePage() {
     checklist_template_id: '',     // FM-05: stamped onto generated WOs
     next_due_at: '',
     end_date: '',
+    lead_time_days: '',           // CORE-33: WO is created N days before due (cron default 2)
     estimated_duration_minutes: '',
+    is_seasonal: false,            // FM-18: seasonal window honored by the cron
+    seasonal_start_month: '1',
+    seasonal_end_month: '12',
     scheduling_mode: 'fixed',      // 1C-09: 'fixed' | 'floating'
     interval_count: '',            // 1C-10: blank = use frequency preset
     interval_unit: 'month',
@@ -97,6 +101,10 @@ export default function NewPMSchedulePage() {
       checklist_template_id: form.checklist_template_id || null,
       next_due_at: form.next_due_at || null,
       end_date: form.end_date || null,
+      lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null,
+      is_seasonal: form.is_seasonal,
+      seasonal_start_month: form.is_seasonal ? parseInt(form.seasonal_start_month) : null,
+      seasonal_end_month: form.is_seasonal ? parseInt(form.seasonal_end_month) : null,
       days_of_week: form.frequency === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
       estimated_duration_minutes: form.estimated_duration_minutes ? parseInt(form.estimated_duration_minutes) : null,
       scheduling_mode: form.scheduling_mode,
@@ -163,6 +171,9 @@ export default function NewPMSchedulePage() {
   const dayNames = lang === 'ar'
     ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
     : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = lang === 'ar'
+    ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
   const templates = [
     { label: 'AC Filter Cleaning', description: 'Clean and replace AC filters, check refrigerant levels, inspect coils' },
@@ -376,6 +387,35 @@ export default function NewPMSchedulePage() {
               {lang === 'ar' ? 'لن يتم إنشاء أوامر عمل بعد هذا التاريخ.' : 'No work orders will be generated after this date.'}
             </p>
           </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'أيام التجهيز المسبق' : 'Lead time (days)'}</label>
+            <input name='lead_time_days' type='number' min='0' value={form.lead_time_days} onChange={handleChange} placeholder='2' style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'يُنشأ أمر العمل قبل تاريخ الاستحقاق بهذا العدد من الأيام (الافتراضي 2).' : 'The work order is created this many days before the due date (default 2).'}
+            </p>
+          </div>
+        </div>
+        <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: form.is_seasonal ? 12 : 0 }}>
+            <input type='checkbox' id='is_seasonal' checked={form.is_seasonal} onChange={e => setForm(prev => ({ ...prev, is_seasonal: e.target.checked }))} style={{ width: 16, height: 16 }} />
+            <label htmlFor='is_seasonal' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>{lang === 'ar' ? 'جدول موسمي' : 'Seasonal schedule'}</label>
+          </div>
+          {form.is_seasonal && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+              <div>
+                <label style={labelStyle}>{lang === 'ar' ? 'يعمل من شهر' : 'Active from month'}</label>
+                <select name='seasonal_start_month' value={form.seasonal_start_month} onChange={handleChange} style={fieldStyle}>
+                  {months.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>{lang === 'ar' ? 'حتى شهر' : 'Active until month'}</label>
+                <select name='seasonal_end_month' value={form.seasonal_end_month} onChange={handleChange} style={fieldStyle}>
+                  {months.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '10px 14px', cursor: 'pointer' }}>
           <input type='checkbox' checked={createFirstWO} onChange={e => setCreateFirstWO(e.target.checked)} style={{ width: 16, height: 16 }} />
