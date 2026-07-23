@@ -30,7 +30,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF NEW.source = 'pm_schedule' AND NEW.asset_id IS NOT NULL
      AND NEW.status = 'completed' AND OLD.status IS DISTINCT FROM NEW.status THEN
-    UPDATE public.assets SET last_pm_at = now() WHERE id = NEW.asset_id;
+    -- org-bound: the WO's own tenant only, so a cross-org asset_id (this fn is
+    -- SECURITY DEFINER and bypasses RLS) matches zero rows instead of stamping
+    -- another tenant's asset.
+    UPDATE public.assets SET last_pm_at = now()
+     WHERE id = NEW.asset_id AND organisation_id = NEW.organisation_id;
   END IF;
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
