@@ -47,6 +47,22 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     updateRow.site_id = body.site_id
   }
 
+  // AL-14 — re-parent under another space (nested sub-locations). The parent
+  // must be a space in the caller's org and must not be this space itself; the
+  // composite FK also enforces same-org. Pass null to detach to the site root.
+  if ('parent_space_id' in body) {
+    const parent = body.parent_space_id
+    if (parent === null) {
+      updateRow.parent_space_id = null
+    } else if (typeof parent === 'string' && parent) {
+      if (parent === id) return NextResponse.json({ error: 'A space cannot be its own parent' }, { status: 400 })
+      const { data: p } = await admin
+        .from('spaces').select('id').eq('id', parent).eq('organisation_id', profile.organisation_id).maybeSingle()
+      if (!p) return NextResponse.json({ error: 'Parent space not found in your organisation' }, { status: 400 })
+      updateRow.parent_space_id = parent
+    }
+  }
+
   // Full edit-form submits carry `name`; a move-only call (from the location
   // tree) omits it and skips the field-config gate on the content fields.
   if ('name' in body) {
