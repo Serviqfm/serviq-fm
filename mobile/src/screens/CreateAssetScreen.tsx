@@ -3,6 +3,9 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import { Ionicons } from '@expo/vector-icons'
+import { format } from 'date-fns'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -11,7 +14,9 @@ import { colors, radius, shadow } from '../lib/theme'
 import { CATEGORIES } from '../lib/categories'
 import SelectField from '../components/SelectField'
 
-// Handles both create (no params) and edit (route.params.asset = existing row).
+// AL-22: full MEP asset field coverage — mirrors the web edit form
+// (web/src/app/dashboard/assets/[id]/edit). Handles both create (no params)
+// and edit (route.params.asset = existing row).
 export default function CreateAssetScreen() {
   const navigation = useNavigation<any>()
   const route = useRoute<any>()
@@ -23,43 +28,74 @@ export default function CreateAssetScreen() {
   const [name, setName] = useState(editing?.name ?? '')
   const [nameAr, setNameAr] = useState(editing?.name_ar ?? '')
   const [category, setCategory] = useState<string | null>(editing?.category ?? null)
+  const [criticality, setCriticality] = useState<string | null>(editing?.criticality ?? null)
   const [siteId, setSiteId] = useState<string | null>(editing?.site_id ?? null)
+  const [spaceId, setSpaceId] = useState<string | null>(editing?.space_id ?? null)
   const [subLocation, setSubLocation] = useState(editing?.sub_location ?? '')
   const [serialNumber, setSerialNumber] = useState(editing?.serial_number ?? '')
   const [manufacturer, setManufacturer] = useState(editing?.manufacturer ?? '')
   const [model, setModel] = useState(editing?.model ?? '')
+  const [warranty, setWarranty] = useState<Date | null>(editing?.warranty_expiry ? new Date(editing.warranty_expiry) : null)
+  const [showWarrantyPicker, setShowWarrantyPicker] = useState(false)
+  const [status, setStatus] = useState<string>(editing?.status ?? 'active')
   const [description, setDescription] = useState(editing?.description ?? '')
   const [sites, setSites] = useState<any[]>([])
+  const [spaces, setSpaces] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: editing ? t('edit_asset') : t('create_asset') })
   }, [navigation, t, editing])
 
-  useEffect(() => { fetchSites() }, [profile?.id])
+  useEffect(() => { fetchLocations() }, [profile?.id])
 
-  async function fetchSites() {
+  async function fetchLocations() {
     if (!profile?.organisation_id) return
-    const { data } = await supabase.from('sites').select('id, name')
-      .eq('organisation_id', profile.organisation_id)
-      .order('name', { ascending: true })
-    if (data) setSites(data)
+    const [{ data: siteData }, { data: spaceData }] = await Promise.all([
+      supabase.from('sites').select('id, name')
+        .eq('organisation_id', profile.organisation_id).order('name', { ascending: true }),
+      supabase.from('spaces').select('id, name, site_id')
+        .eq('organisation_id', profile.organisation_id).order('name', { ascending: true }),
+    ])
+    if (siteData) setSites(siteData)
+    if (spaceData) setSpaces(spaceData)
+  }
+
+  // AL-21 parity: changing the site clears a space that belongs to another site.
+  function onSiteChange(v: string | null) {
+    setSiteId(v)
+    if (spaceId && spaces.find(s => s.id === spaceId)?.site_id !== v) setSpaceId(null)
+  }
+
+  function onWarrantyChange(event: any, selected?: Date) {
+    if (Platform.OS !== 'ios') setShowWarrantyPicker(false)
+    if (event.type === 'dismissed') return
+    if (selected) setWarranty(selected)
   }
 
   async function save() {
     if (!name.trim()) { Alert.alert(t('error'), t('name_required')); return }
     if (!profile?.organisation_id) { Alert.alert(t('error'), t('org_not_loaded')); return }
+    // Only accept a site/space from the org-scoped lists we loaded — RLS blocks
+    // cross-org asset writes but not a foreign-org FK *value*, so guard the value
+    // here (matches the web PATCH's ownership check; keeps our own record clean).
+    if (siteId && !sites.some(s => s.id === siteId)) { Alert.alert(t('error')); return }
+    if (spaceId && !spaces.some(s => s.id === spaceId)) { Alert.alert(t('error')); return }
     setSaving(true)
 
     const fields = {
       name: name.trim(),
       name_ar: nameAr.trim() ? nameAr.trim() : null,
       category,
+      criticality,
       site_id: siteId,
+      space_id: spaceId,
       sub_location: subLocation.trim() ? subLocation.trim() : null,
       serial_number: serialNumber.trim() ? serialNumber.trim() : null,
       manufacturer: manufacturer.trim() ? manufacturer.trim() : null,
       model: model.trim() ? model.trim() : null,
+      warranty_expiry: warranty ? format(warranty, 'yyyy-MM-dd') : null,
+      status,
       description: description.trim() ? description.trim() : null,
     }
 
@@ -77,7 +113,6 @@ export default function CreateAssetScreen() {
         ...fields,
         organisation_id: profile.organisation_id,
         created_by: profile.id,
-        status: 'active',
         qr_code: qrCode,
       })
       error = res.error
@@ -89,12 +124,14 @@ export default function CreateAssetScreen() {
     navigation.goBack()
   }
 
-  const textFields: { label: string; value: string; onChange: (v: string) => void; rtl?: boolean }[] = [
+  const textFields: { label: string; value: string; onChange: (v: string) => void }[] = [
     { label: t('sub_location'), value: subLocation, onChange: setSubLocation },
     { label: t('serial_number'), value: serialNumber, onChange: setSerialNumber },
     { label: t('manufacturer'), value: manufacturer, onChange: setManufacturer },
     { label: t('model'), value: model, onChange: setModel },
   ]
+
+  const spaceOptions = spaces.filter(s => s.site_id === siteId)
 
   return (
     <KeyboardAvoidingView
@@ -133,12 +170,35 @@ export default function CreateAssetScreen() {
           />
 
           <SelectField
+            label={t('criticality')}
+            placeholder={t('select_criticality')}
+            value={criticality}
+            options={[
+              { value: 'low', label: t('low') },
+              { value: 'medium', label: t('medium') },
+              { value: 'high', label: t('high') },
+              { value: 'critical', label: t('critical') },
+            ]}
+            onChange={setCriticality}
+          />
+
+          <SelectField
             label={t('site')}
             placeholder={t('select_site')}
             value={siteId}
             options={sites.map(s => ({ value: s.id, label: s.name }))}
-            onChange={setSiteId}
+            onChange={onSiteChange}
           />
+
+          {siteId && spaceOptions.length > 0 && (
+            <SelectField
+              label={t('space')}
+              placeholder={t('select_space')}
+              value={spaceId}
+              options={spaceOptions.map(s => ({ value: s.id, label: s.name }))}
+              onChange={setSpaceId}
+            />
+          )}
 
           {textFields.map(f => (
             <View key={f.label} style={styles.field}>
@@ -152,6 +212,42 @@ export default function CreateAssetScreen() {
               />
             </View>
           ))}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>{t('warranty_expiry')}</Text>
+            <TouchableOpacity style={styles.dateInput} onPress={() => setShowWarrantyPicker(true)}>
+              <Text style={{ fontSize: 14, color: warranty ? colors.text : colors.textLight }}>
+                {warranty ? format(warranty, 'dd MMM yyyy') : t('select_date')}
+              </Text>
+              <Ionicons name='calendar-outline' size={18} color={colors.textLight} />
+            </TouchableOpacity>
+            {warranty && (
+              <TouchableOpacity onPress={() => setWarranty(null)}>
+                <Text style={styles.clearText}>{t('clear')}</Text>
+              </TouchableOpacity>
+            )}
+            {showWarrantyPicker && (
+              <DateTimePicker value={warranty ?? new Date()} mode='date' onChange={onWarrantyChange} />
+            )}
+            {showWarrantyPicker && Platform.OS === 'ios' && (
+              <TouchableOpacity onPress={() => setShowWarrantyPicker(false)}>
+                <Text style={styles.doneText}>{t('done')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <SelectField
+            label={t('status')}
+            placeholder={t('select_status')}
+            value={status}
+            allowNone={false}
+            options={[
+              { value: 'active', label: t('active') },
+              { value: 'under_maintenance', label: t('under_maintenance') },
+              { value: 'retired', label: t('retired') },
+            ]}
+            onChange={v => setStatus(v ?? 'active')}
+          />
 
           <View style={styles.field}>
             <Text style={styles.label}>{t('description')}</Text>
@@ -183,6 +279,9 @@ const styles = StyleSheet.create({
   field: { marginBottom: 14 },
   label: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
   input: { backgroundColor: 'white', borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, color: colors.text },
+  dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'white', borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 12 },
+  clearText: { fontSize: 12, color: colors.error, marginTop: 6 },
+  doneText: { fontSize: 14, color: colors.primary, fontWeight: '600', textAlign: 'right', marginTop: 8 },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   submitBtn: { marginTop: 16, backgroundColor: colors.primary, borderRadius: radius.md, padding: 16, alignItems: 'center' },
   submitBtnText: { color: 'white', fontSize: 15, fontWeight: '600' },
