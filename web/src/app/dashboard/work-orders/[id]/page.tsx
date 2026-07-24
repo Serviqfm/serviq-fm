@@ -44,6 +44,11 @@ export default function WorkOrderDetailPage() {
   const [tasks, setTasks] = useState<WorkOrderTask[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [addingTask, setAddingTask] = useState(false)
+  // WO-20: which task's 3-dot menu is open.
+  const [openTaskMenu, setOpenTaskMenu] = useState<string | null>(null)
+  // WO-34: active org users for @-mention autocomplete + the current typed query.
+  const [mentionUsers, setMentionUsers] = useState<{ id: string; full_name: string }[]>([])
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null)
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,6 +105,7 @@ export default function WorkOrderDetailPage() {
     fetchActivities()
     fetchInvoice()
     fetchTasks()
+    fetchMentionUsers()
     fetchCurrentUser()
     fetchCustomStatuses()
     fetchFailureCodes()
@@ -295,6 +301,46 @@ export default function WorkOrderDetailPage() {
     if (!confirm(lang === 'ar' ? 'حذف هذه المهمة؟' : 'Delete this task?')) return
     await supabase.from('work_order_tasks').delete().eq('id', taskId)
     fetchTasks()
+  }
+
+  // WO-20: per-task note / image / result / required. Optimistic then refetch.
+  async function updateTaskFields(taskId: string, fields: Partial<WorkOrderTask>) {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...fields } : t))
+    await supabase.from('work_order_tasks').update(fields).eq('id', taskId)
+    fetchTasks()
+  }
+
+  function addTaskNote(task: WorkOrderTask) {
+    setOpenTaskMenu(null)
+    const note = window.prompt(lang === 'ar' ? 'ملاحظة المهمة:' : 'Task note:', task.note ?? '')
+    if (note === null) return
+    updateTaskFields(task.id, { note: note.trim() || null })
+  }
+
+  async function attachTaskImage(task: WorkOrderTask, file: File) {
+    setOpenTaskMenu(null)
+    if (!wo) return
+    const fd = new FormData()
+    fd.append('file', file)
+    const params = new URLSearchParams({ bucket: 'work-order-media', prefix: `${wo.organisation_id}/${id}` })
+    const res = await fetch(`/api/upload?${params.toString()}`, { method: 'POST', body: fd })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({ error: 'unknown error' }))
+      alert(`${lang === 'ar' ? 'فشل رفع الصورة: ' : 'Image upload failed: '}${j.error ?? 'unknown error'}`)
+      return
+    }
+    const { publicUrl } = await res.json()
+    await updateTaskFields(task.id, { image_url: publicUrl })
+  }
+
+  async function fetchMentionUsers() {
+    // RLS scopes this to the caller's org; used for @-mention autocomplete.
+    const { data } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('is_active', true)
+      .order('full_name')
+    if (data) setMentionUsers(data.filter((u): u is { id: string; full_name: string } => !!u.full_name))
   }
 
   async function fetchWorkOrder() {
@@ -588,7 +634,20 @@ export default function WorkOrderDetailPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase.from('work_order_comments').insert({ work_order_id: id, user_id: user.id, body: comment })
+
+    // WO-34: parse @mentions against known org users (exact full-name match, as
+    // inserted by the autocomplete) and notify each mentioned user server-side.
+    const mentionedIds = mentionUsers.filter(u => comment.includes(`@${u.full_name}`)).map(u => u.id)
+    if (mentionedIds.length > 0) {
+      fetch(`/api/work-orders/${id}/mention`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment, user_ids: mentionedIds }),
+      }).catch(console.error)
+    }
+
     setComment('')
+    setMentionQuery(null)
     fetchComments()
 
     // Notify the other party: if commenter is creator → notify assignee, else notify creator
@@ -631,6 +690,18 @@ export default function WorkOrderDetailPage() {
         })
       }
     }
+  }
+
+  // WO-34: track the trailing @token so the comment box can suggest org users.
+  function onCommentChange(v: string) {
+    setComment(v)
+    const m = v.match(/@([^@]*)$/)
+    setMentionQuery(m ? m[1] : null)
+  }
+
+  function pickMention(u: { id: string; full_name: string }) {
+    setComment(prev => prev.replace(/@([^@]*)$/, `@${u.full_name} `))
+    setMentionQuery(null)
   }
 
   function handleCloseoutPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1232,7 +1303,14 @@ export default function WorkOrderDetailPage() {
                 {lang === 'ar' ? 'لا توجد مهام بعد. أضف مهمة أدناه.' : 'No tasks yet. Add one below.'}
               </p>
             )}
-            {tasks.map(task => (
+            {tasks.map(task => {
+              const canDelete = !!currentUser && (currentUser.id === wo.created_by || ['admin', 'manager'].includes(currentUser.role))
+              const resultChip: Record<'pass' | 'flag' | 'fail', { cls: string; label: string }> = {
+                pass: { cls: 'bg-primary/10 text-primary', label: lang === 'ar' ? 'نجاح' : 'Pass' },
+                flag: { cls: 'bg-[#f57f17]/10 text-[#f57f17]', label: lang === 'ar' ? 'تنبيه' : 'Flag' },
+                fail: { cls: 'bg-error/10 text-error', label: lang === 'ar' ? 'فشل' : 'Fail' },
+              }
+              return (
               <div key={task.id} className="bg-surface-container-low rounded-xl px-4 py-3 mb-2 flex items-start gap-3">
                 <input
                   type="checkbox"
@@ -1240,27 +1318,80 @@ export default function WorkOrderDetailPage() {
                   onChange={() => toggleTask(task)}
                   className="w-4 h-4 rounded border border-outline-variant text-primary cursor-pointer mt-0.5"
                 />
-                <div className="flex-1">
-                  <p className={`text-sm m-0 ${task.is_done ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
-                    {lang === 'ar' && task.title_ar ? task.title_ar : task.title}
-                  </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={`text-sm m-0 ${task.is_done ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
+                      {lang === 'ar' && task.title_ar ? task.title_ar : task.title}
+                    </p>
+                    {task.is_required && (
+                      <span className="text-[10px] font-semibold text-error border border-error/30 rounded-full px-1.5 py-0.5">
+                        {lang === 'ar' ? 'مطلوب' : 'Required'}
+                      </span>
+                    )}
+                    {task.result && (
+                      <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${resultChip[task.result].cls}`}>
+                        {resultChip[task.result].label}
+                      </span>
+                    )}
+                  </div>
+                  {task.note && (
+                    <p className="text-xs text-on-surface-variant mt-1 m-0 whitespace-pre-wrap">{task.note}</p>
+                  )}
+                  {task.image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <a href={task.image_url} target="_blank" rel="noreferrer">
+                      <img src={task.image_url} alt="Task attachment" className="mt-2 w-[72px] h-[72px] object-cover rounded-lg border border-outline-variant" />
+                    </a>
+                  )}
                   {task.is_done && task.done_at && (
                     <p className="text-[11px] text-on-surface-variant mt-0.5 m-0">
                       {task.done_by_user?.full_name ?? '—'} · {format(new Date(task.done_at), 'dd MMM yyyy, HH:mm')}
                     </p>
                   )}
                 </div>
-                {currentUser && (currentUser.id === wo.created_by || ['admin', 'manager'].includes(currentUser.role)) && (
+                {/* WO-20: per-task 3-dot menu — note, image, result, required. */}
+                <div className="relative">
                   <button
-                    onClick={() => deleteTask(task.id)}
-                    className="text-error text-xs border-none bg-transparent cursor-pointer hover:underline"
-                    aria-label={lang === 'ar' ? 'حذف المهمة' : 'Delete task'}
+                    onClick={() => setOpenTaskMenu(openTaskMenu === task.id ? null : task.id)}
+                    className="text-on-surface-variant text-lg leading-none border-none bg-transparent cursor-pointer px-1.5 hover:text-on-surface"
+                    aria-label={lang === 'ar' ? 'خيارات المهمة' : 'Task options'}
                   >
-                    {lang === 'ar' ? 'حذف' : 'Delete'}
+                    ⋯
                   </button>
-                )}
+                  {openTaskMenu === task.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-surface border border-outline-variant rounded-xl shadow-lg overflow-hidden z-10 text-sm">
+                      <button type="button" onClick={() => addTaskNote(task)} className="block w-full text-left px-3 py-2 text-on-surface hover:bg-surface-container-low cursor-pointer">
+                        {task.note ? (lang === 'ar' ? 'تعديل الملاحظة' : 'Edit note') : (lang === 'ar' ? 'إضافة ملاحظة' : 'Add note')}
+                      </button>
+                      <label className="block w-full text-left px-3 py-2 text-on-surface hover:bg-surface-container-low cursor-pointer">
+                        {task.image_url ? (lang === 'ar' ? 'استبدال الصورة' : 'Replace image') : (lang === 'ar' ? 'إرفاق صورة' : 'Attach image')}
+                        <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) attachTaskImage(task, f) }} />
+                      </label>
+                      <div className="border-t border-outline-variant/60" />
+                      {(['pass', 'flag', 'fail'] as const).map(r => (
+                        <button key={r} type="button"
+                          onClick={() => { setOpenTaskMenu(null); updateTaskFields(task.id, { result: task.result === r ? null : r }) }}
+                          className={`block w-full text-left px-3 py-2 hover:bg-surface-container-low cursor-pointer ${task.result === r ? 'font-semibold' : ''}`}>
+                          {task.result === r ? '✓ ' : ''}{resultChip[r].label}
+                        </button>
+                      ))}
+                      <div className="border-t border-outline-variant/60" />
+                      <button type="button" onClick={() => { setOpenTaskMenu(null); updateTaskFields(task.id, { is_required: !task.is_required }) }}
+                        className="block w-full text-left px-3 py-2 text-on-surface hover:bg-surface-container-low cursor-pointer">
+                        {task.is_required ? (lang === 'ar' ? 'إلغاء مطلوب' : 'Unmark required') : (lang === 'ar' ? 'وضع علامة مطلوب' : 'Mark required')}
+                      </button>
+                      {canDelete && (
+                        <button type="button" onClick={() => { setOpenTaskMenu(null); deleteTask(task.id) }}
+                          className="block w-full text-left px-3 py-2 text-error hover:bg-surface-container-low cursor-pointer">
+                          {lang === 'ar' ? 'حذف المهمة' : 'Delete task'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
+              )
+            })}
             <form onSubmit={addTask} className="flex gap-2 mt-3">
               <input
                 value={newTaskTitle}
@@ -1288,8 +1419,25 @@ export default function WorkOrderDetailPage() {
                 <p className="text-sm m-0 text-on-surface">{c.body}</p>
               </div>
             ))}
-            <form onSubmit={addComment} className="flex gap-2 mt-3">
-              <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Add a comment..." className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40 flex-1" />
+            <form onSubmit={addComment} className="flex gap-2 mt-3 relative">
+              <div className="flex-1 relative">
+                <input value={comment} onChange={e => onCommentChange(e.target.value)} placeholder={lang === 'ar' ? 'أضف تعليقًا... (@ للإشارة)' : 'Add a comment... (@ to mention)'} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40" />
+                {(() => {
+                  if (mentionQuery === null) return null
+                  const matches = mentionUsers.filter(u => u.full_name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+                  if (matches.length === 0) return null
+                  return (
+                    <div className="absolute bottom-full left-0 mb-1 w-full bg-surface border border-outline-variant rounded-xl shadow-lg overflow-hidden z-10">
+                      {matches.map(u => (
+                        <button key={u.id} type="button" onClick={() => pickMention(u)}
+                          className="block w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low cursor-pointer">
+                          {u.full_name}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
               <button type="submit" className="bg-primary text-on-primary px-4 py-2 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors">Post</button>
             </form>
           </div>
