@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { usePagination } from '@/lib/usePagination'
 import Pagination from '@/components/Pagination'
 import { getDescendantIds } from './asset-hierarchy'
+import { AssetStatus } from '@/lib/assetFields'
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
@@ -42,8 +43,13 @@ export default function AssetsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   // AL-03: asset ids with an OPEN asset_downtime period → red "not operational" badge.
   const [downAssets, setDownAssets] = useState<Set<string>>(new Set())
+  // AL-04: org custom statuses keyed by id (for the list badge).
+  const [statusMap, setStatusMap] = useState<Record<string, AssetStatus>>({})
+  // AL-12: caller role + site scope, to gate the Edit affordance for technicians.
+  const [role, setRole] = useState('')
+  const [scopeSites, setScopeSites] = useState<string[]>([])
   const supabase = createClient()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
 
   // Debounce search so we don't fire a query on every keystroke.
   useEffect(() => {
@@ -77,6 +83,33 @@ export default function AssetsPage() {
       .then(({ data }) => { if (!cancelled) setDownAssets(new Set((data ?? []).map((r: { asset_id: string }) => r.asset_id))) })
     return () => { cancelled = true }
   }, [assets, supabase])
+
+  // AL-04/AL-12: load org custom statuses + the caller's role/site-scope once.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profile } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
+      if (!profile || cancelled) return
+      setRole(profile.role ?? '')
+      const [{ data: statusData }, { data: scopeRows }] = await Promise.all([
+        supabase.from('asset_statuses').select('*').eq('organisation_id', profile.organisation_id),
+        profile.role === 'technician'
+          ? supabase.from('user_site_scope').select('site_id').eq('user_id', user.id)
+          : Promise.resolve({ data: [] as { site_id: string }[] }),
+      ])
+      if (cancelled) return
+      if (statusData) setStatusMap(Object.fromEntries((statusData as AssetStatus[]).map(s => [s.id, s])))
+      setScopeSites((scopeRows ?? []).map(r => r.site_id))
+    })()
+    return () => { cancelled = true }
+  }, [supabase])
+
+  // AL-12: technicians may only edit assets at their sites (unscoped = unrestricted).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const canEditAsset = (asset: any) =>
+    role !== 'technician' || scopeSites.length === 0 || asset.site_id == null || scopeSites.includes(asset.site_id)
 
   // AL-01: deleting a parent silently promoted its children to top level
   // (parent_asset_id is ON DELETE SET NULL). Surface the descendants and make
@@ -178,6 +211,16 @@ export default function AssetsPage() {
             <Link href='/dashboard/assets/export'>
               <button className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('btn.export')}</button>
             </Link>
+            {(role === 'admin' || role === 'manager') && (
+              <>
+                <Link href='/dashboard/settings/asset-fields'>
+                  <button className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{lang === 'ar' ? 'الحقول' : 'Fields'}</button>
+                </Link>
+                <Link href='/dashboard/settings/asset-statuses'>
+                  <button className="px-4 py-2 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{lang === 'ar' ? 'الحالات' : 'Statuses'}</button>
+                </Link>
+              </>
+            )}
             <Link href='/dashboard/assets/new'>
               <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
                 <span className="material-symbols-outlined text-lg">add</span>{t('btn.add_asset')}
@@ -296,19 +339,27 @@ export default function AssetsPage() {
                           <div className={`backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${statusCls}`}>
                             {asset.status?.replace('_', ' ') ?? 'active'}
                           </div>
+                          {asset.custom_status_id && statusMap[asset.custom_status_id] && (
+                            <div className="backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm"
+                              style={{ backgroundColor: (statusMap[asset.custom_status_id].color ?? '#6b7280') + 'cc', color: '#fff' }}>
+                              {lang === 'ar' && statusMap[asset.custom_status_id].label_ar ? statusMap[asset.custom_status_id].label_ar : statusMap[asset.custom_status_id].label}
+                            </div>
+                          )}
                           {downAssets.has(asset.id) && (
                             <div className="flex items-center gap-1 backdrop-blur bg-error/90 text-on-error px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm">
                               <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>Not Operational
                             </div>
                           )}
                         </div>
-                        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Link href={`/dashboard/assets/${asset.id}/edit`}>
-                            <button className="p-2 bg-white/90 rounded-full text-primary shadow-sm hover:bg-primary hover:text-white transition-colors" onClick={e => e.stopPropagation()}>
-                              <span className="material-symbols-outlined text-xl">edit</span>
-                            </button>
-                          </Link>
-                        </div>
+                        {canEditAsset(asset) && (
+                          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link href={`/dashboard/assets/${asset.id}/edit`}>
+                              <button className="p-2 bg-white/90 rounded-full text-primary shadow-sm hover:bg-primary hover:text-white transition-colors" onClick={e => e.stopPropagation()}>
+                                <span className="material-symbols-outlined text-xl">edit</span>
+                              </button>
+                            </Link>
+                          </div>
+                        )}
                         <label className="absolute bottom-2 left-2 cursor-pointer" onClick={e => { e.stopPropagation() }}>
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(asset.id)} className="w-4 h-4 rounded border-outline-variant text-primary" />
                         </label>
@@ -389,6 +440,12 @@ export default function AssetsPage() {
                               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLASSES[asset.status] ?? STATUS_CLASSES.active}`}>
                                 {asset.status?.replace('_', ' ') ?? 'active'}
                               </span>
+                              {asset.custom_status_id && statusMap[asset.custom_status_id] && (
+                                <span className="ml-1 inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                                  style={{ backgroundColor: (statusMap[asset.custom_status_id].color ?? '#6b7280') + '22', color: statusMap[asset.custom_status_id].color ?? '#6b7280' }}>
+                                  {lang === 'ar' && statusMap[asset.custom_status_id].label_ar ? statusMap[asset.custom_status_id].label_ar : statusMap[asset.custom_status_id].label}
+                                </span>
+                              )}
                               {downAssets.has(asset.id) && (
                                 <span className="mt-1 flex items-center gap-1 w-fit px-2.5 py-0.5 rounded-full text-xs font-semibold bg-error/10 text-error">
                                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>Not Operational
@@ -401,9 +458,11 @@ export default function AssetsPage() {
                             <td className="p-3 text-sm text-on-surface-variant">{format(new Date(asset.created_at), 'dd MMM yyyy')}</td>
                             <td className="p-3">
                               <div className="flex gap-2">
-                                <Link href={'/dashboard/assets/' + asset.id + '/edit'}>
-                                  <button className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
-                                </Link>
+                                {canEditAsset(asset) && (
+                                  <Link href={'/dashboard/assets/' + asset.id + '/edit'}>
+                                    <button className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">{t('common.edit')}</button>
+                                  </Link>
+                                )}
                                 <button onClick={() => deleteOne(asset.id)} className="px-3 py-1 rounded-lg border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors">{t('common.delete')}</button>
                               </div>
                             </td>
