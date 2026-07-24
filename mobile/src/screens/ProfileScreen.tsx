@@ -1,6 +1,7 @@
-import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LangContext'
@@ -9,6 +10,13 @@ import { colors, radius, shadow } from '../lib/theme'
 export default function ProfileScreen() {
   const { profile, signOut } = useAuth()
   const { t, lang, setLang, isRTL } = useLang()
+  // WO-33: local per-user auto-timer toggle (default ON), read by WO detail.
+  const [autoTimer, setAutoTimer] = useState(true)
+  useEffect(() => { AsyncStorage.getItem('pref:auto_timer').then(v => setAutoTimer(v !== '0')) }, [])
+  function toggleAutoTimer(v: boolean) {
+    setAutoTimer(v)
+    AsyncStorage.setItem('pref:auto_timer', v ? '1' : '0')
+  }
 
   async function handleSignOut() {
     Alert.alert(
@@ -91,6 +99,19 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{lang === 'ar' ? 'التفضيلات' : 'Preferences'}</Text>
+        <View style={[styles.row, { borderBottomWidth: 0 }]}>
+          <Ionicons name='timer-outline' size={20} color={colors.textSecondary} />
+          <View style={styles.rowContent}>
+            <Text style={styles.rowValue}>{t('auto_timer')}</Text>
+            <Text style={styles.rowLabel}>{t('auto_timer_desc')}</Text>
+          </View>
+          <Switch value={autoTimer} onValueChange={toggleAutoTimer}
+            trackColor={{ true: colors.primary }} />
         </View>
       </View>
 
