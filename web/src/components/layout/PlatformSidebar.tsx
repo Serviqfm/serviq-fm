@@ -7,6 +7,7 @@ import { Logo } from '@/components/brand/Logo'
 const NAV_ITEMS = [
   { href: '/platform/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { href: '/platform/tenants',   label: 'Tenants',   icon: 'apartment' },
+  { href: '/platform/announcements', label: 'Announcements', icon: 'campaign' },
   { href: '/platform/audit',     label: 'Audit Log', icon: 'history' },
   { href: '/platform/health',    label: 'Health',    icon: 'monitor_heart' },
 ]
