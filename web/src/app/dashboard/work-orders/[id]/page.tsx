@@ -635,9 +635,18 @@ export default function WorkOrderDetailPage() {
     if (!user) return
     await supabase.from('work_order_comments').insert({ work_order_id: id, user_id: user.id, body: comment })
 
-    // WO-34: parse @mentions against known org users (exact full-name match, as
-    // inserted by the autocomplete) and notify each mentioned user server-side.
-    const mentionedIds = mentionUsers.filter(u => comment.includes(`@${u.full_name}`)).map(u => u.id)
+    // WO-34: parse @mentions against known org users. Match longest names first and
+    // strip each matched "@name" span before testing shorter ones, so a name that is
+    // a prefix of another (e.g. "Sam" inside "Sam Smith") isn't falsely mentioned.
+    let scan = comment
+    const mentionedIds = [...mentionUsers]
+      .sort((a, b) => b.full_name.length - a.full_name.length)
+      .filter(u => {
+        const tag = `@${u.full_name}`
+        if (scan.includes(tag)) { scan = scan.split(tag).join(' '); return true }
+        return false
+      })
+      .map(u => u.id)
     if (mentionedIds.length > 0) {
       fetch(`/api/work-orders/${id}/mention`, {
         method: 'POST',
