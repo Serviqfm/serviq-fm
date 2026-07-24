@@ -381,10 +381,11 @@ export default function WorkOrderDetailScreen() {
       Alert.alert(t('offline'), t('offline_complete_blocked'))
       return
     }
-    // WO-19: block close until signed when the schedule requires it, mirroring
-    // the web close route. Either a drawn signature or a typed name satisfies it
-    // (the server enforces the typed sign-off; the drawn one is the mobile UX).
-    if (requiresSignature && !signatureData && !signoff.trim()) {
+    // WO-19: block close until a signature is DRAWN when the schedule requires it.
+    // The sign-off name field is auto-prefilled with the tech's own name, so it
+    // can't be the thing that satisfies the requirement (that would let anyone
+    // close a signature-required WO by just tapping Close) — demand the drawn pad.
+    if (requiresSignature && !signatureData) {
       Alert.alert(
         lang === 'ar' ? 'التوقيع مطلوب' : 'Signature required',
         lang === 'ar' ? 'يتطلب أمر العمل هذا توقيعاً قبل الإغلاق.' : 'This work order requires a signature before it can be closed.'
