@@ -38,30 +38,57 @@ CREATE POLICY cost_centers_org_select ON public.cost_centers
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
   );
 
+-- Budget CRUD is admin/manager only (UI gating is not a security boundary) —
+-- parity with b5-wo-custom-statuses.sql and the other privileged config tables.
 DROP POLICY IF EXISTS cost_centers_org_insert ON public.cost_centers;
 CREATE POLICY cost_centers_org_insert ON public.cost_centers
   FOR INSERT WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
   );
 
 DROP POLICY IF EXISTS cost_centers_org_update ON public.cost_centers;
 CREATE POLICY cost_centers_org_update ON public.cost_centers
   FOR UPDATE USING (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
   )
   WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
   );
 
 DROP POLICY IF EXISTS cost_centers_org_delete ON public.cost_centers;
 CREATE POLICY cost_centers_org_delete ON public.cost_centers
   FOR DELETE USING (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
   );
+
+-- Composite unique key so the WO link can be org-bound (a plain FK on id alone
+-- would let a raw PostgREST UPDATE point an own-org WO at another tenant's center).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cost_centers_id_org_key') THEN
+    ALTER TABLE public.cost_centers ADD CONSTRAINT cost_centers_id_org_key UNIQUE (id, organisation_id);
+  END IF;
+END $$;
 
 -- Link column on work_orders. ON DELETE SET NULL: dropping a cost center leaves
 -- its work orders intact, just un-assigned. Does NOT touch statuses/constraints.
 ALTER TABLE public.work_orders
-  ADD COLUMN IF NOT EXISTS cost_center_id UUID REFERENCES public.cost_centers(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS cost_center_id UUID;
+
+-- Org-bound composite FK: (cost_center_id, organisation_id) must match a center in
+-- the SAME org. NULL cost_center_id is unconstrained (MATCH SIMPLE).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'work_orders_cost_center_org_fk') THEN
+    ALTER TABLE public.work_orders
+      ADD CONSTRAINT work_orders_cost_center_org_fk
+      FOREIGN KEY (cost_center_id, organisation_id)
+      REFERENCES public.cost_centers(id, organisation_id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_work_orders_cost_center ON public.work_orders(cost_center_id);
