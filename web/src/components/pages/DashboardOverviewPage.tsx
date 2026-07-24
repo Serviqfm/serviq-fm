@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { format } from 'date-fns'
 
 interface DashboardStats {
@@ -59,6 +60,10 @@ export default function DashboardOverviewPage() {
   const supabase = createClient()
 
   useEffect(() => { loadDashboard() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // CORE-35: live KPIs — re-run get_dashboard_stats + feeds on an interval so the
+  // dashboard reflects new/closed WOs without a manual reload.
+  usePollingRefresh(loadDashboard, 45_000)
 
   async function loadDashboard() {
     const { data: { user } } = await supabase.auth.getUser()

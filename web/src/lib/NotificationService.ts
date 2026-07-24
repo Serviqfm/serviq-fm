@@ -68,6 +68,25 @@ export class NotificationService {
   }
 
   /**
+   * 1C-30: is the user currently on shift? Off-shift (users.on_shift = false)
+   * suppresses non-critical PUSH. Absent column / missing row / error → true
+   * (fail open — never break existing orgs before w6-5-shift.sql is run).
+   */
+  static async isOnShift(userId: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .select('on_shift')
+        .eq('id', userId)
+        .maybeSingle() as { data: { on_shift?: boolean | null } | null; error: unknown };
+      if (error) return true;
+      return data?.on_shift !== false;
+    } catch {
+      return true;
+    }
+  }
+
+  /**
    * Send email and push notifications if user preferences allow
    */
   static async notify(
@@ -80,6 +99,9 @@ export class NotificationService {
       pushTitle: string;
       pushBody: string;
       pushData?: Record<string, string>;
+      // 1C-30: critical alerts (overdue/escalation) always push, even off-shift.
+      // Omitted/false → treated as non-critical and muted while the user is off-shift.
+      critical?: boolean;
       // CORE-11: optional per-language variants. When present, the recipient's
       // notification_language picks the variant; the top-level fields above are
       // the fallback (used as-is when `localized` is omitted — existing callers
@@ -102,9 +124,14 @@ export class NotificationService {
       if (v) ({ subject, htmlContent, pushTitle, pushBody } = v);
     }
 
+    // 1C-30: while off-shift, suppress non-critical push. Email still sends (it's
+    // the less-intrusive channel and the in-app feed still accumulates). Critical
+    // alerts always push. Fails open (isOnShift → true on any error/missing column).
+    const pushOK = options.critical || (await this.isOnShift(userId));
+
     await Promise.allSettled([
       this.sendEmail(userId, typeKey, options.email, subject, htmlContent),
-      this.sendPush(userId, typeKey, pushTitle, pushBody, options.pushData),
+      ...(pushOK ? [this.sendPush(userId, typeKey, pushTitle, pushBody, options.pushData)] : []),
     ]);
   }
 
@@ -231,6 +258,72 @@ export class NotificationService {
     } catch (err) {
       console.error('Failed to insert in-app notification:', err);
       return false;
+    }
+  }
+
+  /**
+   * DV-22: batched fan-out of insertInApp. When one event notifies N recipients,
+   * writes all rows in ONE upsert instead of N sequential inserts. Keeps the W5.1
+   * dedupe (ON CONFLICT (user_id, dedupe_key) DO NOTHING) and W5.6 per-recipient
+   * language (one batched users read resolves everyone's lang). `.select()` on an
+   * ignore-duplicates upsert returns only the newly-inserted rows, so the return
+   * value is the count of rows actually written (what the escalation cron tracks).
+   * `dedupeKey` is shared across recipients — user_id already scopes uniqueness.
+   */
+  static async insertInAppMany(
+    recipients: string[],
+    organisationId: string,
+    typeKey: NotificationTypeKey,
+    opts: {
+      title: string;
+      body?: string;
+      link?: string;
+      dedupeKey?: string;
+      localized?: Partial<Record<NotificationLang, { title: string; body?: string }>>;
+    }
+  ): Promise<number> {
+    const ids = recipients.filter((id, i) => !!id && recipients.indexOf(id) === i);
+    if (ids.length === 0) return 0;
+    try {
+      // W5.6: resolve each recipient's language in a single read (only when needed).
+      const langById = new Map<string, NotificationLang>();
+      if (opts.localized) {
+        const { data } = await this.supabase
+          .from('users').select('id, notification_language').in('id', ids) as {
+            data: { id: string; notification_language?: string | null }[] | null };
+        for (const u of data ?? []) {
+          langById.set(u.id, u.notification_language === 'ar' ? 'ar' : 'en');
+        }
+      }
+      const rows = ids.map((userId) => {
+        let { title, body } = opts;
+        if (opts.localized) {
+          const v = opts.localized[langById.get(userId) ?? 'en'] ?? opts.localized.en;
+          if (v) ({ title, body } = v);
+        }
+        return {
+          user_id: userId,
+          organisation_id: organisationId,
+          type_key: typeKey,
+          title,
+          body: body ?? null,
+          link: opts.link ?? null,
+          dedupe_key: opts.dedupeKey ?? null,
+        };
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (this.supabase.from('user_notifications') as any)
+        .upsert(rows, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
+        .select('user_id');
+      if (error) {
+        if ((error as { code?: string }).code === '23505') return 0;
+        console.error('Failed to batch-insert in-app notifications:', error);
+        return 0;
+      }
+      return (data as unknown[] | null)?.length ?? 0;
+    } catch (err) {
+      console.error('Failed to batch-insert in-app notifications:', err);
+      return 0;
     }
   }
 

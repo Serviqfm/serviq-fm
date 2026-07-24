@@ -298,6 +298,7 @@ export async function notifyWOOverdue(
     pushTitle: `⚠️ ${woNumber} Overdue`,
     pushBody: `${daysOverdue} days overdue`,
     pushData: { woId, woNumber, overdue: String(daysOverdue) },
+    critical: true, // 1C-30: overdue alerts always push, even off-shift.
     localized: {
       ar: {
         subject: `عاجل: أمر العمل ${woNumber} متأخر ${daysOverdue} يوم`,
@@ -316,6 +317,7 @@ export async function notifyWOOverdue(
       pushTitle: `⚠️ Team: ${woNumber}`,
       pushBody: `${daysOverdue} days overdue`,
       pushData: { woId, woNumber, overdue: String(daysOverdue) },
+      critical: true, // 1C-30: manager overdue alerts always push, even off-shift.
       // No `localized`: getRecipientLanguage resolves the WORKER's language (userId),
       // but this alert goes to managerEmail — a localized block would give the manager
       // the worker's language. Keep the manager alert on the English default.

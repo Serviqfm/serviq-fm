@@ -11,6 +11,8 @@ export default function NotificationsTab() {
   const [preferences, setPreferences] = useState<Record<string, boolean>>(getDefaultPreferences());
   // CORE-11: '' = follow app default (en), 'en' | 'ar' = explicit per-user override.
   const [notifLang, setNotifLang] = useState<'' | 'en' | 'ar'>('');
+  // 1C-30: off-shift mutes non-critical push. Default true (on shift).
+  const [onShift, setOnShift] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -42,11 +44,13 @@ export default function NotificationsTab() {
 
       const { data: profile } = await supabase
         .from('users')
-        .select('notification_language')
+        .select('notification_language, on_shift')
         .eq('id', user.user.id)
         .maybeSingle();
-      const lang = (profile as { notification_language?: string | null } | null)?.notification_language;
+      const p = profile as { notification_language?: string | null; on_shift?: boolean | null } | null;
+      const lang = p?.notification_language;
       setNotifLang(lang === 'en' || lang === 'ar' ? lang : '');
+      setOnShift(p?.on_shift !== false);
     } catch (error) {
       console.error('Error loading preferences:', error);
       setMessage({ type: 'error', text: 'Failed to load preferences' });
@@ -74,6 +78,11 @@ export default function NotificationsTab() {
       // caller's own users.notification_language. '' clears the override → NULL.
       const { error: langErr } = await supabase.rpc('set_notification_language', { lang: notifLang });
       if (langErr) throw langErr;
+
+      // 1C-30: column-scoped RPC (w6-5-shift.sql) — sets only the caller's own
+      // users.on_shift. Off-shift mutes non-critical push.
+      const { error: shiftErr } = await supabase.rpc('set_on_shift', { p_on: onShift });
+      if (shiftErr) throw shiftErr;
 
       setMessage({ type: 'success', text: 'Preferences saved successfully' });
       setTimeout(() => setMessage(null), 3000);
@@ -132,6 +141,26 @@ export default function NotificationsTab() {
           <option value="en">English</option>
           <option value="ar">العربية</option>
         </select>
+      </div>
+
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 mb-6">
+        <h4 className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-4">
+          Shift Status
+        </h4>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={onShift}
+            onChange={e => setOnShift(e.target.checked)}
+            className="mt-0.5 cursor-pointer accent-primary"
+          />
+          <span className="flex-1 text-sm text-on-surface leading-snug">
+            On shift
+            <span className="block text-xs text-on-surface-variant mt-0.5">
+              While off shift, non-critical push notifications are muted. Critical alerts (overdue work orders) always come through.
+            </span>
+          </span>
+        </label>
       </div>
 
       {categories.map(category => {

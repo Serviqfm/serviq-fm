@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createClient } from '@/lib/supabase'
 
 type Language = 'en' | 'ar'
 
@@ -55,6 +56,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.cookie = 'serviq_lang=' + newLang + '; path=/; max-age=31536000'
     document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.lang = newLang
+    // CORE-11: keep the notification language in sync with the app toggle so the
+    // two never diverge. Fire-and-forget; the RPC updates only auth.uid()'s own
+    // row (no-op / permission-denied when signed out — safely ignored).
+    try {
+      createClient().rpc('set_notification_language', { lang: newLang }).then(() => {}, () => {})
+    } catch { /* ignore */ }
   }
 
   // Prevent hydration mismatch by using suppressHydrationWarning
