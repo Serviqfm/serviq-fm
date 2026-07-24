@@ -45,7 +45,7 @@ export default function AssetDetailScreen() {
     if (!profile?.organisation_id) return
     const { data } = await supabase
       .from('assets')
-      .select('*, site:site_id(name)')
+      .select('*, site:site_id(name), space:space_id(name)')
       .eq('id', route.params.id)
       .eq('organisation_id', profile.organisation_id)
       .maybeSingle()
@@ -81,9 +81,18 @@ export default function AssetDetailScreen() {
   }
   const sc = statusColors[asset.status] ?? statusColors.active
 
+  const criticalityLabel: Record<string, string> = {
+    low: lang === 'ar' ? 'منخفضة' : 'Low',
+    medium: lang === 'ar' ? 'متوسطة' : 'Medium',
+    high: lang === 'ar' ? 'عالية' : 'High',
+    critical: lang === 'ar' ? 'حرجة' : 'Critical',
+  }
+
   const details = [
     { label: lang === 'ar' ? 'الفئة' : 'Category', value: asset.category },
+    { label: lang === 'ar' ? 'الأهمية' : 'Criticality', value: asset.criticality ? criticalityLabel[asset.criticality] ?? asset.criticality : null },
     { label: lang === 'ar' ? 'الموقع' : 'Site', value: asset.site?.name },
+    { label: lang === 'ar' ? 'المساحة' : 'Space', value: asset.space?.name },
     { label: lang === 'ar' ? 'الموقع الفرعي' : 'Sub-location', value: asset.sub_location },
     { label: lang === 'ar' ? 'الرقم التسلسلي' : 'Serial Number', value: asset.serial_number },
     { label: lang === 'ar' ? 'الشركة المصنعة' : 'Manufacturer', value: asset.manufacturer },

@@ -20,6 +20,29 @@ import { format } from 'date-fns'
 import { Modal, Dimensions } from 'react-native'
 import SelectField from '../components/SelectField'
 import WorkOrderEditSheet from '../components/WorkOrderEditSheet'
+import SignaturePad from '../components/SignaturePad'
+
+// WO-19: decode a base64 signature PNG (from the drawn signature pad) to bytes
+// for upload. RN has no reliable atob; standard base64 (len % 4 === 0, output
+// of react-native-signature-canvas) so no whitespace handling needed.
+const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+function base64ToBytes(b64: string): Uint8Array {
+  const lookup = new Uint8Array(256)
+  for (let i = 0; i < B64_CHARS.length; i++) lookup[B64_CHARS.charCodeAt(i)] = i
+  const len = b64.length
+  const pad = len > 0 && b64.charCodeAt(len - 1) === 61 ? (b64.charCodeAt(len - 2) === 61 ? 2 : 1) : 0
+  const byteLen = (len / 4) * 3 - pad
+  const bytes = new Uint8Array(byteLen)
+  let p = 0
+  for (let i = 0; i < len; i += 4) {
+    const a = lookup[b64.charCodeAt(i)], b = lookup[b64.charCodeAt(i + 1)]
+    const c = lookup[b64.charCodeAt(i + 2)], d = lookup[b64.charCodeAt(i + 3)]
+    if (p < byteLen) bytes[p++] = (a << 2) | (b >> 4)
+    if (p < byteLen) bytes[p++] = ((b & 15) << 4) | (c >> 2)
+    if (p < byteLen) bytes[p++] = ((c & 3) << 6) | d
+  }
+  return bytes
+}
 
 function useCountdown(dueAt: string | null) {
   const [timeLeft, setTimeLeft] = useState<string | null>(null)
@@ -106,6 +129,12 @@ export default function WorkOrderDetailScreen() {
   const [closeoutPhotos, setCloseoutPhotos] = useState<string[]>([])
   const [signoff, setSignoff] = useState('')
   const [completionNotes, setCompletionNotes] = useState('')
+  // WO-19: drawn close-out signature (base64 PNG data URL until uploaded on
+  // submit). requiresSignature mirrors web: a PM WO whose schedule is flagged
+  // requires_signature must be signed before close.
+  const [signVisible, setSignVisible] = useState(false)
+  const [signatureData, setSignatureData] = useState<string | null>(null)
+  const [requiresSignature, setRequiresSignature] = useState(false)
   const timerRef = useRef<any>(null)
   const startTimeRef = useRef<Date | null>(null)
 
@@ -119,6 +148,13 @@ export default function WorkOrderDetailScreen() {
     return unsub
   }, [navigation])
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current) } }, [])
+  // WO-19: mirror the web close route — a PM WO whose schedule requires_signature
+  // must be signed before close. Non-PM WOs never require it.
+  useEffect(() => {
+    if (!wo?.pm_schedule_id) { setRequiresSignature(false); return }
+    supabase.from('pm_schedules').select('requires_signature').eq('id', wo.pm_schedule_id).single()
+      .then(({ data }) => setRequiresSignature(!!data?.requires_signature))
+  }, [wo?.pm_schedule_id])
 
   // MKT-07: assignee picker source (org technicians/managers, mirrors web edit)
   // + parts consumption source (active inventory items). Best-effort; failures
@@ -255,6 +291,7 @@ export default function WorkOrderDetailScreen() {
         setCloseoutPhotos([])
         setSignoff(profile?.full_name ?? '')
         setCompletionNotes('')
+        setSignatureData(null)
         setCloseModal(newStatus)
       }
       if (openTasks > 0) {
@@ -344,15 +381,46 @@ export default function WorkOrderDetailScreen() {
       Alert.alert(t('offline'), t('offline_complete_blocked'))
       return
     }
+    // WO-19: block close until a signature is DRAWN when the schedule requires it.
+    // The sign-off name field is auto-prefilled with the tech's own name, so it
+    // can't be the thing that satisfies the requirement (that would let anyone
+    // close a signature-required WO by just tapping Close) — demand the drawn pad.
+    if (requiresSignature && !signatureData) {
+      Alert.alert(
+        lang === 'ar' ? 'التوقيع مطلوب' : 'Signature required',
+        lang === 'ar' ? 'يتطلب أمر العمل هذا توقيعاً قبل الإغلاق.' : 'This work order requires a signature before it can be closed.'
+      )
+      return
+    }
     // WO-33: auto-stop + log the running timer before the WO closes (local
     // toggle). Done first so the labor lands while the WO is still mutable.
     if (autoTimer && timerRunning) await stopTimer()
     setSaving(true)
+    // WO-19: upload the drawn signature (if any) and record it as an [ACTIVITY]
+    // sign-off comment — the web schema has no signature_url column, only the
+    // typed signed_off_by. Done while the WO is still mutable, before close.
+    if (signatureData) {
+      try {
+        const signatureUrl = await uploadSignatureToStorage(signatureData)
+        await supabase.from('work_order_comments').insert({
+          work_order_id: wo.id,
+          user_id: profile?.id,
+          body: '[ACTIVITY] Sign-off signature: ' + signatureUrl + (signoff.trim() ? ' — ' + signoff.trim() : ''),
+        })
+      } catch (e: any) {
+        setSaving(false)
+        Alert.alert(t('error'), e.message)
+        return
+      }
+    }
+    // Ensure the web route's signed_off_by is populated when a signature was
+    // drawn but no name typed, so a required close-signature check still passes.
+    const signoffName = signoff.trim() || (signatureData ? (profile?.full_name ?? undefined) : undefined)
     const result = await closeWorkOrder({
       workOrderId: wo.id,
       status: closeModal,
       closeoutPhotoUrls: closeoutPhotos,
-      signoff: signoff.trim() || undefined,
+      signoff: signoffName,
       completionNotes: completionNotes.trim() || undefined,
     })
     setSaving(false)
@@ -379,6 +447,18 @@ export default function WorkOrderDetailScreen() {
     const blob = await response.blob()
     const arrayBuffer = await new Response(blob).arrayBuffer()
     const { error } = await supabase.storage.from('media').upload(filename, arrayBuffer, { contentType: 'image/jpeg', upsert: false })
+    if (error) throw new Error(error.message)
+    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filename)
+    return publicUrl
+  }
+
+  // WO-19: upload a drawn signature PNG (base64 data URL) to the media bucket
+  // and return its public URL. Kept PNG (no re-compression) so the ink stays crisp.
+  async function uploadSignatureToStorage(dataUrl: string): Promise<string> {
+    const b64 = dataUrl.replace(/^data:image\/\w+;base64,/, '')
+    const bytes = base64ToBytes(b64)
+    const filename = 'wo-' + wo.id + '-signature-' + Date.now() + '.png'
+    const { error } = await supabase.storage.from('media').upload(filename, bytes, { contentType: 'image/png', upsert: false })
     if (error) throw new Error(error.message)
     const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filename)
     return publicUrl
@@ -1053,6 +1133,30 @@ export default function WorkOrderDetailScreen() {
                   placeholderTextColor={colors.textLight}
                   multiline
                 />
+
+                {/* WO-19: drawn sign-off signature. Required marker when the PM
+                    schedule flags requires_signature. */}
+                <Text style={[styles.fieldLabel, { marginTop: 16 }]}>
+                  {(lang === 'ar' ? 'التوقيع' : 'Signature') + (requiresSignature ? ' *' : '')}
+                </Text>
+                {signatureData ? (
+                  <View>
+                    <Image source={{ uri: signatureData }} style={styles.signaturePreview} contentFit='contain' />
+                    <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+                      <TouchableOpacity onPress={() => setSignVisible(true)} disabled={saving}>
+                        <Text style={styles.signatureLink}>{lang === 'ar' ? 'إعادة التوقيع' : 'Re-sign'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setSignatureData(null)} disabled={saving}>
+                        <Text style={[styles.signatureLink, { color: colors.error }]}>{lang === 'ar' ? 'إزالة' : 'Remove'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.sheetPhotoBtn} onPress={() => setSignVisible(true)} disabled={saving}>
+                    <Ionicons name='create-outline' size={18} color={colors.primary} />
+                    <Text style={styles.photoBtnText}>{lang === 'ar' ? 'إضافة توقيع' : 'Add signature'}</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
 
               <View style={styles.sheetActions}>
@@ -1069,6 +1173,15 @@ export default function WorkOrderDetailScreen() {
           </KeyboardAvoidingView>
         </Modal>
       )}
+
+      {/* WO-19: drawn signature pad (own modal so its gestures don't fight the
+          close sheet's ScrollView). */}
+      <SignaturePad
+        visible={signVisible}
+        onClose={() => setSignVisible(false)}
+        onSave={setSignatureData}
+        arabic={lang === 'ar'}
+      />
     </KeyboardAvoidingView>
   )
 }
@@ -1138,4 +1251,6 @@ const styles = StyleSheet.create({
   sheetBtnGhostText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
   sheetBtnText: { color: 'white', fontSize: 15, fontWeight: '600' },
   sheetPhotoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.infoLight },
+  signaturePreview: { width: '100%', height: 120, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: 'white' },
+  signatureLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
 })
