@@ -23,6 +23,8 @@ export type FieldPage =
   | 'sites_edit'
   | 'spaces_new'
   | 'spaces_edit'
+  | 'asset_log_new'
+  | 'asset_log_edit'
   | 'users_new'
   | 'users_edit'
 
@@ -31,6 +33,7 @@ export const ALL_PAGES: FieldPage[] = [
   'assets_new', 'assets_edit',
   'sites_new', 'sites_edit',
   'spaces_new', 'spaces_edit',
+  'asset_log_new', 'asset_log_edit',
   'users_new', 'users_edit',
 ]
 
@@ -53,6 +56,8 @@ export const PAGE_LABELS: Record<FieldPage, { en: string; ar: string }> = {
   sites_edit:        { en: 'Edit Site',           ar: 'تعديل الموقع' },
   spaces_new:        { en: 'Create Space',        ar: 'إنشاء مساحة' },
   spaces_edit:       { en: 'Edit Space',          ar: 'تعديل المساحة' },
+  asset_log_new:     { en: 'Create Asset Log Item', ar: 'إنشاء عنصر سجل الأصول' },
+  asset_log_edit:    { en: 'Edit Asset Log Item',   ar: 'تعديل عنصر سجل الأصول' },
   users_new:         { en: 'Create User',         ar: 'إنشاء مستخدم' },
   users_edit:        { en: 'Edit User',           ar: 'تعديل المستخدم' },
 }
@@ -148,6 +153,60 @@ export const FIELD_CATALOG: Record<FieldPage, FieldMeta[]> = {
     { key: 'name_ar',     label_en: 'Name (AR)',   label_ar: 'الاسم (عربي)',    type: 'text',     default_visibility: 'optional', is_system_required: false },
     { key: 'floor',       label_en: 'Floor',       label_ar: 'الطابق',          type: 'text',     default_visibility: 'required', is_system_required: true  },
     { key: 'description', label_en: 'Description', label_ar: 'الوصف',           type: 'textarea', default_visibility: 'optional', is_system_required: false },
+  ],
+  // AG-14 — Asset Log create/edit share the same field set. Structural fields
+  // (name is system-required; tracking_mode/quantity/status/custom_fields drive
+  // logic and stay always-on) are intentionally NOT listed here so admins can't
+  // hide them. Every key below is gated by isHidden/isRequired in ItemForm.
+  asset_log_new: [
+    { key: 'name',                             label_en: 'Name',                  label_ar: 'الاسم',              type: 'text',     default_visibility: 'required', is_system_required: true  },
+    { key: 'name_ar',                          label_en: 'Name (Arabic)',         label_ar: 'الاسم (عربي)',       type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'type_id',                          label_en: 'Type',                  label_ar: 'النوع',              type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'brand',                            label_en: 'Brand',                 label_ar: 'العلامة',            type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'model',                            label_en: 'Model',                 label_ar: 'الموديل',            type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'serial_number',                    label_en: 'Serial number',         label_ar: 'الرقم التسلسلي',     type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'description',                       label_en: 'Description',           label_ar: 'الوصف',              type: 'textarea', default_visibility: 'optional', is_system_required: false },
+    { key: 'site_id',                          label_en: 'Site',                  label_ar: 'الموقع',             type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'space_id',                         label_en: 'Space',                 label_ar: 'المساحة',            type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'purchase_date',                    label_en: 'Purchase date',         label_ar: 'تاريخ الشراء',       type: 'date',     default_visibility: 'optional', is_system_required: false },
+    { key: 'purchase_cost',                    label_en: 'Purchase cost',         label_ar: 'تكلفة الشراء',       type: 'number',   default_visibility: 'optional', is_system_required: false },
+    { key: 'replacement_cost',                 label_en: 'Replacement cost',      label_ar: 'تكلفة الاستبدال',    type: 'number',   default_visibility: 'optional', is_system_required: false },
+    { key: 'current_value_override',           label_en: 'Current value override', label_ar: 'قيمة حالية (تجاوز)', type: 'number',  default_visibility: 'optional', is_system_required: false },
+    { key: 'expected_lifespan_years',          label_en: 'Expected lifespan (yrs)', label_ar: 'العمر المتوقع (سنوات)', type: 'number', default_visibility: 'optional', is_system_required: false },
+    { key: 'supplier_id',                      label_en: 'Supplier',              label_ar: 'المورد',             type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'invoice_ref',                      label_en: 'Invoice ref',           label_ar: 'مرجع الفاتورة',      type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'warranty_provider',                label_en: 'Warranty provider',     label_ar: 'مزوّد الضمان',        type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'warranty_expiry',                  label_en: 'Warranty expiry',       label_ar: 'انتهاء الضمان',      type: 'date',     default_visibility: 'optional', is_system_required: false },
+    { key: 'condition_rating',                 label_en: 'Condition rating',      label_ar: 'تقييم الحالة',       type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'is_usable',                        label_en: 'Usable',                label_ar: 'قابل للاستخدام',      type: 'checkbox', default_visibility: 'optional', is_system_required: false },
+    { key: 'condition_review_interval_months', label_en: 'Review interval (mo)',  label_ar: 'فترة المراجعة (أشهر)', type: 'number', default_visibility: 'optional', is_system_required: false },
+    { key: 'condition_notes',                  label_en: 'Condition notes',       label_ar: 'ملاحظات الحالة',     type: 'textarea', default_visibility: 'optional', is_system_required: false },
+    { key: 'photos',                           label_en: 'Photos',                label_ar: 'الصور',              type: 'file',     default_visibility: 'optional', is_system_required: false },
+  ],
+  asset_log_edit: [
+    { key: 'name',                             label_en: 'Name',                  label_ar: 'الاسم',              type: 'text',     default_visibility: 'required', is_system_required: true  },
+    { key: 'name_ar',                          label_en: 'Name (Arabic)',         label_ar: 'الاسم (عربي)',       type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'type_id',                          label_en: 'Type',                  label_ar: 'النوع',              type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'brand',                            label_en: 'Brand',                 label_ar: 'العلامة',            type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'model',                            label_en: 'Model',                 label_ar: 'الموديل',            type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'serial_number',                    label_en: 'Serial number',         label_ar: 'الرقم التسلسلي',     type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'description',                       label_en: 'Description',           label_ar: 'الوصف',              type: 'textarea', default_visibility: 'optional', is_system_required: false },
+    { key: 'site_id',                          label_en: 'Site',                  label_ar: 'الموقع',             type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'space_id',                         label_en: 'Space',                 label_ar: 'المساحة',            type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'purchase_date',                    label_en: 'Purchase date',         label_ar: 'تاريخ الشراء',       type: 'date',     default_visibility: 'optional', is_system_required: false },
+    { key: 'purchase_cost',                    label_en: 'Purchase cost',         label_ar: 'تكلفة الشراء',       type: 'number',   default_visibility: 'optional', is_system_required: false },
+    { key: 'replacement_cost',                 label_en: 'Replacement cost',      label_ar: 'تكلفة الاستبدال',    type: 'number',   default_visibility: 'optional', is_system_required: false },
+    { key: 'current_value_override',           label_en: 'Current value override', label_ar: 'قيمة حالية (تجاوز)', type: 'number',  default_visibility: 'optional', is_system_required: false },
+    { key: 'expected_lifespan_years',          label_en: 'Expected lifespan (yrs)', label_ar: 'العمر المتوقع (سنوات)', type: 'number', default_visibility: 'optional', is_system_required: false },
+    { key: 'supplier_id',                      label_en: 'Supplier',              label_ar: 'المورد',             type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'invoice_ref',                      label_en: 'Invoice ref',           label_ar: 'مرجع الفاتورة',      type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'warranty_provider',                label_en: 'Warranty provider',     label_ar: 'مزوّد الضمان',        type: 'text',     default_visibility: 'optional', is_system_required: false },
+    { key: 'warranty_expiry',                  label_en: 'Warranty expiry',       label_ar: 'انتهاء الضمان',      type: 'date',     default_visibility: 'optional', is_system_required: false },
+    { key: 'condition_rating',                 label_en: 'Condition rating',      label_ar: 'تقييم الحالة',       type: 'select',   default_visibility: 'optional', is_system_required: false },
+    { key: 'is_usable',                        label_en: 'Usable',                label_ar: 'قابل للاستخدام',      type: 'checkbox', default_visibility: 'optional', is_system_required: false },
+    { key: 'condition_review_interval_months', label_en: 'Review interval (mo)',  label_ar: 'فترة المراجعة (أشهر)', type: 'number', default_visibility: 'optional', is_system_required: false },
+    { key: 'condition_notes',                  label_en: 'Condition notes',       label_ar: 'ملاحظات الحالة',     type: 'textarea', default_visibility: 'optional', is_system_required: false },
+    { key: 'photos',                           label_en: 'Photos',                label_ar: 'الصور',              type: 'file',     default_visibility: 'optional', is_system_required: false },
   ],
   users_new: [
     { key: 'full_name',    label_en: 'Full name (English)', label_ar: 'الاسم الكامل (إنجليزي)', type: 'text',   default_visibility: 'required', is_system_required: true  },

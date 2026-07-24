@@ -25,6 +25,10 @@
       "schedule": "0 8 * * 1"
     },
     {
+      "path": "/api/cron/asset-review-due",
+      "schedule": "0 9 * * 1"
+    },
+    {
       "path": "/api/cron/inspection-generate",
       "schedule": "0 6 * * *"
     }

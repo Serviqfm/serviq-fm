@@ -13,6 +13,7 @@ import { sendPushNotification } from '@/lib/push'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 import WorkOrderFilesTab from '@/components/work-orders/WorkOrderFilesTab'
+import WarrantyClaimsTab from '@/components/work-orders/WarrantyClaimsTab'
 import { CustomFieldDefinition, fieldLabel } from '@/lib/customFields'
 
 type CustomStatusOption = {
@@ -38,7 +39,7 @@ export default function WorkOrderDetailPage() {
   const [history, setHistory] = useState<any[]>([])
   const { lang } = useLanguage()
   const [translatedWO, setTranslatedWO] = useState<Record<string,string>>({})
-  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'files' | 'parts' | 'labor' | 'costs' | 'activity' | 'space_assets'>('comments')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'comments' | 'history' | 'photos' | 'files' | 'parts' | 'labor' | 'costs' | 'activity' | 'space_assets' | 'warranty'>('comments')
   const [tasks, setTasks] = useState<WorkOrderTask[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [addingTask, setAddingTask] = useState(false)
@@ -294,7 +295,7 @@ export default function WorkOrderDetailPage() {
   async function fetchWorkOrder() {
     const { data } = await supabase
       .from('work_orders')
-      .select('*, assignee:assigned_to(full_name, email), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name, invoicing_enabled), team:team_id(name, name_ar)')
+      .select('*, assignee:assigned_to(full_name, email), vendor:assigned_vendor_id(company_name), asset:asset_id(name, warranty_expiry), site:site_id(name, invoicing_enabled), team:team_id(name, name_ar)')
       .eq('id', id)
       .single()
     if (data) {
@@ -740,6 +741,14 @@ export default function WorkOrderDetailPage() {
   const mediaExpiry = getMediaExpiryInfo()
   const allPhotos = wo.photo_urls ?? []
 
+  // FM-24: Warranty tab shows when the WO's asset is still under warranty, or always
+  // for admin/manager. Only managers can create claims / move their status.
+  const isWarrantyManager = ['admin', 'manager'].includes(currentUser?.role ?? '')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const assetWarrantyExpiry = (wo.asset as any)?.warranty_expiry as string | null | undefined
+  const assetUnderWarranty = !!assetWarrantyExpiry && new Date(assetWarrantyExpiry) >= new Date()
+  const showWarranty = isWarrantyManager || assetUnderWarranty
+
   // WO-06/07 cost roll-up. Parts cost is parsed from the persisted "Parts used"
   // activity comments (the only place parts consumption is stored today).
   const money = (n: number) => `SAR ${n.toFixed(2)}`
@@ -1181,6 +1190,14 @@ export default function WorkOrderDetailPage() {
               Space Assets
             </button>
           )}
+          {showWarranty && (
+            <button
+              onClick={() => setActiveTab('warranty')}
+              className={`px-4 py-2 text-sm border-b-2 bg-transparent cursor-pointer transition-colors ${activeTab === 'warranty' ? 'border-primary text-primary font-semibold' : 'border-transparent text-on-surface-variant'}`}
+            >
+              {lang === 'ar' ? 'الضمان' : 'Warranty'}
+            </button>
+          )}
         </div>
 
         {activeTab === 'tasks' && (
@@ -1530,6 +1547,15 @@ export default function WorkOrderDetailPage() {
 
         {activeTab === 'space_assets' && wo?.space_id && (
           <SpaceAssetsPanel spaceId={wo.space_id} woId={wo.id} supabase={supabase} />
+        )}
+
+        {activeTab === 'warranty' && showWarranty && (
+          <WarrantyClaimsTab
+            woId={String(id)}
+            orgId={wo.organisation_id}
+            assetId={wo.asset_id ?? null}
+            canManage={isWarrantyManager}
+          />
         )}
       </div>
     </div>

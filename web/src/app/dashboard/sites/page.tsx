@@ -21,6 +21,40 @@ export default function SitesPage() {
   const { flags } = useFeatureFlag()
   const canAddSite = flags.multi_site || totalSites === 0
 
+  // AL-20 — inline site→space tree with re-parenting.
+  const [showTree, setShowTree] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [treeSites, setTreeSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [treeSpaces, setTreeSpaces] = useState<any[]>([])
+  const [treeLoading, setTreeLoading] = useState(false)
+
+  async function loadTree() {
+    if (!orgId) return
+    setTreeLoading(true)
+    const [{ data: st }, { data: sp }] = await Promise.all([
+      supabase.from('sites').select('id, name').eq('organisation_id', orgId).order('name'),
+      supabase.from('spaces').select('id, name, floor, site_id').order('floor').order('name'),
+    ])
+    setTreeSites(st ?? [])
+    setTreeSpaces(sp ?? [])
+    setTreeLoading(false)
+  }
+
+  async function moveSpace(spaceId: string, siteId: string) {
+    const res = await fetch(`/api/spaces/${spaceId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site_id: siteId }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      alert('Move failed: ' + (j.error ?? 'Unknown error'))
+      return
+    }
+    setTreeSpaces(prev => prev.map(s => s.id === spaceId ? { ...s, site_id: siteId } : s))
+  }
+
   // Debounce search so we don't fire a query on every keystroke.
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 300)
@@ -120,6 +154,9 @@ export default function SitesPage() {
           </div>
           <div className="flex items-center gap-2">
             <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+            <button onClick={() => { const n = !showTree; setShowTree(n); if (n && treeSites.length === 0) loadTree() }} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">
+              {showTree ? (lang === 'ar' ? 'إخفاء الشجرة' : 'Hide Tree') : (lang === 'ar' ? 'عرض الشجرة' : 'Location Tree')}
+            </button>
             <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">Import CSV</button>
             <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-secondary/20 transition-colors">Export CSV</button>
             {canAddSite ? (
@@ -143,6 +180,48 @@ export default function SitesPage() {
           placeholder={lang === 'ar' ? 'البحث...' : 'Search by name, city, or address...'}
           className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
         />
+
+        {showTree && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+            <h2 className="text-sm font-bold text-on-surface mb-3">{lang === 'ar' ? 'شجرة المواقع والمساحات' : 'Site → Space Tree'}</h2>
+            {treeLoading ? (
+              <p className="text-on-surface-variant text-sm">{t('common.loading')}</p>
+            ) : treeSites.length === 0 ? (
+              <p className="text-on-surface-variant text-sm">{lang === 'ar' ? 'لا توجد مواقع' : 'No sites yet.'}</p>
+            ) : (
+              <div className="space-y-4">
+                {treeSites.map(site => {
+                  const kids = treeSpaces.filter(sp => sp.site_id === site.id)
+                  return (
+                    <div key={site.id}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-on-surface font-semibold text-sm">{site.name}</span>
+                        <span className="text-xs text-on-surface-variant">{kids.length} {lang === 'ar' ? 'مساحة' : 'space(s)'}</span>
+                      </div>
+                      {kids.length === 0 ? (
+                        <p className="text-xs text-on-surface-variant ps-4">{lang === 'ar' ? 'لا توجد مساحات' : 'No spaces'}</p>
+                      ) : (
+                        <ul className="ps-4 border-s border-outline-variant/50 space-y-1.5">
+                          {kids.map(sp => (
+                            <li key={sp.id} className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm text-on-surface">{sp.name}</span>
+                              {sp.floor && <span className="text-xs text-on-surface-variant">({sp.floor})</span>}
+                              <label className="text-[11px] text-on-surface-variant ms-auto">{lang === 'ar' ? 'نقل إلى:' : 'Move to:'}</label>
+                              <select value={sp.site_id} onChange={e => { if (e.target.value !== sp.site_id) moveSpace(sp.id, e.target.value) }}
+                                className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-2 py-1 text-xs text-on-surface outline-none">
+                                {treeSites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              </select>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <p className="text-on-surface-variant">{t('common.loading')}</p>

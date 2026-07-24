@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
+import AssetCustomFields from '@/components/AssetCustomFields'
 import { flattenAssetTree, MAX_ASSET_DEPTH, type FlatHierarchyAsset } from '../asset-hierarchy'
 
 export default function NewAssetPage() {
@@ -39,9 +40,13 @@ export default function NewAssetPage() {
     purchase_cost: '',
     warranty_expiry: '',
     expected_lifespan_years: '',
+    salvage_value: '',
+    useful_life_years: '',
     description: '',
     location_notes: '',
   })
+  // AL-02: org-defined custom field values (key -> string).
+  const [customFields, setCustomFields] = useState<Record<string, string>>({})
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadSites() }, [])
@@ -140,8 +145,11 @@ export default function NewAssetPage() {
         purchase_cost: form.purchase_cost,
         warranty_expiry: form.warranty_expiry,
         expected_lifespan_years: form.expected_lifespan_years,
+        salvage_value: form.salvage_value,
+        useful_life_years: form.useful_life_years,
         description: form.description,
         location_notes: form.location_notes,
+        custom_fields: customFields,
         photo_urls: photoUrls,
       }),
     })
@@ -302,6 +310,18 @@ export default function NewAssetPage() {
             </div>
           )}
         </div>
+        {/* AL-05: depreciation inputs (salvage value + useful life for straight-line book value). */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'القيمة المتبقية (ريال)' : 'Salvage Value (SAR)'}</label>
+            <input name='salvage_value' type='number' value={form.salvage_value} onChange={handleChange} placeholder='e.g. 1000' style={fieldStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'العمر الإنتاجي للإهلاك (سنوات)' : 'Useful Life for Depreciation (years)'}</label>
+            <input name='useful_life_years' type='number' value={form.useful_life_years} onChange={handleChange} placeholder='e.g. 7' style={fieldStyle} />
+          </div>
+        </div>
+        <AssetCustomFields values={customFields} onChange={setCustomFields} />
         {!isHidden('description') && (
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'الوصف' : 'Description'}{reqMark('description')}</label>

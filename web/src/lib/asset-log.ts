@@ -96,5 +96,13 @@ if (typeof require !== 'undefined' && require.main === module) {
   const old = new Date(); old.setFullYear(old.getFullYear() - 10)
   const z = currentValue({ purchase_cost: 1000, expected_lifespan_years: 5, purchase_date: old.toISOString() })
   console.assert(z === 0, 'floored 0, got ' + z)
+
+  // isReviewDue — the AG-13 cron gate.
+  console.assert(isReviewDue({ condition_review_interval_months: 0 }) === false, 'no cadence -> not due')
+  console.assert(isReviewDue({ condition_review_interval_months: 6 }) === true, 'cadence + never reviewed -> due')
+  const recent = new Date(); recent.setMonth(recent.getMonth() - 1)
+  console.assert(isReviewDue({ condition_review_interval_months: 6, last_condition_review_at: recent.toISOString() }) === false, 'reviewed 1mo ago, 6mo cadence -> not due')
+  const stale = new Date(); stale.setMonth(stale.getMonth() - 7)
+  console.assert(isReviewDue({ condition_review_interval_months: 6, last_condition_review_at: stale.toISOString() }) === true, 'reviewed 7mo ago, 6mo cadence -> due')
   console.log('asset-log.ts self-check ok')
 }

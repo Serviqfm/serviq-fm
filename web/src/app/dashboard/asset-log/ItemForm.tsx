@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { ASSET_LOG_STATUSES } from '@/lib/asset-log'
+import { useFieldConfig } from '@/lib/useFieldConfig'
+import { isSystemRequired } from '@/lib/field-catalog'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -31,6 +33,12 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
   const { lang, t } = useLanguage()
   const isAr = lang === 'ar'
   const supabase = createClient()
+
+  // AG-14 — admins can hide/require fields on the Asset Log forms.
+  const fieldPage = mode === 'create' ? 'asset_log_new' : 'asset_log_edit'
+  const { isHidden, isRequired, loading: configLoading } = useFieldConfig(fieldPage)
+  const isReq = (key: string) => isRequired(key) || isSystemRequired(fieldPage, key)
+  const req = (key: string) => isReq(key) ? <span style={{ color: '#d32f2f' }}> *</span> : null
 
   const [orgId, setOrgId] = useState<string>('')
   const [types, setTypes] = useState<Row[]>([])
@@ -209,6 +217,8 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
 
   const spacesForSite = spaces.filter(s => s.site_id === form.site_id)
 
+  if (configLoading) return <div style={{ padding: '2rem', color: '#999' }}>{t('common.loading')}</div>
+
   return (
     <div style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }} dir={isAr ? 'rtl' : 'ltr'}>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -225,17 +235,20 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
         {/* Identity */}
         <h2 style={sectionStyle}>{isAr ? 'التعريف' : 'Identity'}</h2>
         <div>
-          <label style={labelStyle}>{isAr ? 'الاسم' : 'Name'}<span style={{ color: '#d32f2f' }}> *</span></label>
+          <label style={labelStyle}>{isAr ? 'الاسم' : 'Name'}{req('name')}</label>
           <input value={form.name} onChange={e => set('name', e.target.value)} required style={fieldStyle} placeholder={isAr ? 'مثال: كرسي مكتب' : 'e.g. Office Chair'} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {!isHidden('name_ar') && (
           <div>
-            <label style={labelStyle}>{isAr ? 'الاسم (عربي)' : 'Name (Arabic)'}</label>
-            <input value={form.name_ar} onChange={e => set('name_ar', e.target.value)} dir='rtl' style={fieldStyle} />
+            <label style={labelStyle}>{isAr ? 'الاسم (عربي)' : 'Name (Arabic)'}{req('name_ar')}</label>
+            <input value={form.name_ar} onChange={e => set('name_ar', e.target.value)} required={isReq('name_ar')} dir='rtl' style={fieldStyle} />
           </div>
+          )}
+          {!isHidden('type_id') && (
           <div>
-            <label style={labelStyle}>{t('asset_log.col.type')}</label>
-            <select value={form.type_id} onChange={e => set('type_id', e.target.value)} style={fieldStyle}>
+            <label style={labelStyle}>{t('asset_log.col.type')}{req('type_id')}</label>
+            <select value={form.type_id} onChange={e => set('type_id', e.target.value)} required={isReq('type_id')} style={fieldStyle}>
               <option value=''>{isAr ? 'بدون نوع' : 'No type'}</option>
               {types.map(ty => <option key={ty.id} value={ty.id}>{isAr && ty.name_ar ? ty.name_ar : ty.name}</option>)}
             </select>
@@ -249,16 +262,21 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
               </button>
             </div>
           </div>
+          )}
         </div>
+        {(!isHidden('brand') || !isHidden('model') || !isHidden('serial_number')) && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-          <div><label style={labelStyle}>{isAr ? 'العلامة' : 'Brand'}</label><input value={form.brand} onChange={e => set('brand', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'الموديل' : 'Model'}</label><input value={form.model} onChange={e => set('model', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'الرقم التسلسلي' : 'Serial No.'}</label><input value={form.serial_number} onChange={e => set('serial_number', e.target.value)} style={fieldStyle} /></div>
+          {!isHidden('brand') && <div><label style={labelStyle}>{isAr ? 'العلامة' : 'Brand'}{req('brand')}</label><input value={form.brand} onChange={e => set('brand', e.target.value)} required={isReq('brand')} style={fieldStyle} /></div>}
+          {!isHidden('model') && <div><label style={labelStyle}>{isAr ? 'الموديل' : 'Model'}{req('model')}</label><input value={form.model} onChange={e => set('model', e.target.value)} required={isReq('model')} style={fieldStyle} /></div>}
+          {!isHidden('serial_number') && <div><label style={labelStyle}>{isAr ? 'الرقم التسلسلي' : 'Serial No.'}{req('serial_number')}</label><input value={form.serial_number} onChange={e => set('serial_number', e.target.value)} required={isReq('serial_number')} style={fieldStyle} /></div>}
         </div>
+        )}
+        {!isHidden('description') && (
         <div>
-          <label style={labelStyle}>{isAr ? 'الوصف' : 'Description'}</label>
-          <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} style={{ ...fieldStyle, resize: 'vertical' }} />
+          <label style={labelStyle}>{isAr ? 'الوصف' : 'Description'}{req('description')}</label>
+          <textarea value={form.description} onChange={e => set('description', e.target.value)} required={isReq('description')} rows={2} style={{ ...fieldStyle, resize: 'vertical' }} />
         </div>
+        )}
 
         {/* Quantity */}
         <h2 style={sectionStyle}>{isAr ? 'الكمية' : 'Quantity'}</h2>
@@ -279,22 +297,26 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
         </div>
 
         {/* Location */}
-        <h2 style={sectionStyle}>{isAr ? 'الموقع' : 'Location'}</h2>
+        {(!isHidden('site_id') || !isHidden('space_id')) && <h2 style={sectionStyle}>{isAr ? 'الموقع' : 'Location'}</h2>}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {!isHidden('site_id') && (
           <div>
-            <label style={labelStyle}>{t('common.site')}</label>
-            <select value={form.site_id} onChange={e => set('site_id', e.target.value)} style={fieldStyle}>
+            <label style={labelStyle}>{t('common.site')}{req('site_id')}</label>
+            <select value={form.site_id} onChange={e => set('site_id', e.target.value)} required={isReq('site_id')} style={fieldStyle}>
               <option value=''>{isAr ? 'بدون موقع' : 'No site'}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
+          )}
+          {!isHidden('space_id') && (
           <div>
-            <label style={labelStyle}>{isAr ? 'المساحة' : 'Space'}</label>
-            <select value={form.space_id} onChange={e => set('space_id', e.target.value)} disabled={!form.site_id} style={fieldStyle}>
+            <label style={labelStyle}>{isAr ? 'المساحة' : 'Space'}{req('space_id')}</label>
+            <select value={form.space_id} onChange={e => set('space_id', e.target.value)} required={isReq('space_id')} disabled={!form.site_id} style={fieldStyle}>
               <option value=''>{isAr ? 'بدون مساحة' : 'No space'}</option>
               {spacesForSite.map(s => <option key={s.id} value={s.id}>{s.name}{s.floor ? ' (' + s.floor + ')' : ''}</option>)}
             </select>
           </div>
+          )}
         </div>
         <div>
           <label style={labelStyle}>{t('common.status')}</label>
@@ -308,38 +330,43 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
         {/* Purchase / cost */}
         <h2 style={sectionStyle}>{isAr ? 'الشراء والتكلفة' : 'Purchase & Cost'}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={labelStyle}>{isAr ? 'تاريخ الشراء' : 'Purchase date'}</label><input type='date' value={form.purchase_date} onChange={e => set('purchase_date', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'تكلفة الشراء (ريال)' : 'Purchase cost (SAR)'}</label><input type='number' value={form.purchase_cost} onChange={e => set('purchase_cost', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'تكلفة الاستبدال' : 'Replacement cost'}</label><input type='number' value={form.replacement_cost} onChange={e => set('replacement_cost', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'العمر المتوقع (سنوات)' : 'Expected lifespan (yrs)'}</label><input type='number' value={form.expected_lifespan_years} onChange={e => set('expected_lifespan_years', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'قيمة حالية (تجاوز)' : 'Current value override'}</label><input type='number' value={form.current_value_override} onChange={e => set('current_value_override', e.target.value)} style={fieldStyle} /></div>
+          {!isHidden('purchase_date') && <div><label style={labelStyle}>{isAr ? 'تاريخ الشراء' : 'Purchase date'}{req('purchase_date')}</label><input type='date' value={form.purchase_date} onChange={e => set('purchase_date', e.target.value)} required={isReq('purchase_date')} style={fieldStyle} /></div>}
+          {!isHidden('purchase_cost') && <div><label style={labelStyle}>{isAr ? 'تكلفة الشراء (ريال)' : 'Purchase cost (SAR)'}{req('purchase_cost')}</label><input type='number' value={form.purchase_cost} onChange={e => set('purchase_cost', e.target.value)} required={isReq('purchase_cost')} style={fieldStyle} /></div>}
+          {!isHidden('replacement_cost') && <div><label style={labelStyle}>{isAr ? 'تكلفة الاستبدال' : 'Replacement cost'}{req('replacement_cost')}</label><input type='number' value={form.replacement_cost} onChange={e => set('replacement_cost', e.target.value)} required={isReq('replacement_cost')} style={fieldStyle} /></div>}
+          {!isHidden('expected_lifespan_years') && <div><label style={labelStyle}>{isAr ? 'العمر المتوقع (سنوات)' : 'Expected lifespan (yrs)'}{req('expected_lifespan_years')}</label><input type='number' value={form.expected_lifespan_years} onChange={e => set('expected_lifespan_years', e.target.value)} required={isReq('expected_lifespan_years')} style={fieldStyle} /></div>}
+          {!isHidden('current_value_override') && <div><label style={labelStyle}>{isAr ? 'قيمة حالية (تجاوز)' : 'Current value override'}{req('current_value_override')}</label><input type='number' value={form.current_value_override} onChange={e => set('current_value_override', e.target.value)} required={isReq('current_value_override')} style={fieldStyle} /></div>}
+          {!isHidden('supplier_id') && (
           <div>
-            <label style={labelStyle}>{isAr ? 'المورد' : 'Supplier'}</label>
-            <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} style={fieldStyle}>
+            <label style={labelStyle}>{isAr ? 'المورد' : 'Supplier'}{req('supplier_id')}</label>
+            <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} required={isReq('supplier_id')} style={fieldStyle}>
               <option value=''>{isAr ? 'بدون' : 'None'}</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
           </div>
-          <div><label style={labelStyle}>{isAr ? 'مرجع الفاتورة' : 'Invoice ref'}</label><input value={form.invoice_ref} onChange={e => set('invoice_ref', e.target.value)} style={fieldStyle} /></div>
+          )}
+          {!isHidden('invoice_ref') && <div><label style={labelStyle}>{isAr ? 'مرجع الفاتورة' : 'Invoice ref'}{req('invoice_ref')}</label><input value={form.invoice_ref} onChange={e => set('invoice_ref', e.target.value)} required={isReq('invoice_ref')} style={fieldStyle} /></div>}
         </div>
 
         {/* Warranty */}
-        <h2 style={sectionStyle}>{isAr ? 'الضمان' : 'Warranty'}</h2>
+        {(!isHidden('warranty_provider') || !isHidden('warranty_expiry')) && <h2 style={sectionStyle}>{isAr ? 'الضمان' : 'Warranty'}</h2>}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={labelStyle}>{isAr ? 'مزوّد الضمان' : 'Warranty provider'}</label><input value={form.warranty_provider} onChange={e => set('warranty_provider', e.target.value)} style={fieldStyle} /></div>
-          <div><label style={labelStyle}>{isAr ? 'انتهاء الضمان' : 'Warranty expiry'}</label><input type='date' value={form.warranty_expiry} onChange={e => set('warranty_expiry', e.target.value)} style={fieldStyle} /></div>
+          {!isHidden('warranty_provider') && <div><label style={labelStyle}>{isAr ? 'مزوّد الضمان' : 'Warranty provider'}{req('warranty_provider')}</label><input value={form.warranty_provider} onChange={e => set('warranty_provider', e.target.value)} required={isReq('warranty_provider')} style={fieldStyle} /></div>}
+          {!isHidden('warranty_expiry') && <div><label style={labelStyle}>{isAr ? 'انتهاء الضمان' : 'Warranty expiry'}{req('warranty_expiry')}</label><input type='date' value={form.warranty_expiry} onChange={e => set('warranty_expiry', e.target.value)} required={isReq('warranty_expiry')} style={fieldStyle} /></div>}
         </div>
 
         {/* Condition */}
         <h2 style={sectionStyle}>{t('asset_log.col.condition')}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          {!isHidden('condition_rating') && (
           <div>
-            <label style={labelStyle}>{isAr ? 'التقييم (1-5)' : 'Rating (1–5)'}</label>
-            <select value={form.condition_rating} onChange={e => set('condition_rating', e.target.value)} style={fieldStyle}>
+            <label style={labelStyle}>{isAr ? 'التقييم (1-5)' : 'Rating (1–5)'}{req('condition_rating')}</label>
+            <select value={form.condition_rating} onChange={e => set('condition_rating', e.target.value)} required={isReq('condition_rating')} style={fieldStyle}>
               <option value=''>—</option>
               {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
+          )}
+          {!isHidden('is_usable') && (
           <div>
             <label style={labelStyle}>{isAr ? 'قابل للاستخدام' : 'Usable'}</label>
             <select value={form.is_usable ? 'yes' : 'no'} onChange={e => set('is_usable', e.target.value === 'yes')} style={fieldStyle}>
@@ -347,15 +374,20 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
               <option value='no'>{isAr ? 'لا' : 'No'}</option>
             </select>
           </div>
+          )}
+          {!isHidden('condition_review_interval_months') && (
           <div>
-            <label style={labelStyle}>{isAr ? 'فترة المراجعة (أشهر)' : 'Review interval (mo)'}</label>
-            <input type='number' value={form.condition_review_interval_months} onChange={e => set('condition_review_interval_months', e.target.value)} style={fieldStyle} />
+            <label style={labelStyle}>{isAr ? 'فترة المراجعة (أشهر)' : 'Review interval (mo)'}{req('condition_review_interval_months')}</label>
+            <input type='number' value={form.condition_review_interval_months} onChange={e => set('condition_review_interval_months', e.target.value)} required={isReq('condition_review_interval_months')} style={fieldStyle} />
           </div>
+          )}
         </div>
+        {!isHidden('condition_notes') && (
         <div>
-          <label style={labelStyle}>{isAr ? 'ملاحظات الحالة' : 'Condition notes'}</label>
-          <textarea value={form.condition_notes} onChange={e => set('condition_notes', e.target.value)} rows={2} style={{ ...fieldStyle, resize: 'vertical' }} />
+          <label style={labelStyle}>{isAr ? 'ملاحظات الحالة' : 'Condition notes'}{req('condition_notes')}</label>
+          <textarea value={form.condition_notes} onChange={e => set('condition_notes', e.target.value)} required={isReq('condition_notes')} rows={2} style={{ ...fieldStyle, resize: 'vertical' }} />
         </div>
+        )}
 
         {/* Custom fields (JSONB) */}
         <h2 style={sectionStyle}>{isAr ? 'حقول مخصصة' : 'Custom fields'}</h2>
@@ -371,7 +403,8 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
         </button>
 
         {/* Photos */}
-        <h2 style={sectionStyle}>{isAr ? 'الصور' : 'Photos'}</h2>
+        {!isHidden('photos') && (<>
+        <h2 style={sectionStyle}>{isAr ? 'الصور' : 'Photos'}{req('photos')}</h2>
         <div>
           <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed #ddd', borderRadius: 8, padding: '1.25rem', textAlign: 'center', cursor: 'pointer', color: '#999', fontSize: 13 }}>
             {existingPhotos.length + photos.length < 10
@@ -398,6 +431,7 @@ export default function ItemForm({ mode, itemId, initial }: ItemFormProps) {
             </div>
           )}
         </div>
+        </>)}
 
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <button type='submit' disabled={loading} style={{ background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: loading ? 0.7 : 1 }}>

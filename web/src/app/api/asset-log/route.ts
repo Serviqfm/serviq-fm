@@ -5,8 +5,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveCaller, auditAssetLog, seedDefaultTypesIfEmpty } from './_helpers'
 import { ASSET_LOG_STATUSES } from '@/lib/asset-log'
+import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { FIELD_CATALOG, FieldPage } from '@/lib/field-catalog'
 
 export const dynamic = 'force-dynamic'
+
+// AG-14 — validate against the org's asset_log field config (hide/require).
+// Runs as a gate only: it rejects when an admin-required field is blank. The
+// key 'photos' maps to the payload's photo_urls array.
+async function enforceAssetLogFields(
+  orgId: string, page: FieldPage, body: Record<string, unknown>
+): Promise<{ error: string } | null> {
+  const payload: Record<string, unknown> = {}
+  for (const meta of FIELD_CATALOG[page]) {
+    payload[meta.key] = meta.key === 'photos' ? body.photo_urls : body[meta.key]
+  }
+  const res = await enforceFieldConfig(orgId, page, payload)
+  return 'error' in res ? { error: res.error } : null
+}
 
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null
@@ -33,6 +49,9 @@ export async function POST(req: NextRequest) {
 
   const name = str(body.name)
   if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+
+  const fieldErr = await enforceAssetLogFields(orgId, 'asset_log_new', body)
+  if (fieldErr) return NextResponse.json(fieldErr, { status: 400 })
 
   const trackingMode = body.tracking_mode === 'bulk' ? 'bulk' : 'unit'
   let quantity = int(body.quantity) ?? 1
