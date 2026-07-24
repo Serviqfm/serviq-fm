@@ -18,32 +18,49 @@ function qrSize(layout: number) { return layout === 2 ? 140 : layout === 4 ? 90 
 function nameSize(layout: number) { return layout === 2 ? 13 : layout === 4 ? 9 : 7 }
 function subSize(layout: number) { return layout === 2 ? 10 : layout === 4 ? 7 : 6 }
 
+// AL-10: fields the label sheet can print, mapped to a display line per asset.
+type LabelAsset = {
+  id: string; name: string; qr_code: string | null; category: string | null
+  serial_number: string | null; manufacturer: string | null; model: string | null
+  sub_location: string | null; site: { name: string } | null
+}
+const FIELD_ACCESSORS: Record<string, (a: LabelAsset) => string> = {
+  qr_code:      a => a.qr_code ?? '',
+  serial_number: a => a.serial_number ? 'SN: ' + a.serial_number : '',
+  category:     a => a.category ?? '',
+  site:         a => a.site?.name ?? '',
+  manufacturer: a => a.manufacturer ?? '',
+  model:        a => a.model ?? '',
+  sub_location: a => a.sub_location ?? '',
+}
+
 export async function POST(req: NextRequest) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-  const { assetIds, layout } = await req.json() as { assetIds: string[]; layout: 2 | 4 | 6 }
+  // AL-10: `fields` (optional) chooses which lines print under the name. When
+  // omitted, the original QR-code-number + category·site layout is used.
+  const { assetIds, layout, fields } = await req.json() as { assetIds: string[]; layout: 2 | 4 | 6; fields?: string[] }
+  const selectedFields = Array.isArray(fields) ? fields.filter(f => f in FIELD_ACCESSORS) : null
 
   const { data: assets } = await supabase
     .from('assets')
-    .select('id, name, qr_code, category, site:site_id(name)')
+    .select('id, name, qr_code, category, serial_number, manufacturer, model, sub_location, site:site_id(name)')
     .in('id', assetIds)
 
   if (!assets?.length) {
     return NextResponse.json({ error: 'No assets found' }, { status: 400 })
   }
 
-  const qrImages: { name: string; subtitle: string; category: string; dataUrl: string }[] = []
-  for (const asset of assets as unknown as { id: string; name: string; qr_code: string | null; category: string | null; site: { name: string } | null }[]) {
+  const qrImages: { name: string; lines: string[]; dataUrl: string }[] = []
+  for (const asset of assets as unknown as LabelAsset[]) {
     const url = `${APP_URL}/dashboard/assets/${asset.id}`
     const dataUrl = await QRCode.toDataURL(url, { width: 200, margin: 1 })
-    qrImages.push({
-      name: asset.name,
-      subtitle: asset.qr_code ?? '',
-      category: [asset.category, asset.site?.name].filter(Boolean).join(' · '),
-      dataUrl,
-    })
+    const lines = selectedFields
+      ? selectedFields.map(f => FIELD_ACCESSORS[f](asset)).filter(Boolean)
+      : [asset.qr_code ?? '', [asset.category, asset.site?.name].filter(Boolean).join(' · ')].filter(Boolean)
+    qrImages.push({ name: asset.name, lines, dataUrl })
   }
 
   const qrSz = qrSize(layout)
@@ -59,8 +76,9 @@ export async function POST(req: NextRequest) {
               {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image src={item.dataUrl} style={{ width: qrSz, height: qrSz, marginBottom: 6 }} />
               <Text style={{ fontSize: nmSz, fontWeight: 'bold', color: '#0F2044', textAlign: 'center', marginBottom: 2 }}>{item.name}</Text>
-              {item.subtitle && <Text style={{ fontSize: sbSz, color: '#64748B', textAlign: 'center' }}>{item.subtitle}</Text>}
-              {item.category && <Text style={{ fontSize: sbSz, color: '#64748B', textAlign: 'center' }}>{item.category}</Text>}
+              {item.lines.map((line, j) => (
+                <Text key={j} style={{ fontSize: sbSz, color: '#64748B', textAlign: 'center' }}>{line}</Text>
+              ))}
             </View>
           ))}
         </View>
@@ -72,7 +90,7 @@ export async function POST(req: NextRequest) {
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="asset-qr-codes.pdf"`,
+      'Content-Disposition': `attachment; filename="asset-labels.pdf"`,
     },
   })
 }
