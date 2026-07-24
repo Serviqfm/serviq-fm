@@ -110,7 +110,9 @@ export default function WarrantyClaimsTab({
   }
 
   async function setStatus(claim: Claim, status: Status) {
-    // Optimistic — RLS + CHECK enforce validity server-side.
+    // Optimistic; on error we re-fetch. Server-side, RLS gates writes to
+    // admin/manager and a BEFORE UPDATE trigger enforces the legal transition
+    // path (a raw-API jump straight to 'paid' is rejected).
     setClaims(prev => prev.map(c => (c.id === claim.id ? { ...c, status } : c)))
     const { error } = await supabase.from('warranty_claims').update({ status }).eq('id', claim.id)
     if (error) {

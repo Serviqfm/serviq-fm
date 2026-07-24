@@ -44,31 +44,70 @@ CREATE POLICY warranty_claims_org_select ON public.warranty_claims
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
   );
 
+-- Writes are admin/manager only (mirrors the UI canManage gate — UI gating is not
+-- a security boundary). WITH CHECK binds organisation_id, the work order, AND the
+-- optional asset all to the caller's org (asset_id NULL is allowed) so a raw API
+-- call can't cross-reference another tenant's WO or asset.
 DROP POLICY IF EXISTS warranty_claims_org_insert ON public.warranty_claims;
 CREATE POLICY warranty_claims_org_insert ON public.warranty_claims
   FOR INSERT WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
     AND work_order_id IN (
       SELECT id FROM public.work_orders
       WHERE organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     )
+    AND (asset_id IS NULL OR asset_id IN (
+      SELECT id FROM public.assets
+      WHERE organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    ))
   );
 
 DROP POLICY IF EXISTS warranty_claims_org_update ON public.warranty_claims;
 CREATE POLICY warranty_claims_org_update ON public.warranty_claims
   FOR UPDATE USING (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
   )
   WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
     AND work_order_id IN (
       SELECT id FROM public.work_orders
       WHERE organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     )
+    AND (asset_id IS NULL OR asset_id IN (
+      SELECT id FROM public.assets
+      WHERE organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    ))
   );
 
 DROP POLICY IF EXISTS warranty_claims_org_delete ON public.warranty_claims;
 CREATE POLICY warranty_claims_org_delete ON public.warranty_claims
   FOR DELETE USING (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager')
   );
+
+-- Server-side transition guard: money status can only walk forward
+-- submitted → approved/rejected → paid; rejected & paid are terminal. Stops a
+-- raw-API jump straight to 'paid' (the client NEXT map is UX only, not a boundary).
+CREATE OR REPLACE FUNCTION public.enforce_warranty_claim_transition() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NOT (
+      (OLD.status = 'submitted' AND NEW.status IN ('approved','rejected'))
+      OR (OLD.status = 'approved' AND NEW.status IN ('paid','rejected'))
+    ) THEN
+      RAISE EXCEPTION 'Illegal warranty claim status transition: % -> %', OLD.status, NEW.status;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_warranty_claim_transition ON public.warranty_claims;
+CREATE TRIGGER trg_enforce_warranty_claim_transition
+  BEFORE UPDATE ON public.warranty_claims
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_warranty_claim_transition();
