@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { generateZATCAQRData, formatSAR } from '@/lib/zatca'
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
+import { resolveBranding } from '@/lib/branding'
 import React from 'react'
 
 const styles = StyleSheet.create({
   page:            { padding: 40, fontFamily: 'Helvetica', backgroundColor: '#ffffff' },
+  brandLogo:       { maxHeight: 44, maxWidth: 160, marginBottom: 8, objectFit: 'contain' },
   header:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32, borderBottomWidth: 2, borderBottomColor: '#1E2D4E', paddingBottom: 16 },
   companyName:     { fontSize: 20, fontFamily: 'Helvetica-Bold', color: '#1E2D4E' },
   companySubtitle: { fontSize: 9, color: '#A0B0BF', marginTop: 2 },
@@ -71,6 +73,22 @@ export async function POST(req: NextRequest) {
     const wo      = invoice.work_order ?? {}
     const org     = wo.organisation ?? {}
 
+    // MKT-27: apply the tenant's custom branding when the flag is on and branding is set.
+    // Permissive default (matches featureFlags.ts) — a missing flag row = feature on.
+    let brandingEnabled = true
+    const { data: flagRow } = await supabase
+      .from('tenant_feature_flags')
+      .select('custom_branding')
+      .eq('organisation_id', profile.organisation_id)
+      .single()
+    if (flagRow && typeof (flagRow as { custom_branding?: boolean }).custom_branding === 'boolean') {
+      brandingEnabled = (flagRow as { custom_branding: boolean }).custom_branding
+    }
+    const branding = resolveBranding(org, brandingEnabled)
+    // Colours below are already strict-hex-validated by resolveBranding (CSS-injection safe).
+    const accent  = branding?.primary   ?? '#1E2D4E'
+    const accent2 = branding?.secondary ?? '#6DCFB0'
+
     const invoiceDate = invoice.created_at
 
     const qrData = generateZATCAQRData({
@@ -89,9 +107,10 @@ export async function POST(req: NextRequest) {
       React.createElement(Page, { size: 'A4', style: styles.page },
 
         // Header
-        React.createElement(View, { style: styles.header },
+        React.createElement(View, { style: [styles.header, { borderBottomColor: accent }] },
           React.createElement(View, null,
-            React.createElement(Text, { style: styles.companyName }, org.name ?? 'Company'),
+            branding?.logoUrl ? React.createElement(Image, { src: branding.logoUrl, style: styles.brandLogo }) : null,
+            React.createElement(Text, { style: [styles.companyName, { color: accent }] }, org.name ?? 'Company'),
             org.name_ar    ? React.createElement(Text, { style: styles.companySubtitle }, org.name_ar) : null,
             org.vat_number ? React.createElement(Text, { style: styles.label }, 'VAT: ' + org.vat_number) : null,
             org.cr_number  ? React.createElement(Text, { style: styles.label }, 'CR: ' + org.cr_number) : null,
@@ -99,8 +118,8 @@ export async function POST(req: NextRequest) {
             org.phone      ? React.createElement(Text, { style: styles.label }, org.phone) : null,
           ),
           React.createElement(View, null,
-            React.createElement(Text, { style: styles.invoiceTitle }, 'TAX INVOICE'),
-            React.createElement(Text, { style: styles.invoiceNumber }, invoice.invoice_number),
+            React.createElement(Text, { style: [styles.invoiceTitle, { color: accent }] }, 'TAX INVOICE'),
+            React.createElement(Text, { style: [styles.invoiceNumber, { color: accent2 }] }, invoice.invoice_number),
             React.createElement(Text, { style: [styles.label, { textAlign: 'right', marginTop: 8 }] }, 'Date: ' + new Date(invoiceDate).toLocaleDateString('en-SA')),
           ),
         ),
@@ -174,9 +193,9 @@ export async function POST(req: NextRequest) {
             React.createElement(Text, { style: styles.label }, 'VAT (15%)'),
             React.createElement(Text, { style: styles.value }, formatSAR(invoice.vat_amount)),
           ),
-          React.createElement(View, { style: styles.grandTotal },
-            React.createElement(Text, { style: styles.grandTotalLabel }, 'TOTAL (incl. VAT)'),
-            React.createElement(Text, { style: styles.grandTotalValue }, formatSAR(invoice.total)),
+          React.createElement(View, { style: [styles.grandTotal, { borderTopColor: accent }] },
+            React.createElement(Text, { style: [styles.grandTotalLabel, { color: accent }] }, 'TOTAL (incl. VAT)'),
+            React.createElement(Text, { style: [styles.grandTotalValue, { color: accent2 }] }, formatSAR(invoice.total)),
           ),
         ),
 

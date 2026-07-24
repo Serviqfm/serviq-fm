@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/brand/Logo'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { resolveBranding, type OrgBranding } from '@/lib/branding'
 
 const STEPS = [
   { num: 1, label: 'Info' },
@@ -25,6 +27,9 @@ const labelCls = 'text-[11px] font-bold uppercase tracking-wider text-secondary'
 
 export default function RequesterPortalPage() {
   const supabase = createClient()
+  const { isEnabled } = useFeatureFlag()
+  const [brandRaw, setBrandRaw] = useState<OrgBranding | null>(null)
+  const branding = resolveBranding(brandRaw, isEnabled('custom_branding'))
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -63,6 +68,13 @@ export default function RequesterPortalPage() {
       setForm(prev => ({ ...prev, requester_name: profile.full_name ?? '', requester_email: user.email ?? '' }))
       const { data: siteData } = await supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true)
       if (siteData) setSites(siteData)
+      // MKT-27: custom branding (columns may not exist yet — any error just leaves defaults).
+      const { data: orgBrand } = await supabase
+        .from('organisations')
+        .select('brand_logo_url, brand_primary_color, brand_secondary_color')
+        .eq('id', profile.organisation_id)
+        .single()
+      if (orgBrand) setBrandRaw(orgBrand as OrgBranding)
     }
   }
 
@@ -203,7 +215,10 @@ export default function RequesterPortalPage() {
       {/* Header */}
       <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30 shadow-sm">
         <div className="flex justify-between items-center w-full px-8 max-w-[1440px] mx-auto h-16 md:h-20">
-          <Logo href="/" size={140} />
+          {branding?.logoUrl
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <a href="/"><img src={branding.logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain" /></a>
+            : <Logo href="/" size={140} />}
           <div className="flex items-center gap-6">
             <a href="/request/mine" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">My Requests / طلباتي</a>
             <a href="/dashboard" className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors">Manager Login</a>
@@ -216,8 +231,8 @@ export default function RequesterPortalPage() {
         {/* Form card */}
         <div className="w-full max-w-2xl bg-surface-container-lowest border border-outline-variant/30 rounded-xl shadow-sm overflow-hidden">
 
-          {/* Banner */}
-          <div className="bg-secondary p-6 text-on-secondary flex justify-between items-center">
+          {/* Banner — tinted with the tenant's primary brand colour when set (validated hex). */}
+          <div className="bg-secondary p-6 text-on-secondary flex justify-between items-center" style={branding?.primary ? { backgroundColor: branding.primary } : undefined}>
             <div>
               <h1 className="text-2xl font-bold leading-tight">Submit Request</h1>
               <p className="text-sm opacity-90 mt-0.5" style={{ fontFamily: 'Readex Pro, sans-serif' }}>تقديم طلب جديد</p>
@@ -416,7 +431,10 @@ export default function RequesterPortalPage() {
       <footer className="bg-surface-container-low border-t border-outline-variant/30 mt-auto">
         <div className="w-full px-8 py-6 max-w-[1440px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-col gap-2 items-start">
-            <Logo href="/" size={110} />
+            {branding?.logoUrl
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <a href="/"><img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain" /></a>
+              : <Logo href="/" size={110} />}
             <p className="text-on-surface-variant text-xs">© 2026 Serviq FM. Saudi-made Facility Management.</p>
           </div>
           <div className="flex gap-6">
