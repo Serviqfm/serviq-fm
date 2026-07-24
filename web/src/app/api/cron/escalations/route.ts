@@ -96,13 +96,12 @@ async function run() {
           title, body, link, dedupeKey: `${key}:assignee`,
         })) overdue++
       }
-      // Org managers.
-      for (const m of await activeManagers(admin, wo.organisation_id)) {
-        if (m.id === wo.assigned_to) continue
-        if (await NotificationService.insertInApp(m.id, wo.organisation_id, 'wo_i_assigned_updated', {
-          title, body, link, dedupeKey: `${key}:mgr:${m.id}`,
-        })) overdue++
-      }
+      // Org managers — DV-22: one batched upsert for the whole manager fan-out.
+      const mgrIds = (await activeManagers(admin, wo.organisation_id))
+        .map((m) => m.id).filter((mid) => mid !== wo.assigned_to)
+      overdue += await NotificationService.insertInAppMany(mgrIds, wo.organisation_id, 'wo_i_assigned_updated', {
+        title, body, link, dedupeKey: `${key}:mgr`,
+      })
     }
   } catch (e) {
     errors.push(`overdue: ${e instanceof Error ? e.message : String(e)}`)
@@ -124,11 +123,11 @@ async function run() {
       const title = `PM ${woLabel(wo)} not started`
       const body = `${wo.title} — 24h+ past due, still not started`
       const key = `pm_escalation:${wo.id}:${wo.due_at}`
-      for (const m of await activeManagers(admin, wo.organisation_id)) {
-        if (await NotificationService.insertInApp(m.id, wo.organisation_id, 'wo_i_assigned_updated', {
-          title, body, link, dedupeKey: `${key}:mgr:${m.id}`,
-        })) pmEscalated++
-      }
+      // DV-22: one batched upsert for the whole manager fan-out.
+      const mgrIds = (await activeManagers(admin, wo.organisation_id)).map((m) => m.id)
+      pmEscalated += await NotificationService.insertInAppMany(mgrIds, wo.organisation_id, 'wo_i_assigned_updated', {
+        title, body, link, dedupeKey: `${key}:mgr`,
+      })
     }
   } catch (e) {
     errors.push(`pm_escalation: ${e instanceof Error ? e.message : String(e)}`)
