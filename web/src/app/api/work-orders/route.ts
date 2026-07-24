@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
 import { slaDueDates } from '@/lib/sla'
+import { planLimits, openWorkOrderLimitReached } from '@/lib/planLimits'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,34 @@ export async function POST(req: NextRequest) {
   }
   if (!profile?.organisation_id) {
     return NextResponse.json({ error: 'No organisation' }, { status: 403 })
+  }
+
+  // AP-02: open-work-order limit. Open = status not in (completed, closed), matching the
+  // work-orders list "open" filter. FAIL OPEN — unknown/null plan_tier, an unlimited tier,
+  // or any lookup error ALLOWS creation so existing orgs are never blocked.
+  {
+    const { data: orgRow } = await supabase
+      .from('organisations')
+      .select('plan_tier')
+      .eq('id', profile.organisation_id)
+      .single()
+    const planTier = orgRow?.plan_tier as string | null | undefined
+    if (planLimits(planTier)?.maxOpenWorkOrders != null) {
+      const { count } = await supabase
+        .from('work_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', profile.organisation_id)
+        .not('status', 'in', '(completed,closed)')
+      if (typeof count === 'number' && openWorkOrderLimitReached(planTier, count)) {
+        return NextResponse.json(
+          {
+            error: `Your plan's open work-order limit has been reached. Close some work orders or upgrade your plan.`,
+            error_ar: 'لقد وصلت مؤسستك إلى الحد الأقصى لأوامر العمل المفتوحة في خطتك. يرجى إغلاق بعض الأوامر أو ترقية الخطة.',
+          },
+          { status: 403 }
+        )
+      }
+    }
   }
 
   const body = (await req.json()) as Record<string, unknown>

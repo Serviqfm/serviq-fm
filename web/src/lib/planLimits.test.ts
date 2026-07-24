@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { planLimits, seatLimitReached, planAllowsApiAccess } from './planLimits'
+import {
+  planLimits,
+  seatLimitReached,
+  siteLimitReached,
+  openWorkOrderLimitReached,
+  planAllowsApiAccess,
+} from './planLimits'
 
 describe('planLimits', () => {
   it('returns null for unknown/null tier (fail open)', () => {
@@ -19,6 +25,32 @@ describe('seatLimitReached', () => {
     expect(seatLimitReached('enterprise', 9999)).toBe(false)
     expect(seatLimitReached('mystery', 9999)).toBe(false)
     expect(seatLimitReached(null, 9999)).toBe(false)
+  })
+})
+
+describe('siteLimitReached', () => {
+  it('blocks only at/over a known numeric cap', () => {
+    expect(siteLimitReached('small', 2)).toBe(false)
+    expect(siteLimitReached('small', 3)).toBe(true)
+    expect(siteLimitReached('medium', 14)).toBe(false)
+    expect(siteLimitReached('medium', 15)).toBe(true)
+  })
+  it('fails open for unlimited tier and unknown/null tier', () => {
+    expect(siteLimitReached('enterprise', 9999)).toBe(false)
+    expect(siteLimitReached('mystery', 9999)).toBe(false)
+    expect(siteLimitReached(null, 9999)).toBe(false)
+  })
+})
+
+describe('openWorkOrderLimitReached', () => {
+  it('blocks only at/over a known numeric cap', () => {
+    expect(openWorkOrderLimitReached('small', 199)).toBe(false)
+    expect(openWorkOrderLimitReached('small', 200)).toBe(true)
+  })
+  it('fails open for unlimited tier and unknown/null tier', () => {
+    expect(openWorkOrderLimitReached('enterprise', 999999)).toBe(false)
+    expect(openWorkOrderLimitReached('mystery', 999999)).toBe(false)
+    expect(openWorkOrderLimitReached(null, 999999)).toBe(false)
   })
 })
 
