@@ -68,7 +68,8 @@ CREATE POLICY incidents_org_insert ON public.incidents
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     AND (site_id  IS NULL OR site_id  IN (SELECT id FROM public.sites  WHERE organisation_id = incidents.organisation_id))
     AND (asset_id IS NULL OR asset_id IN (SELECT id FROM public.assets WHERE organisation_id = incidents.organisation_id))
-    AND (reported_by IS NULL OR reported_by IN (SELECT id FROM public.users WHERE organisation_id = incidents.organisation_id))
+    -- reported_by is the reporter themselves (or null) — can't attribute a report to a colleague.
+    AND (reported_by IS NULL OR reported_by = auth.uid())
   );
 
 -- UPDATE: admin/manager only; WITH CHECK blocks org-swap and cross-org FKs.
