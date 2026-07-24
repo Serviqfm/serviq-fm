@@ -1,20 +1,18 @@
 // POST /api/v1/sensor-readings — IoT/BMS reading ingest (MKT-23).
-// Key-authenticated via the shared /api/v1 flow. Org comes from the API key, never the
-// body. Accepts {device_id, value}; the device must belong to the key's org.
-//
-// ponytail: no dedicated scope. Device-ownership IS the authorization here — a key can
-// only push to a device in its own org. Adding a 'sensor-readings:write' scope would
-// mean touching the shared developers UI + VALID_SCOPES so keys could actually be
-// granted it; add that if per-key scoping of ingest is ever needed.
+// Key-authenticated via the shared /api/v1 flow + a dedicated 'sensor-readings:write'
+// scope (parity with work-orders:write), so a read-only key can't push readings. Org
+// comes from the API key, never the body; the device must belong to the key's org.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiKey, jsonError } from '../_auth'
+import { authenticateApiKey, requireScope, jsonError } from '../_auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const ctx = await authenticateApiKey(req)
   if (ctx instanceof NextResponse) return ctx
+  const scopeErr = requireScope(ctx, 'sensor-readings:write')
+  if (scopeErr) return scopeErr
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
 
