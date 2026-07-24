@@ -8,6 +8,7 @@ export type PlatformAuditAction =
   | 'tenant.reactivate'
   | 'tenant.plan_change'
   | 'tenant.invoice.created'
+  | 'announcement.publish'
   | 'flag.toggle'
   | 'impersonation.start'
   | 'impersonation.end'
