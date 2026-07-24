@@ -60,6 +60,9 @@ export default function WorkOrderDetailPage() {
   const [closeoutPreviewUrls, setCloseoutPreviewUrls] = useState<string[]>([])
   const [signoffName, setSignoffName] = useState('')
   const [showSignoff, setShowSignoff] = useState(false)
+  // MKT-15: optional failure code applied at closure (SQL Files/w6-1-failure-codes.sql).
+  const [failureCodes, setFailureCodes] = useState<{ id: string; code: string; label: string; label_ar: string | null }[]>([])
+  const [failureCodeId, setFailureCodeId] = useState('')
   // WO-30: close-out notes captured when marking a WO Completed.
   const [closeoutNotes, setCloseoutNotes] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +100,7 @@ export default function WorkOrderDetailPage() {
     fetchTasks()
     fetchCurrentUser()
     fetchCustomStatuses()
+    fetchFailureCodes()
     fetchLinks()
     fetchLinkableWOs()
     fetchTimeLogs()
@@ -187,6 +191,16 @@ export default function WorkOrderDetailPage() {
       .eq('is_active', true)
       .order('sort_order')
     if (data) setCustomStatuses(data as CustomStatusOption[])
+  }
+
+  async function fetchFailureCodes() {
+    // MKT-15: table may not exist yet (migration not applied) — errors leave the list empty.
+    const { data } = await supabase
+      .from('failure_codes')
+      .select('id, code, label, label_ar')
+      .eq('is_active', true)
+      .order('code')
+    if (data) setFailureCodes(data)
   }
 
   async function fetchLinks() {
@@ -455,6 +469,8 @@ export default function WorkOrderDetailPage() {
           closeout_photo_urls: closeoutPhotoUrls,
           signoff,
           completion_notes: closeoutNotes.trim() || undefined,
+          // MKT-15: optional failure code, captured in the close sign-off panel.
+          failure_code_id: newStatus === 'closed' && failureCodeId ? failureCodeId : undefined,
         }),
       })
       if (!res.ok) {
@@ -1052,6 +1068,26 @@ export default function WorkOrderDetailPage() {
           <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6">
             <p className="text-[15px] font-semibold text-primary mb-3">Digital Sign-off Required</p>
             <p className="text-sm text-on-surface-variant mb-3">Enter your full name to confirm you have reviewed and approved this work order for closing.</p>
+            {/* MKT-15: optional failure code for reliability reporting (hidden when the org has none). */}
+            {failureCodes.length > 0 && (
+              <div className="mb-3">
+                <label className="text-xs text-on-surface-variant mb-1.5 block">
+                  {lang === 'ar' ? 'رمز العطل (اختياري)' : 'Failure code (optional)'}
+                </label>
+                <select
+                  value={failureCodeId}
+                  onChange={e => setFailureCodeId(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                >
+                  <option value="">{lang === 'ar' ? '— بدون —' : '— None —'}</option>
+                  {failureCodes.map(fc => (
+                    <option key={fc.id} value={fc.id}>
+                      {fc.code} — {lang === 'ar' && fc.label_ar ? fc.label_ar : fc.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <input
               value={signoffName}
               onChange={e => setSignoffName(e.target.value)}

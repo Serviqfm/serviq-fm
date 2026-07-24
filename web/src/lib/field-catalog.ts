@@ -68,8 +68,6 @@ export const FIELD_CATALOG: Record<FieldPage, FieldMeta[]> = {
     { key: 'assigned_to',            label_en: 'Assigned to',          label_ar: 'مسند إلى',          type: 'select',   default_visibility: 'optional', is_system_required: false },
     { key: 'due_at',                 label_en: 'Due date',             label_ar: 'تاريخ الاستحقاق',   type: 'date',     default_visibility: 'optional', is_system_required: false },
     { key: 'sla_hours',              label_en: 'SLA hours',            label_ar: 'ساعات SLA',         type: 'number',   default_visibility: 'optional', is_system_required: false },
-    { key: 'is_recurring',           label_en: 'Recurring',            label_ar: 'متكرر',             type: 'checkbox', default_visibility: 'optional', is_system_required: false },
-    { key: 'recurrence_frequency',   label_en: 'Recurrence frequency', label_ar: 'تكرار',             type: 'select',   default_visibility: 'optional', is_system_required: false },
     { key: 'photos',                 label_en: 'Photos',               label_ar: 'الصور',             type: 'file',     default_visibility: 'optional', is_system_required: false },
   ],
   work_orders_edit: [

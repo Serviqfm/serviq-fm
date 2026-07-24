@@ -8,7 +8,9 @@ import PushAuditTab from './PushAuditTab'
 import FormFieldsTab from './FormFieldsTab'
 import CustomFieldsTab from './CustomFieldsTab'
 import CategoriesTab from './CategoriesTab'
+import FailureCodesTab from './FailureCodesTab'
 import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
+import ChangeEmailCard from '@/components/settings/ChangeEmailCard'
 
 export default function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,7 +20,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories'>('account')
+  const [activeTab, setActiveTab] = useState<'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories' | 'failure_codes'>('account')
   const supabase = createClient()
   const { t, lang, setLang } = useLanguage()
 
@@ -33,6 +35,8 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
   const [profileError, setProfileError] = useState('')
+  // 1C-21: an email change awaiting confirmation (GoTrue exposes it as new_email).
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData() }, [])
@@ -45,6 +49,14 @@ export default function SettingsPage() {
       .select('*, organisation:organisation_id(*)')
       .eq('id', authUser.id).single()
     if (profile) {
+      // 1C-21: after a confirmed email change auth.users.email is the source of
+      // truth — sync public.users.email here on the next Settings visit
+      // (best-effort own-row update; RLS + the privilege-lock trigger allow it).
+      if (authUser.email && profile.email !== authUser.email) {
+        await supabase.from('users').update({ email: authUser.email }).eq('id', authUser.id)
+        profile.email = authUser.email
+      }
+      setPendingEmail((authUser as { new_email?: string }).new_email ?? null)
       setUser(profile)
       setOrg(profile.organisation)
       setProfileForm({
@@ -136,12 +148,13 @@ export default function SettingsPage() {
           <div className="flex gap-0 mb-8 border-b border-outline-variant">
             {(() => {
               const isElevated = user?.role === 'admin' || user?.role === 'manager'
-              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories'; label: string }[] = []
+              const tabs: { key: 'organisation' | 'storage' | 'account' | 'notifications' | 'push_audit' | 'form_fields' | 'custom_fields' | 'categories' | 'failure_codes'; label: string }[] = []
               if (isElevated) {
                 tabs.push(
-                  { key: 'organisation', label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
-                  { key: 'storage',      label: lang === 'ar' ? 'التخزين' : 'Storage' },
-                  { key: 'categories',   label: lang === 'ar' ? 'الفئات' : 'Categories' },
+                  { key: 'organisation',  label: lang === 'ar' ? 'المؤسسة' : 'Organisation' },
+                  { key: 'storage',       label: lang === 'ar' ? 'التخزين' : 'Storage' },
+                  { key: 'categories',    label: lang === 'ar' ? 'الفئات' : 'Categories' },
+                  { key: 'failure_codes', label: lang === 'ar' ? 'رموز الأعطال' : 'Failure Codes' },
                 )
               }
               tabs.push(
@@ -490,6 +503,8 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <ChangeEmailCard lang={lang} currentEmail={user?.email ?? null} initialPendingEmail={pendingEmail} />
+
               <ChangePasswordCard lang={lang} />
 
               <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
@@ -527,6 +542,10 @@ export default function SettingsPage() {
 
           {activeTab === 'categories' && (user?.role === 'admin' || user?.role === 'manager') && (
             <CategoriesTab />
+          )}
+
+          {activeTab === 'failure_codes' && (user?.role === 'admin' || user?.role === 'manager') && (
+            <FailureCodesTab />
           )}
         </div>
       </div>
