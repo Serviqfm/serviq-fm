@@ -9,6 +9,7 @@ import { usePagination } from '@/lib/usePagination'
 import Pagination from '@/components/Pagination'
 import { getDescendantIds } from './asset-hierarchy'
 import { AssetStatus } from '@/lib/assetFields'
+import AssetLabelExport from '@/components/AssetLabelExport'
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Elevator / Lift','Fire Safety','Furniture','Kitchen Equipment','Pool / Gym','IT Equipment','Signage','Vehicle','Other']
 
@@ -38,6 +39,9 @@ export default function AssetsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  // AL-23: roll-up toggle. On (default) = every asset incl. sub-levels; off =
+  // top-level assets only (parent_asset_id IS NULL).
+  const [includeChildren, setIncludeChildren] = useState(true)
   const [selected, setSelected] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -64,13 +68,14 @@ export default function AssetsPage() {
         .order('created_at', { ascending: false })
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)
       if (categoryFilter !== 'all') q = q.eq('category', categoryFilter)
+      if (!includeChildren) q = q.is('parent_asset_id', null)
       if (debouncedSearch) {
         const s = `%${debouncedSearch}%`
         q = q.or(`name.ilike.${s},serial_number.ilike.${s},manufacturer.ilike.${s}`)
       }
       return q
     },
-    [statusFilter, categoryFilter, debouncedSearch],
+    [statusFilter, categoryFilter, includeChildren, debouncedSearch],
   )
 
   // AL-03: flag assets that currently have an open downtime period. `assets` is a
@@ -284,6 +289,20 @@ export default function AssetsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* AL-23: roll-up toggle — include descendant/sub-assets */}
+              <div className="mt-5 pt-4 border-t border-outline-variant/30">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" checked={includeChildren} onChange={() => setIncludeChildren(v => !v)}
+                    className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/30" />
+                  <span className="text-sm text-on-surface group-hover:text-primary transition-colors">
+                    {lang === 'ar' ? 'تضمين الأصول الفرعية' : 'Include sub-assets'}
+                  </span>
+                </label>
+                <p className="text-xs text-on-surface-variant/70 mt-1.5">
+                  {lang === 'ar' ? 'عند إيقافه، تُعرض الأصول الرئيسية فقط.' : 'Off shows top-level assets only.'}
+                </p>
+              </div>
             </div>
 
             {/* IoT promo card */}
@@ -304,6 +323,7 @@ export default function AssetsPage() {
                 <button onClick={() => exportSelectedQR(2)} className="px-4 py-1.5 rounded-xl bg-secondary/10 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors">QR PDF (2/page)</button>
                 <button onClick={() => exportSelectedQR(4)} className="px-4 py-1.5 rounded-xl bg-secondary/10 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors">QR PDF (4/page)</button>
                 <button onClick={() => exportSelectedQR(6)} className="px-4 py-1.5 rounded-xl bg-secondary/10 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors">QR PDF (6/page)</button>
+                <AssetLabelExport assetIds={selected} />
                 <button onClick={deleteSelected} disabled={deleting}
                   className="px-4 py-1.5 rounded-xl bg-error text-on-error text-sm font-semibold disabled:opacity-50 hover:bg-error/90 transition-colors">
                   {deleting ? 'Deleting...' : t('btn.delete_selected')}

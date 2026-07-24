@@ -215,14 +215,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (existingWO.created_by) ids.push(existingWO.created_by)
       // Dedupe and drop the actor (they don't self-notify on their own completion).
       const recipients = ids.filter((uid, i) => uid !== user.id && ids.indexOf(uid) === i)
-      for (const uid of recipients) {
-        await NotificationService.insertInApp(uid, profile.organisation_id, 'wo_i_assigned_updated', {
-          title: `${label} completed`,
-          body: existingWO.title,
-          link,
-          dedupeKey: `wo_completed:${id}`,
-        })
-      }
+      // DV-22: one batched upsert for the whole fan-out instead of N inserts.
+      await NotificationService.insertInAppMany(recipients, profile.organisation_id, 'wo_i_assigned_updated', {
+        title: `${label} completed`,
+        body: existingWO.title,
+        link,
+        dedupeKey: `wo_completed:${id}`,
+      })
     } catch (notifyErr) {
       console.error('[work-orders close POST] completion notify failed', notifyErr)
     }

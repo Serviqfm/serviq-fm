@@ -32,6 +32,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'compliance',  href: '/dashboard/compliance',   en: 'Compliance',   ar: 'الامتثال',        icon: 'verified_user',  exact: false, roles: ['admin', 'manager'] },
   { key: 'security',    href: '/dashboard/security',     en: 'Security',     ar: 'الأمان',          icon: 'security',       exact: false },
   { key: 'billing',     href: '/dashboard/billing',      en: 'Billing',      ar: 'الفوترة',         icon: 'payments',       exact: false, roles: ['admin'] },
+  { key: 'usage',       href: '/dashboard/usage',        en: 'Usage',        ar: 'الاستخدام',       icon: 'monitoring',     exact: false, roles: ['admin', 'manager'] },
   { key: 'developers',  href: '/dashboard/developers',   en: 'Developers',   ar: 'المطورون',        icon: 'code',           exact: false, roles: ['admin'] },
   { key: 'settings',    href: '/dashboard/settings',     en: 'Settings',     ar: 'الإعدادات',      icon: 'settings',       exact: false },
 ]

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { exportCSV } from '@/lib/csv'
 import { usePagination } from '@/lib/usePagination'
+import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import Pagination from '@/components/Pagination'
 
 interface Technician { id: string; full_name: string }
@@ -316,6 +317,9 @@ export default function WorkOrdersPage() {
     () => buildQuery(true),
     [me, statusFilter, priorityFilter, categoryFilter, technicianFilter, dateFrom, dateTo, searchRef, unassignedOnly, bookmarkedOnly ? bookmarks : 0],
   )
+
+  // DV-29: keep the visible page fresh without a manual reload.
+  usePollingRefresh(refresh)
 
   // DV-14: whole-org KPI tiles via cheap head-count queries + a bounded sample
   // for avg completion (independent of the current filters/page, like #52).
