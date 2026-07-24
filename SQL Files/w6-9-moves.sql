@@ -57,11 +57,14 @@ CREATE POLICY space_moves_org_select ON public.space_moves
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
   );
 
--- INSERT: any org member files a request; FKs bound to the caller's org.
+-- INSERT: any org member files a request; FKs bound to the caller's org. A new row
+-- can only be filed as 'requested' — the BEFORE UPDATE guard never fires on INSERT,
+-- so without this a member could raw-insert an already-'completed' move and skip approval.
 DROP POLICY IF EXISTS space_moves_org_insert ON public.space_moves;
 CREATE POLICY space_moves_org_insert ON public.space_moves
   FOR INSERT WITH CHECK (
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND status = 'requested'
     AND (asset_id IS NULL OR asset_id IN (
       SELECT id FROM public.assets WHERE organisation_id = space_moves.organisation_id))
     AND (from_space_id IS NULL OR from_space_id IN (
@@ -126,3 +129,28 @@ DROP TRIGGER IF EXISTS trg_enforce_space_move_transition ON public.space_moves;
 CREATE TRIGGER trg_enforce_space_move_transition
   BEFORE UPDATE ON public.space_moves
   FOR EACH ROW EXECUTE FUNCTION public.enforce_space_move_transition();
+
+-- Atomic asset repoint on completion: when an ASSET move completes, relocate the
+-- asset to the destination space/site IN THE SAME TRANSACTION as the status change,
+-- so the move can't be marked completed without the asset actually moving (the old
+-- client-side two-step could complete the move then fail the separate asset write).
+-- Org-bound (SECURITY DEFINER bypasses RLS) so it only ever touches the move's own tenant.
+CREATE OR REPLACE FUNCTION public.apply_space_move_on_complete() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_site uuid;
+BEGIN
+  IF NEW.status = 'completed' AND OLD.status IS DISTINCT FROM 'completed'
+     AND NEW.subject_type = 'asset' AND NEW.asset_id IS NOT NULL AND NEW.to_space_id IS NOT NULL THEN
+    SELECT site_id INTO v_site FROM public.spaces WHERE id = NEW.to_space_id;
+    UPDATE public.assets
+       SET space_id = NEW.to_space_id, site_id = COALESCE(v_site, site_id)
+     WHERE id = NEW.asset_id AND organisation_id = NEW.organisation_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_apply_space_move_on_complete ON public.space_moves;
+CREATE TRIGGER trg_apply_space_move_on_complete
+  AFTER UPDATE ON public.space_moves
+  FOR EACH ROW EXECUTE FUNCTION public.apply_space_move_on_complete();

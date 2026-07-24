@@ -55,15 +55,12 @@ export default function MoveDetailPage() {
   // On completion, repoint the asset to the destination space/site (org-scoped UPDATE).
   async function complete() {
     setBusy(true)
+    // Just mark completed — the DB trigger (apply_space_move_on_complete) repoints
+    // the asset in the SAME transaction, so the move can't complete without the
+    // asset actually moving (no more non-atomic two-step).
     const { error } = await supabase.from('space_moves')
       .update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id)
     if (error) { alert(error.message); setBusy(false); return }
-    if (move.subject_type === 'asset' && move.asset_id && move.to_space_id) {
-      const { error: aErr } = await supabase.from('assets')
-        .update({ space_id: move.to_space_id, site_id: move.to_space?.site_id ?? null })
-        .eq('id', move.asset_id)
-      if (aErr) alert(aErr.message)
-    }
     await fetchMove()
     setBusy(false)
   }
