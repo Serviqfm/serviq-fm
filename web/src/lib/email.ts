@@ -49,9 +49,10 @@ export const emailTemplates = {
  * Send email via Resend
  */
 export async function sendEmail(
-  to: string,
+  to: string | string[],
   subject: string,
-  html: string
+  html: string,
+  attachments?: { filename: string; content: Buffer }[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const client = getResend();
@@ -60,6 +61,7 @@ export async function sendEmail(
       to,
       subject,
       html,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
     return { success: true };
   } catch (error) {
