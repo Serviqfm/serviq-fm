@@ -32,10 +32,18 @@ export default function SitesPage() {
   async function loadTree() {
     if (!orgId) return
     setTreeLoading(true)
-    const [{ data: st }, { data: sp }] = await Promise.all([
+    const [{ data: st }, spRes] = await Promise.all([
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).order('name'),
       supabase.from('spaces').select('id, name, floor, site_id, parent_space_id').order('floor').order('name'),
     ])
+    // Degrade gracefully if the deploy lands before w6-9-space-hierarchy.sql: the
+    // parent_space_id column won't exist yet, which 400s the whole select. Retry
+    // without it so the tree still renders (flat, no sub-space nesting).
+    let sp = spRes.data
+    if (spRes.error) {
+      const { data } = await supabase.from('spaces').select('id, name, floor, site_id').order('floor').order('name')
+      sp = (data ?? []).map(s => ({ ...s, parent_space_id: null }))
+    }
     setTreeSites(st ?? [])
     setTreeSpaces(sp ?? [])
     setTreeLoading(false)
