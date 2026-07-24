@@ -190,6 +190,12 @@ function NewInspectionForm() {
       if (woError) console.error('WO creation error:', woError)
     }
 
+    // CORE-28: best-effort — email the completed-inspection PDF to the template's
+    // recipients. Any failure is swallowed server-side; never blocks submission.
+    try {
+      await fetch('/api/inspections/' + result.id + '/distribute', { method: 'POST' })
+    } catch { /* distribution is best-effort */ }
+
     router.push('/dashboard/inspections/' + result.id)
   }
 

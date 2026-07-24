@@ -31,6 +31,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'reports_builder', href: '/dashboard/reports/builder', en: 'Report Builder', ar: 'منشئ التقارير', icon: 'dashboard_customize', exact: false, roles: ['admin', 'manager'] },
   { key: 'compliance',  href: '/dashboard/compliance',   en: 'Compliance',   ar: 'الامتثال',        icon: 'verified_user',  exact: false, roles: ['admin', 'manager'] },
   { key: 'security',    href: '/dashboard/security',     en: 'Security',     ar: 'الأمان',          icon: 'security',       exact: false },
+  { key: 'privacy',     href: '/dashboard/privacy',      en: 'Privacy',      ar: 'الخصوصية',        icon: 'privacy_tip',    exact: false },
   { key: 'billing',     href: '/dashboard/billing',      en: 'Billing',      ar: 'الفوترة',         icon: 'payments',       exact: false, roles: ['admin'] },
   { key: 'usage',       href: '/dashboard/usage',        en: 'Usage',        ar: 'الاستخدام',       icon: 'monitoring',     exact: false, roles: ['admin', 'manager'] },
   { key: 'developers',  href: '/dashboard/developers',   en: 'Developers',   ar: 'المطورون',        icon: 'code',           exact: false, roles: ['admin'] },

@@ -1,0 +1,93 @@
+import { renderToBuffer, Document, Page, Text, View } from '@react-pdf/renderer'
+import { reportStyles as s } from '@/lib/pdf-report-styles'
+import React from 'react'
+
+// CORE-28: shared inspection-report PDF. Used by the download route
+// (/api/reports/inspection/[id]) and the auto-distribute route
+// (/api/inspections/[id]/distribute) so both emit an identical document.
+
+export type InspectionResponse = { item_id?: string; question?: string; label?: string; value?: string; notes?: string; result?: string | null; min?: number | null; max?: number | null }
+
+export type InspectionRecord = Record<string, unknown> & {
+  template?: { name?: string; vertical?: string; items?: unknown[] } | null
+  conductor?: { full_name?: string; email?: string } | null
+  site?: { name?: string; city?: string } | null
+  asset?: { name?: string; qr_code?: string } | null
+}
+
+export function inspectionPdfDocument(insp: InspectionRecord, orgName: string) {
+  const generatedAt = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+  const responses = ((insp.responses ?? []) as InspectionResponse[])
+
+  const resultColor: Record<string, string> = { pass: '#006b54', fail: '#ba1a1a', partial: '#f57f17' }
+  const resultLabel: Record<string, string> = { pass: 'Overall Pass', fail: 'Overall Fail', partial: 'Partial Pass' }
+  const overall = String(insp.overall_result ?? '')
+  const overallColor = resultColor[overall] ?? '#006b54'
+  const overallLabel = resultLabel[overall] ?? '—'
+
+  // CORE-27: numeric items carry a computed result ('fail' when out of range).
+  const passes = responses.filter(r => r.value === 'pass' || r.result === 'pass').length
+  const fails = responses.filter(r => r.value === 'fail' || r.result === 'fail').length
+
+  return (
+    <Document>
+      <Page size="A4" style={s.page}>
+        <View style={s.header}>
+          <View>
+            <Text style={s.brand}>ServIQ-FM</Text>
+            <Text style={s.brandSub}>Inspection Report</Text>
+          </View>
+          <View>
+            <Text style={s.reportTitle}>{insp.template?.name ?? 'Inspection'}</Text>
+            <Text style={s.reportMeta}>{orgName} · {generatedAt}</Text>
+          </View>
+        </View>
+
+        <View style={{ ...s.badge, backgroundColor: overallColor }}><Text>{overallLabel}</Text></View>
+
+        <View style={s.detailRow}><Text style={s.detailLabel}>Template</Text><Text style={s.detailValue}>{insp.template?.name ?? '—'}{insp.template?.vertical ? ` (${insp.template.vertical})` : ''}</Text></View>
+        <View style={s.detailRow}><Text style={s.detailLabel}>Conducted By</Text><Text style={s.detailValue}>{insp.conductor?.full_name ?? insp.conductor?.email ?? '—'}</Text></View>
+        <View style={s.detailRow}><Text style={s.detailLabel}>Site</Text><Text style={s.detailValue}>{[insp.site?.name, insp.site?.city].filter(Boolean).join(' — ') || '—'}</Text></View>
+        <View style={s.detailRow}><Text style={s.detailLabel}>Asset</Text><Text style={s.detailValue}>{insp.asset?.name ?? '—'}{insp.asset?.qr_code ? ` (${insp.asset.qr_code})` : ''}</Text></View>
+        <View style={s.detailRow}><Text style={s.detailLabel}>Conducted At</Text><Text style={s.detailValue}>{insp.created_at ? new Date(String(insp.created_at)).toLocaleString('en-GB') : '—'}</Text></View>
+        <View style={s.detailRow}><Text style={s.detailLabel}>Pass / Fail</Text><Text style={s.detailValue}>{passes} pass · {fails} fail · {responses.length} total</Text></View>
+
+        {Boolean(insp.notes) && (
+          <>
+            <Text style={s.sectionTitle}>Notes</Text>
+            <Text style={s.paragraph}>{String(insp.notes)}</Text>
+          </>
+        )}
+
+        <Text style={s.sectionTitle}>Checklist Responses</Text>
+        <View style={s.table}>
+          <View style={s.tableHeaderRow}>
+            <View style={{ ...s.tableHeaderCell, width: '60%' }}><Text>Question</Text></View>
+            <View style={{ ...s.tableHeaderCell, width: '15%' }}><Text>Result</Text></View>
+            <View style={{ ...s.tableHeaderCell, width: '25%' }}><Text>Notes</Text></View>
+          </View>
+          {responses.length === 0 ? (
+            <View style={s.tableRow}><View style={{ ...s.tableCell, width: '100%' }}><Text>No responses recorded.</Text></View></View>
+          ) : (
+            responses.map((r, i) => (
+              <View key={i} style={s.tableRow}>
+                <View style={{ ...s.tableCell, width: '60%' }}><Text>{r.question ?? r.label ?? r.item_id ?? '—'}{r.min != null || r.max != null ? ` (range ${r.min ?? '−∞'}–${r.max ?? '∞'})` : ''}</Text></View>
+                <View style={{ ...s.tableCell, width: '15%', color: resultColor[r.result ?? r.value ?? ''] ?? '#1E2D4E' }}><Text>{r.value ?? '—'}</Text></View>
+                <View style={{ ...s.tableCell, width: '25%' }}><Text>{r.notes ?? ''}</Text></View>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={s.footer}>
+          <Text style={s.footerText}>Generated by ServIQ-FM · {orgName} · {generatedAt}</Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
+/** Render the inspection report to a PDF buffer. */
+export function inspectionPdfBuffer(insp: InspectionRecord, orgName: string): Promise<Buffer> {
+  return renderToBuffer(inspectionPdfDocument(insp, orgName))
+}
