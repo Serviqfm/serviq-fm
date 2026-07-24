@@ -66,8 +66,11 @@ export default function SpacesPage({ params }: { params: { id: string } }) {
         alert('Import failed: ' + (j.error ?? 'Unknown error'))
         return
       }
-      const { inserted } = await res.json()
-      alert(`Imported ${inserted} space(s).`)
+      const { inserted, skipped = 0, errors = [] } = await res.json()
+      const lines = [`Imported ${inserted} space(s).`]
+      if (skipped) lines.push(`${skipped} duplicate(s) skipped.`)
+      if (errors.length) lines.push(`${errors.length} row(s) had errors:`, ...errors.slice(0, 10))
+      alert(lines.join('\n'))
       fetchData()
     } finally {
       if (csvImportRef.current) csvImportRef.current.value = ''

@@ -53,19 +53,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Site does not belong to your organisation' }, { status: 403 })
   }
 
-  const payload = body.rows
-    .filter(r => typeof r.name === 'string' && r.name.trim().length > 0)
-    .map(r => ({
+  // AL-19 — validate + dedupe per row so a partial file still imports the good
+  // rows and reports the rest. Dedupe key is name+floor (case-insensitive),
+  // both within the batch and against spaces already in this site.
+  const { data: existing } = await admin
+    .from('spaces')
+    .select('name, floor')
+    .eq('site_id', body.site_id)
+  const seen = new Set<string>(
+    (existing ?? []).map(s => `${(s.name ?? '').trim().toLowerCase()}|${(s.floor ?? '').trim().toLowerCase()}`)
+  )
+
+  const errors: string[] = []
+  let skipped = 0
+  const payload: {
+    site_id: string; organisation_id: string
+    name: string; name_ar: string | null; floor: string; description: string | null
+  }[] = []
+
+  body.rows.forEach((r, i) => {
+    const rowNo = i + 2 // header is row 1
+    const name = r.name?.trim()
+    if (!name) { errors.push(`Row ${rowNo}: missing name — skipped`); return }
+    const floor = r.floor?.trim() || 'Ground'
+    const key = `${name.toLowerCase()}|${floor.toLowerCase()}`
+    if (seen.has(key)) { skipped++; return }
+    seen.add(key)
+    payload.push({
       site_id: body.site_id!,
       organisation_id: profile.organisation_id,
-      name: r.name!.trim(),
+      name,
       name_ar: r.name_ar?.trim() || null,
-      floor: (r.floor?.trim() || 'Ground'),
+      floor,
       description: r.description?.trim() || null,
-    }))
+    })
+  })
 
   if (payload.length === 0) {
-    return NextResponse.json({ error: 'No rows had a name to import' }, { status: 400 })
+    return NextResponse.json({ inserted: 0, skipped, errors })
   }
 
   // Some Supabase projects have a `spaces` table without `organisation_id` (it's
@@ -86,5 +111,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: lastError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ inserted })
+  return NextResponse.json({ inserted, skipped, errors })
 }
