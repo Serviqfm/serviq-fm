@@ -48,6 +48,8 @@ export default function EditAssetPage() {
     expected_lifespan_years: '',
     salvage_value: '',
     useful_life_years: '',
+    operating_hours_per_week: '',
+    qr_code: '',
     description: '',
     location_notes: '',
   })
@@ -96,6 +98,8 @@ export default function EditAssetPage() {
         expected_lifespan_years: asset.expected_lifespan_years ? String(asset.expected_lifespan_years) : '',
         salvage_value: asset.salvage_value != null ? String(asset.salvage_value) : '',
         useful_life_years: asset.useful_life_years != null ? String(asset.useful_life_years) : '',
+        operating_hours_per_week: asset.operating_hours_per_week != null ? String(asset.operating_hours_per_week) : '',
+        qr_code: asset.qr_code ?? '',
         description: asset.description ?? '',
         location_notes: asset.location_notes ?? '',
       })
@@ -143,6 +147,8 @@ export default function EditAssetPage() {
         expected_lifespan_years: form.expected_lifespan_years,
         salvage_value: form.salvage_value,
         useful_life_years: form.useful_life_years,
+        operating_hours_per_week: form.operating_hours_per_week,
+        qr_code: form.qr_code,
         custom_status_id: customStatusId,
         custom_fields: customFields,
         description: form.description,
@@ -326,6 +332,20 @@ export default function EditAssetPage() {
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'العمر الإنتاجي للإهلاك (سنوات)' : 'Useful Life for Depreciation (years)'}</label>
             <input name='useful_life_years' type='number' value={form.useful_life_years} onChange={handleChange} style={fieldStyle} />
+          </div>
+        </div>
+        {/* AL-07 operating hours + AL-09 editable barcode/QR number */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'ساعات التشغيل / أسبوع' : 'Operating Hours / week'}</label>
+            <input name='operating_hours_per_week' type='number' min={0} max={168} value={form.operating_hours_per_week} onChange={handleChange} placeholder='168' style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#999', margin: '4px 0 0' }}>
+              {lang === 'ar' ? 'تُستخدم لحساب نسبة التوفر. فارغ = تشغيل مستمر (٢٤/٧).' : 'Used for availability %. Blank = continuous (24/7).'}
+            </p>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'رقم الباركود / QR' : 'Barcode / QR Number'}</label>
+            <input name='qr_code' value={form.qr_code} onChange={handleChange} placeholder={lang === 'ar' ? 'مثال: باركود موجود' : 'e.g. existing barcode'} style={fieldStyle} />
           </div>
         </div>
         <AssetCustomFields values={customFields} onChange={setCustomFields} />

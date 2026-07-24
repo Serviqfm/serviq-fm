@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 
-const SCOPES = ['work-orders:read', 'assets:read'] as const
+const SCOPES = ['work-orders:read', 'work-orders:write', 'assets:read'] as const
 const EVENTS = ['wo.created', 'wo.status_changed', 'request.submitted'] as const
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

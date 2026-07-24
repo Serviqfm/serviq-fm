@@ -60,6 +60,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // AL-05: depreciation inputs — only touched when the caller sends them.
   const hasSalvage = Object.prototype.hasOwnProperty.call(body, 'salvage_value')
   const hasUsefulLife = Object.prototype.hasOwnProperty.call(body, 'useful_life_years')
+  // AL-07: per-asset operating hours/week — only touched when sent; clamped to 0..168.
+  const hasOpHours = Object.prototype.hasOwnProperty.call(body, 'operating_hours_per_week')
+  // AL-09: editable barcode/QR number — only touched when sent; blank clears it.
+  const hasQrCode = Object.prototype.hasOwnProperty.call(body, 'qr_code')
   const toNumOrNull = (v: unknown): number | null =>
     typeof v === 'number' ? v
       : typeof v === 'string' && v.trim() !== '' ? Number(v)
@@ -180,6 +184,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (hasCustomFields) updateRow.custom_fields = customFields
   if (hasSalvage) updateRow.salvage_value = toNumOrNull(body.salvage_value)
   if (hasUsefulLife) updateRow.useful_life_years = toNumOrNull(body.useful_life_years)
+  if (hasOpHours) {
+    const oh = toNumOrNull(body.operating_hours_per_week)
+    updateRow.operating_hours_per_week = oh == null ? null : Math.min(168, Math.max(0, oh))
+  }
+  if (hasQrCode) {
+    const qr = typeof body.qr_code === 'string' ? body.qr_code.trim() : ''
+    updateRow.qr_code = qr !== '' ? qr : null
+  }
 
   // AL-04: setting a custom status also writes the base status it maps to, so lists
   // and reports keep grouping by the base value. Clearing it leaves the base status

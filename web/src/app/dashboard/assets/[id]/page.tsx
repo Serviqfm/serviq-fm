@@ -9,7 +9,7 @@ import QRCode from 'qrcode'
 import TranslateButton from '@/components/TranslateButton'
 import EntityFilesTab from '@/components/EntityFilesTab'
 import { useLanguage } from '@/context/LanguageContext'
-import { mtbfDays, downtimeStats } from '@/lib/kpis'
+import { mtbfDays, downtimeStats, scheduledAvailabilityPct } from '@/lib/kpis'
 import { AssetFieldDef, AssetStatus, assetFieldLabel, assetBookValue } from '@/lib/assetFields'
 
 // FIX #1: Move createClient() outside component (singleton) to prevent infinite re-render loop
@@ -47,6 +47,8 @@ interface Asset {
   custom_status_id?: string | null
   salvage_value?: number | null
   useful_life_years?: number | null
+  // AL-07: expected operating hours per week (0..168); null = continuous (24/7).
+  operating_hours_per_week?: number | null
 }
 
 interface AncestorAsset {
@@ -97,6 +99,10 @@ export default function AssetDetailPage() {
   const [assetStatuses, setAssetStatuses] = useState<AssetStatus[]>([])
   // AL-12: gate the Edit affordance — technicians edit only assets at their sites.
   const [canEdit, setCanEdit] = useState(true)
+  // AL-08: client-side filters on the Work Orders tab (status + created date range).
+  const [woStatusFilter, setWoStatusFilter] = useState('all')
+  const [woFrom, setWoFrom] = useState('')
+  const [woTo, setWoTo] = useState('')
 
   // FIX #1 continued: Wrap fetchAll in useCallback to avoid re-renders
   const fetchAll = useCallback(async () => {
@@ -252,9 +258,22 @@ export default function AssetDetailPage() {
   const openWOs = workOrders.filter(w => !['completed','closed'].includes(w.status)).length
   const photos = asset.photo_urls ?? []
 
+  // AL-08: apply the tab's status + date-range filters client-side.
+  const toMs = woTo ? new Date(woTo).getTime() + 86_400_000 : null // inclusive end-of-day
+  const fromMs = woFrom ? new Date(woFrom).getTime() : null
+  const filteredWorkOrders = workOrders.filter(w => {
+    if (woStatusFilter !== 'all' && w.status !== woStatusFilter) return false
+    const c = new Date(w.created_at).getTime()
+    if (fromMs != null && c < fromMs) return false
+    if (toMs != null && c >= toMs) return false
+    return true
+  })
+
   // B8/AL-03 — reliability, computed from downtime rows (lib/kpis math).
   const openDowntime = downtime.find(d => !d.ended_at)
-  const { downtimeMs, availabilityPct } = downtimeStats(downtime, downtimeDays)
+  const { downtimeMs } = downtimeStats(downtime, downtimeDays)
+  // AL-07: score availability against scheduled operating hours (lib/kpis).
+  const effectiveAvailability = scheduledAvailabilityPct(downtimeMs, downtimeDays, asset.operating_hours_per_week)
   // MTBF = mean days between downtime starts; reuse the per-asset gap math.
   const mtbf = mtbfDays(downtime.map(d => ({ asset_id: assetId, completed_at: d.started_at })))
   const fmtDur = (ms: number) => ms >= 48 * 3_600_000
@@ -467,6 +486,37 @@ export default function AssetDetailPage() {
             {workOrders.length === 0 ? (
               <p className="text-sm text-on-surface-variant">No work orders raised for this asset yet.</p>
             ) : (
+              <>
+              {/* AL-08: client-side status + date-range filters */}
+              <div className="flex flex-wrap items-end gap-3 mb-4">
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
+                  <select value={woStatusFilter} onChange={e => setWoStatusFilter(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none">
+                    <option value='all'>{lang === 'ar' ? 'الكل' : 'All'}</option>
+                    {['new','assigned','in_progress','on_hold','completed','closed'].map(s => (
+                      <option key={s} value={s}>{s.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'من' : 'From'}</label>
+                  <input type='date' value={woFrom} onChange={e => setWoFrom(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'إلى' : 'To'}</label>
+                  <input type='date' value={woTo} onChange={e => setWoTo(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none" />
+                </div>
+                {(woStatusFilter !== 'all' || woFrom || woTo) && (
+                  <button onClick={() => { setWoStatusFilter('all'); setWoFrom(''); setWoTo('') }}
+                    className="text-xs text-primary font-bold hover:underline py-2">{lang === 'ar' ? 'مسح' : 'Clear'}</button>
+                )}
+              </div>
+              {filteredWorkOrders.length === 0 ? (
+                <p className="text-sm text-on-surface-variant">{lang === 'ar' ? 'لا توجد أوامر عمل مطابقة للفلاتر.' : 'No work orders match the filters.'}</p>
+              ) : (
               <div className="border border-outline-variant rounded-xl overflow-hidden">
                 <table className="w-full border-collapse">
                   <thead>
@@ -477,7 +527,7 @@ export default function AssetDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {workOrders.map((wo) => {
+                    {filteredWorkOrders.map((wo) => {
                       const woCfg = woStatusConfig[wo.status] ?? woStatusConfig.new
                       return (
                         <tr key={wo.id} className="bg-surface-container-lowest hover:bg-surface-container-low transition-colors">
@@ -500,6 +550,8 @@ export default function AssetDetailPage() {
                   </tbody>
                 </table>
               </div>
+              )}
+              </>
             )}
           </div>
         )}
@@ -627,7 +679,7 @@ export default function AssetDetailPage() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
               {[
-                { label: lang === 'ar' ? 'نسبة التوفر' : 'Availability', value: availabilityPct.toFixed(1) + '%', alert: availabilityPct < 95 },
+                { label: lang === 'ar' ? 'نسبة التوفر' : 'Availability', value: effectiveAvailability.toFixed(1) + '%', alert: effectiveAvailability < 95 },
                 { label: lang === 'ar' ? 'إجمالي التوقف' : 'Total downtime', value: downtimeMs > 0 ? fmtDur(downtimeMs) : '0h', alert: false },
                 { label: lang === 'ar' ? 'متوسط بين الأعطال' : 'MTBF', value: mtbf == null ? '—' : mtbf.toFixed(1) + (lang === 'ar' ? ' يوم' : 'd'), alert: false },
               ].map(({ label, value, alert: isAlert }) => (

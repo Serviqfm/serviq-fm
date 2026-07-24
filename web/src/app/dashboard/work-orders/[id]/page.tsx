@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import TranslateButton from '@/components/TranslateButton'
 import { sendPushNotification } from '@/lib/push'
+import { usePollingRefresh } from '@/lib/usePollingRefresh'
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 import WorkOrderFilesTab from '@/components/work-orders/WorkOrderFilesTab'
@@ -108,6 +109,10 @@ export default function WorkOrderDetailPage() {
     fetchCosts()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // DV-29: refresh the WO + its comments/activity so status/assignment changes made
+  // by others surface without a manual reload.
+  usePollingRefresh(() => { fetchWorkOrder(); fetchComments(); fetchActivities() })
 
   // Tables may not exist yet (migration not applied) — errors leave lists empty.
   async function fetchTimeLogs() {
