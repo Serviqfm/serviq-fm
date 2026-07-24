@@ -76,6 +76,11 @@ export default function CreateAssetScreen() {
   async function save() {
     if (!name.trim()) { Alert.alert(t('error'), t('name_required')); return }
     if (!profile?.organisation_id) { Alert.alert(t('error'), t('org_not_loaded')); return }
+    // Only accept a site/space from the org-scoped lists we loaded — RLS blocks
+    // cross-org asset writes but not a foreign-org FK *value*, so guard the value
+    // here (matches the web PATCH's ownership check; keeps our own record clean).
+    if (siteId && !sites.some(s => s.id === siteId)) { Alert.alert(t('error')); return }
+    if (spaceId && !spaces.some(s => s.id === spaceId)) { Alert.alert(t('error')); return }
     setSaving(true)
 
     const fields = {
