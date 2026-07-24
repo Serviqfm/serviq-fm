@@ -27,9 +27,11 @@ const labelCls = 'text-[11px] font-bold uppercase tracking-wider text-secondary'
 
 export default function RequesterPortalPage() {
   const supabase = createClient()
-  const { isEnabled } = useFeatureFlag()
+  const { isEnabled, loading: flagsLoading } = useFeatureFlag()
   const [brandRaw, setBrandRaw] = useState<OrgBranding | null>(null)
-  const branding = resolveBranding(brandRaw, isEnabled('custom_branding'))
+  // Treat the flag's loading state as "off" so a non-entitled org doesn't briefly
+  // flash its stored branding before the flag resolves (isEnabled defaults true while loading).
+  const branding = resolveBranding(brandRaw, !flagsLoading && isEnabled('custom_branding'))
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)

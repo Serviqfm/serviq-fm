@@ -88,6 +88,19 @@ export async function POST(req: NextRequest) {
     // Colours below are already strict-hex-validated by resolveBranding (CSS-injection safe).
     const accent  = branding?.primary   ?? '#1E2D4E'
     const accent2 = branding?.secondary ?? '#6DCFB0'
+    // Fetch the logo bytes ourselves (not via <Image src=remoteUrl>): renderToBuffer
+    // awaits the remote fetch, so a dangling/unreachable logo URL would otherwise
+    // reject and 500 the ENTIRE invoice (a cosmetic feature must not break ZATCA docs).
+    let logoData: string | null = null
+    if (branding?.logoUrl) {
+      try {
+        const r = await fetch(branding.logoUrl)
+        if (r.ok) {
+          const ct = r.headers.get('content-type') || 'image/png'
+          logoData = `data:${ct};base64,${Buffer.from(await r.arrayBuffer()).toString('base64')}`
+        }
+      } catch { /* unreachable logo → render the invoice without it */ }
+    }
 
     const invoiceDate = invoice.created_at
 
@@ -109,7 +122,7 @@ export async function POST(req: NextRequest) {
         // Header
         React.createElement(View, { style: [styles.header, { borderBottomColor: accent }] },
           React.createElement(View, null,
-            branding?.logoUrl ? React.createElement(Image, { src: branding.logoUrl, style: styles.brandLogo }) : null,
+            logoData ? React.createElement(Image, { src: logoData, style: styles.brandLogo }) : null,
             React.createElement(Text, { style: [styles.companyName, { color: accent }] }, org.name ?? 'Company'),
             org.name_ar    ? React.createElement(Text, { style: styles.companySubtitle }, org.name_ar) : null,
             org.vat_number ? React.createElement(Text, { style: styles.label }, 'VAT: ' + org.vat_number) : null,
