@@ -44,8 +44,11 @@ CREATE TABLE IF NOT EXISTS public.asset_checkouts (
 
 CREATE INDEX IF NOT EXISTS idx_asset_checkouts_org   ON public.asset_checkouts(organisation_id);
 CREATE INDEX IF NOT EXISTS idx_asset_checkouts_asset ON public.asset_checkouts(asset_id, checked_out_at DESC);
--- "is this asset currently checked out?" lookup.
-CREATE INDEX IF NOT EXISTS idx_asset_checkouts_open  ON public.asset_checkouts(asset_id) WHERE checked_in_at IS NULL;
+-- "is this asset currently checked out?" lookup — UNIQUE so the DB enforces at
+-- most one OPEN checkout per asset (blocks the concurrent double-checkout race;
+-- a second open insert fails with a unique violation the page already surfaces).
+DROP INDEX IF EXISTS idx_asset_checkouts_open;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_checkouts_open ON public.asset_checkouts(asset_id) WHERE checked_in_at IS NULL;
 
 ALTER TABLE public.asset_checkouts ENABLE ROW LEVEL SECURITY;
 
