@@ -49,15 +49,25 @@ DROP POLICY IF EXISTS afd_org_select ON public.asset_field_defs;
 CREATE POLICY afd_org_select ON public.asset_field_defs
   FOR SELECT USING (organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid()));
 
+-- Writes are admin/manager only (UI gating is not a security boundary) — parity
+-- with asset_statuses in this same batch.
 DROP POLICY IF EXISTS afd_org_insert ON public.asset_field_defs;
 CREATE POLICY afd_org_insert ON public.asset_field_defs
-  FOR INSERT WITH CHECK (organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid()));
+  FOR INSERT WITH CHECK (
+    organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager'));
 
 DROP POLICY IF EXISTS afd_org_update ON public.asset_field_defs;
 CREATE POLICY afd_org_update ON public.asset_field_defs
-  FOR UPDATE USING (organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid()))
-  WITH CHECK (organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid()));
+  FOR UPDATE USING (
+    organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager'))
+  WITH CHECK (
+    organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager'));
 
 DROP POLICY IF EXISTS afd_org_delete ON public.asset_field_defs;
 CREATE POLICY afd_org_delete ON public.asset_field_defs
-  FOR DELETE USING (organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid()));
+  FOR DELETE USING (
+    organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
+    AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','manager'));
