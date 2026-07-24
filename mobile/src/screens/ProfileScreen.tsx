@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, TextInput } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../lib/supabase'
@@ -10,6 +10,38 @@ import { colors, radius, shadow } from '../lib/theme'
 export default function ProfileScreen() {
   const { profile, signOut } = useAuth()
   const { t, lang, setLang, isRTL } = useLang()
+  // 1C-01: native in-app change password. Re-auth with current password
+  // (signInWithPassword) then updateUser. Same policy as web: min 8 + confirm match.
+  const [curPw, setCurPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+
+  async function handleChangePassword() {
+    if (newPw.length < 8) {
+      Alert.alert(t('error'), lang === 'ar' ? 'يجب ألا تقل كلمة المرور عن 8 أحرف.' : 'Password must be at least 8 characters.')
+      return
+    }
+    if (newPw !== confirmPw) {
+      Alert.alert(t('error'), lang === 'ar' ? 'كلمتا المرور غير متطابقتين.' : 'Passwords do not match.')
+      return
+    }
+    setPwSaving(true)
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: profile?.email ?? '', password: curPw })
+    if (authErr) {
+      setPwSaving(false)
+      Alert.alert(t('error'), lang === 'ar' ? 'كلمة المرور الحالية غير صحيحة.' : 'Current password is incorrect.')
+      return
+    }
+    const { error: updErr } = await supabase.auth.updateUser({ password: newPw })
+    setPwSaving(false)
+    if (updErr) {
+      Alert.alert(t('error'), updErr.message)
+      return
+    }
+    setCurPw(''); setNewPw(''); setConfirmPw('')
+    Alert.alert(lang === 'ar' ? 'تم' : 'Success', lang === 'ar' ? 'تم تحديث كلمة المرور.' : 'Password updated.')
+  }
   // WO-33: local per-user auto-timer toggle (default ON), read by WO detail.
   const [autoTimer, setAutoTimer] = useState(true)
   useEffect(() => { AsyncStorage.getItem('pref:auto_timer').then(v => setAutoTimer(v !== '0')) }, [])
@@ -115,6 +147,24 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{lang === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}</Text>
+        <TextInput style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]} secureTextEntry autoCapitalize='none'
+          value={curPw} onChangeText={setCurPw} placeholderTextColor={colors.textSecondary}
+          placeholder={lang === 'ar' ? 'كلمة المرور الحالية' : 'Current password'} />
+        <TextInput style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]} secureTextEntry autoCapitalize='none'
+          value={newPw} onChangeText={setNewPw} placeholderTextColor={colors.textSecondary}
+          placeholder={lang === 'ar' ? 'كلمة مرور جديدة' : 'New password'} />
+        <TextInput style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]} secureTextEntry autoCapitalize='none'
+          value={confirmPw} onChangeText={setConfirmPw} placeholderTextColor={colors.textSecondary}
+          placeholder={lang === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm password'} />
+        <TouchableOpacity style={[styles.pwBtn, pwSaving && { opacity: 0.7 }]} onPress={handleChangePassword} disabled={pwSaving}>
+          <Text style={styles.pwBtnText}>
+            {pwSaving ? (lang === 'ar' ? 'جارٍ الحفظ…' : 'Saving…') : (lang === 'ar' ? 'تحديث كلمة المرور' : 'Update Password')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
         <Ionicons name='log-out-outline' size={20} color={colors.error} />
         <Text style={styles.signOutText}>{t('sign_out')}</Text>
@@ -147,6 +197,9 @@ const styles = StyleSheet.create({
   langBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   langBtnText: { fontSize: 14, color: colors.textSecondary },
   langBtnTextActive: { color: 'white', fontWeight: '600' },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text, marginBottom: 10 },
+  pwBtn: { backgroundColor: colors.primary, borderRadius: radius.sm, padding: 12, alignItems: 'center', marginTop: 2 },
+  pwBtnText: { color: 'white', fontSize: 14, fontWeight: '600' },
   signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, margin: 16, backgroundColor: 'white', borderRadius: radius.md, padding: 16, borderWidth: 1, borderColor: colors.errorLight, ...shadow.sm },
   signOutText: { fontSize: 15, color: colors.error, fontWeight: '500' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 4, marginBottom: 24, padding: 12 },
