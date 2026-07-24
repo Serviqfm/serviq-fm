@@ -73,6 +73,8 @@ export default function NewTemplatePage() {
   const [error, setError] = useState('')
   const [name, setName] = useState('')
   const [vertical, setVertical] = useState('general')
+  // CORE-28: emails that receive the completed-inspection PDF (comma/newline separated).
+  const [recipients, setRecipients] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([
     { id: '1', label: '', label_ar: '', type: 'pass_fail', required: true }
@@ -110,6 +112,7 @@ export default function NewTemplatePage() {
     const { error: insertError } = await supabase.from('inspection_templates').insert({
       name,
       vertical: vertical || null,
+      recipients: recipients.split(/[,\n]/).map(s => s.trim()).filter(Boolean),
       items,
       organisation_id: profile.organisation_id,
       is_default: false,
@@ -163,6 +166,12 @@ export default function NewTemplatePage() {
               <option value='hotel'>{lang === 'ar' ? 'فندق' : 'Hotel'}</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#444' }}>{lang === 'ar' ? 'إرسال التقرير إلى (اختياري)' : 'Email report to (optional)'}</label>
+          <textarea value={recipients} onChange={e => setRecipients(e.target.value)} placeholder='manager@example.com, safety@example.com' rows={2} style={{ ...fieldStyle, fontSize: 13, resize: 'vertical' }} />
+          <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>{lang === 'ar' ? 'تُرسل التفتيشات المكتملة إلى هذه العناوين (مفصولة بفاصلة أو سطر جديد) مع إرفاق ملف PDF.' : 'Completed inspections are emailed to these addresses (comma or newline separated) with the PDF attached.'}</p>
         </div>
 
         <div>

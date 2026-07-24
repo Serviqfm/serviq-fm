@@ -13,6 +13,8 @@ export default function EditTemplatePage() {
   const [error, setError] = useState('')
   const [name, setName] = useState('')
   const [vertical, setVertical] = useState('general')
+  // CORE-28: emails that receive the completed-inspection PDF (comma/newline separated).
+  const [recipients, setRecipients] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([])
 
@@ -24,6 +26,7 @@ export default function EditTemplatePage() {
     if (data) {
       setName(data.name)
       setVertical(data.vertical ?? 'general')
+      setRecipients((data.recipients ?? []).join(', '))
       setItems(data.items ?? [])
     }
     setLoading(false)
@@ -49,6 +52,7 @@ export default function EditTemplatePage() {
     const { error: updateError } = await supabase.from('inspection_templates').update({
       name,
       vertical: vertical || null,
+      recipients: recipients.split(/[,\n]/).map(s => s.trim()).filter(Boolean),
       items,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
@@ -91,6 +95,11 @@ export default function EditTemplatePage() {
               <option value='hotel'>Hotel</option>
             </select>
           </div>
+        </div>
+        <div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#444' }}>Email report to (optional)</label>
+          <textarea value={recipients} onChange={e => setRecipients(e.target.value)} placeholder='manager@example.com, safety@example.com' rows={2} style={{ ...fieldStyle, fontSize: 13, resize: 'vertical' }} />
+          <p style={{ fontSize: 11, color: '#999', margin: '4px 0 0' }}>Completed inspections are emailed to these addresses (comma or newline separated) with the PDF attached.</p>
         </div>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
