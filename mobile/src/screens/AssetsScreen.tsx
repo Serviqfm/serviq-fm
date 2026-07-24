@@ -28,6 +28,14 @@ export default function AssetsScreen() {
               <Ionicons name="add" size={22} color="white" />
             </TouchableOpacity>
           )}
+          {profile?.role !== 'requester' && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Locations' as never)}
+              accessibilityLabel={t('locations')}
+              style={{ padding: 8, marginRight: 8, backgroundColor: colors.primary + '30', borderRadius: 10 }}>
+              <Ionicons name="business-outline" size={22} color="white" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => navigation.navigate('AssetLog' as never)}
             accessibilityLabel={t('asset_log')}
