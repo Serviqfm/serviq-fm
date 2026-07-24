@@ -106,6 +106,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
+  // WO-20: a work order with any incomplete required task cannot be finished.
+  // Query fails open (returns []) if w6-6-wo-tasks.sql hasn't added is_required yet.
+  const { data: openRequired } = await admin
+    .from('work_order_tasks')
+    .select('id')
+    .eq('work_order_id', id)
+    .eq('is_required', true)
+    .eq('is_done', false)
+    .limit(1)
+  if (openRequired && openRequired.length > 0) {
+    return NextResponse.json(
+      { error: 'Complete all required tasks before finishing this work order. / أكمل جميع المهام المطلوبة قبل إنهاء أمر العمل.' },
+      { status: 400 }
+    )
+  }
+
   const existingPhotos: string[] = Array.isArray(existingWO.photo_urls) ? existingWO.photo_urls : []
   const allPhotos = [...existingPhotos, ...closeoutPhotoUrls]
 
