@@ -83,3 +83,29 @@ CREATE POLICY work_permits_org_delete ON public.work_permits
     organisation_id IN (SELECT organisation_id FROM public.users WHERE id = auth.uid())
     AND (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin', 'manager')
   );
+
+-- Server-side lifecycle guard: a permit authorises hazardous work, so it can only
+-- walk draft → requested → approved → active → closed (rejected reachable from any
+-- pre-active state; closed/rejected terminal). Stops a raw-API jump that would e.g.
+-- activate a permit that was never approved. UI already renders only legal buttons.
+CREATE OR REPLACE FUNCTION public.enforce_work_permit_transition() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NOT (
+      (OLD.status = 'draft'     AND NEW.status IN ('requested','rejected'))
+      OR (OLD.status = 'requested' AND NEW.status IN ('approved','rejected'))
+      OR (OLD.status = 'approved'  AND NEW.status IN ('active','rejected'))
+      OR (OLD.status = 'active'    AND NEW.status = 'closed')
+    ) THEN
+      RAISE EXCEPTION 'Illegal permit status transition: % -> %', OLD.status, NEW.status;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_work_permit_transition ON public.work_permits;
+CREATE TRIGGER trg_enforce_work_permit_transition
+  BEFORE UPDATE ON public.work_permits
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_work_permit_transition();
