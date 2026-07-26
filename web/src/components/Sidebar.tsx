@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { useActiveSite } from '@/context/ActiveSiteContext'
 import { useFeatureFlag } from '@/lib/featureFlags'
 import { Logo } from '@/components/brand/Logo'
 import NotificationBell from '@/components/NotificationBell'
@@ -52,6 +53,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
 export default function Sidebar() {
   const pathname = usePathname()
   const { lang, setLang } = useLanguage()
+  const { activeSiteId, setActiveSiteId, sites } = useActiveSite()
   const [collapsed, setCollapsed] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null)
@@ -172,6 +174,31 @@ export default function Sidebar() {
 
         {/* Notification bell + in-app alert center (CORE-15) */}
         <NotificationBell collapsed={collapsed} />
+
+        {/* 1C-33: active-site convenience filter (scopes list pages; not a security boundary) */}
+        {collapsed ? (
+          <button
+            onClick={() => setCollapsed(false)}
+            title={isAr ? 'الموقع النشط' : 'Active site'}
+            className="relative flex items-center justify-center px-3 py-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-all w-full"
+          >
+            <span className="material-symbols-outlined text-xl flex-shrink-0">location_on</span>
+            {activeSiteId !== 'all' && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-primary" />}
+          </button>
+        ) : (
+          <div className={`flex items-center gap-2 px-3 py-1 ${isAr ? 'flex-row-reverse' : ''}`}>
+            <span className="material-symbols-outlined text-xl flex-shrink-0 text-on-surface-variant">location_on</span>
+            <select
+              value={activeSiteId}
+              onChange={e => setActiveSiteId(e.target.value)}
+              aria-label={isAr ? 'الموقع النشط' : 'Active site'}
+              className={`flex-1 min-w-0 bg-surface-container-low border border-outline-variant/40 rounded-lg px-2 py-1.5 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer ${isAr ? 'text-right' : ''}`}
+            >
+              <option value="all">{isAr ? 'كل المواقع' : 'All sites'}</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
 
         {/* Language toggle */}
         <button

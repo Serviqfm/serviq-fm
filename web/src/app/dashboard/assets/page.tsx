@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { useActiveSite } from '@/context/ActiveSiteContext'
 import { usePagination } from '@/lib/usePagination'
 import Pagination from '@/components/Pagination'
 import { getDescendantIds } from './asset-hierarchy'
@@ -54,6 +55,8 @@ export default function AssetsPage() {
   const [scopeSites, setScopeSites] = useState<string[]>([])
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  // 1C-33: active-site convenience filter (client-side; layered on RLS).
+  const { activeSiteId } = useActiveSite()
 
   // Debounce search so we don't fire a query on every keystroke.
   useEffect(() => {
@@ -68,6 +71,8 @@ export default function AssetsPage() {
         .order('created_at', { ascending: false })
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)
       if (categoryFilter !== 'all') q = q.eq('category', categoryFilter)
+      // 1C-33: scope to the active site when one is picked ('all' = unchanged).
+      if (activeSiteId !== 'all') q = q.eq('site_id', activeSiteId)
       if (!includeChildren) q = q.is('parent_asset_id', null)
       if (debouncedSearch) {
         const s = `%${debouncedSearch}%`
@@ -75,7 +80,7 @@ export default function AssetsPage() {
       }
       return q
     },
-    [statusFilter, categoryFilter, includeChildren, debouncedSearch],
+    [statusFilter, categoryFilter, activeSiteId, includeChildren, debouncedSearch],
   )
 
   // AL-03: flag assets that currently have an open downtime period. `assets` is a
