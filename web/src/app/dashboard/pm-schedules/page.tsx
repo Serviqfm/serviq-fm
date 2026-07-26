@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { useActiveSite } from '@/context/ActiveSiteContext'
 import { archiveConfirmMessage, nextDueOnDaysOfWeek, setPmScheduleActive, clearOpenGeneratedWorkOrders, DELETE_CLEARABLE_STATUSES } from './pm-utils'
 import { stampChecklistTasks } from './checklist-stamp'
 import { exportCSV } from '@/lib/csv'
@@ -25,16 +26,23 @@ export default function PMSchedulesPage() {
   const [orgId, setOrgId] = useState<string | null>(null)
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  // 1C-33: active-site convenience filter (client-side; layered on RLS).
+  const { activeSiteId } = useActiveSite()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchSchedules(); fetchGroups() }, [])
+  useEffect(() => { fetchGroups() }, [])
+  // Re-fetch whenever the active site changes ('all' = unscoped, as before).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchSchedules() }, [activeSiteId])
 
   async function fetchSchedules() {
     setLoading(true)
-    const { data, error } = await supabase
+    let q = supabase
       .from('pm_schedules')
       .select('*, asset:asset_id(name), site:site_id(name), assignee:assigned_to(full_name)')
       .order('next_due_at', { ascending: true })
+    if (activeSiteId !== 'all') q = q.eq('site_id', activeSiteId)
+    const { data, error } = await q
     if (!error && data) setSchedules(data)
     setLoading(false)
   }
