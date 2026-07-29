@@ -34,6 +34,9 @@ export default function EditUserPage() {
   const [sites, setSites] = useState<{ id: string; name: string }[]>([])
   const [scopedSites, setScopedSites] = useState<Set<string>>(new Set())
   const [orgId, setOrgId] = useState('')
+  // W6-11: optional custom-role overlay. Admin-only; written by the server route.
+  const [customRoles, setCustomRoles] = useState<{ id: string; name: string; name_ar: string | null }[]>([])
+  const [customRoleId, setCustomRoleId] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUser() }, [id])
@@ -57,10 +60,16 @@ export default function EditUserPage() {
         hourly_rate: data.hourly_rate != null ? String(data.hourly_rate) : '',
       })
       if (Array.isArray(data.skill_categories)) setSkillCategories(data.skill_categories)
+      setCustomRoleId(data.custom_role_id ?? '')
       setOrgId(data.organisation_id ?? '')
       if (data.organisation_id) {
         const { data: siteRows } = await supabase.from('sites').select('id, name').eq('organisation_id', data.organisation_id).eq('is_active', true).order('name')
         setSites(siteRows ?? [])
+        // Missing table (migration not applied) just yields no options.
+        const { data: roleRows } = await supabase.from('custom_roles')
+          .select('id, name, name_ar').eq('organisation_id', data.organisation_id)
+          .eq('is_active', true).order('name')
+        if (roleRows) setCustomRoles(roleRows)
       }
       const { data: scopeRows } = await supabase.from('user_site_scope').select('site_id').eq('user_id', id)
       if (scopeRows) setScopedSites(new Set(scopeRows.map(r => r.site_id as string)))
@@ -125,6 +134,9 @@ export default function EditUserPage() {
         // Only send hourly_rate when the caller is an admin; the API ignores it
         // for non-admins, but omitting it keeps the request honest.
         ...(callerIsAdmin ? { hourly_rate: form.hourly_rate } : {}),
+        // Admin-only, and only when the org actually has custom roles — orgs that
+        // haven't run the W6-11 migration keep sending exactly the old payload.
+        ...(callerIsAdmin && customRoles.length > 0 ? { custom_role_id: customRoleId || null } : {}),
       }),
     })
     const result = await res.json().catch(() => ({}))
@@ -201,6 +213,20 @@ export default function EditUserPage() {
             <label htmlFor='is_active' style={{ fontSize: 13, fontWeight: 500, color: '#444', cursor: 'pointer' }}>
               User is active — can log in and use the platform
             </label>
+          </div>
+        )}
+        {callerIsAdmin && customRoles.length > 0 && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'دور مخصّص (اختياري)' : 'Custom role (optional)'}</label>
+            <select value={customRoleId} onChange={e => setCustomRoleId(e.target.value)} style={fieldStyle}>
+              <option value=''>{lang === 'ar' ? 'بدون — صلاحيات الدور الأساسي كاملة' : 'None — full base-role permissions'}</option>
+              {customRoles.map(r => (
+                <option key={r.id} value={r.id}>{lang === 'ar' && r.name_ar ? r.name_ar : r.name}</option>
+              ))}
+            </select>
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'الدور المخصّص يزيل صلاحيات فقط — لا يمنح أي صلاحية إضافية.' : 'A custom role only removes capabilities — it never grants extra access.'}
+            </p>
           </div>
         )}
         <div>

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { capabilityDeniedForUser, verifyCustomRoleId } from '@/lib/customRoles'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +40,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   if (profile.role !== 'admin' && profile.role !== 'manager') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  // W6-11: the base role above is what GRANTS. A custom role may additionally
+  // revoke can_manage_users from this admin/manager.
+  if (await capabilityDeniedForUser(supabase, user.id, 'can_manage_users')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
   }
 
   const body = (await req.json()) as Record<string, unknown>
@@ -148,6 +154,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ('skill_categories' in body) finalUpdate.skill_categories = coerceCategories(body.skill_categories)
   // hourly_rate is admin-only: managers may edit users but not set pay rate.
   if ('hourly_rate' in body && profile.role === 'admin') finalUpdate.hourly_rate = coerceRate(body.hourly_rate)
+
+  // W6-11: assigning/clearing the custom-role overlay is ADMIN-only and the id is
+  // verified against the caller's org. This service_role route is the ONLY way to
+  // write users.custom_role_id — the privilege-lock trigger blocks the client path.
+  if ('custom_role_id' in body) {
+    if (profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can assign a custom role' }, { status: 403 })
+    }
+    const verified = await verifyCustomRoleId(admin, profile.organisation_id, body.custom_role_id)
+    if (!verified.ok) {
+      return NextResponse.json({ error: 'Invalid custom role' }, { status: 400 })
+    }
+    finalUpdate.custom_role_id = verified.value
+  }
 
   const { error } = await admin
     .from('users')

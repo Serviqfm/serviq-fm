@@ -124,7 +124,9 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const { id } = await ctx.params
   if (!id) return NextResponse.json({ error: 'Missing item id' }, { status: 400 })
 
-  const caller = await resolveCaller(['admin'])
+  // W6-11 reference integration: base role still decides (admin only); a custom
+  // role may additionally revoke can_delete_assets from that admin.
+  const caller = await resolveCaller(['admin'], 'can_delete_assets')
   if (caller instanceof NextResponse) return caller
   const { orgId, userId, admin } = caller
 

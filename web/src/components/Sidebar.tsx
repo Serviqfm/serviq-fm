@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { useActiveSite } from '@/context/ActiveSiteContext'
 import { useFeatureFlag } from '@/lib/featureFlags'
+import { useCustomRole } from '@/lib/useCustomRole'
 import { Logo } from '@/components/brand/Logo'
 import NotificationBell from '@/components/NotificationBell'
 
@@ -62,6 +63,8 @@ export default function Sidebar() {
   const supabase = createClient()
   const isAr = lang === 'ar'
   const { flags } = useFeatureFlag()
+  // W6-11: custom-role overlay. SHOW-HIDE ONLY — the routes re-check server-side.
+  const { can } = useCustomRole()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUser() }, [])
@@ -118,6 +121,9 @@ export default function Sidebar() {
             // Feature-flag gates
             if (item.key === 'invoices' && !flags.invoicing) return false
             if ((item.key === 'reports' || item.key === 'reports_builder') && !flags.advanced_reporting) return false
+            // W6-11 custom-role gates (cosmetic — server re-checks the capability)
+            if (item.key === 'users' && !can('can_manage_users')) return false
+            if (item.key === 'invoices' && !can('can_view_financials')) return false
             return true
           })
           .map(item => {

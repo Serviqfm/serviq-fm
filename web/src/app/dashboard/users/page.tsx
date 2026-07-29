@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { usePagination } from '@/lib/usePagination'
 import Pagination from '@/components/Pagination'
 import { exportCSV } from '@/lib/csv'
+import { useCustomRole } from '@/lib/useCustomRole'
 
 const ROLE_BADGE: Record<string, string> = {
   admin:      'bg-primary text-on-primary',
@@ -41,7 +42,10 @@ export default function UsersPage() {
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
-  const canManage = ['admin', 'manager'].includes(currentUser?.role)
+  // W6-11: base role decides, a custom role may take can_manage_users away.
+  // Cosmetic only — /api/users and /api/users/[id] re-check server-side.
+  const { can } = useCustomRole()
+  const canManage = ['admin', 'manager'].includes(currentUser?.role) && can('can_manage_users')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -193,6 +197,15 @@ export default function UsersPage() {
 
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
+  // W6-11: route-level show-hide for a custom role that revoked can_manage_users.
+  if (!can('can_manage_users')) return (
+    <div className="p-8 text-on-surface-variant text-sm">
+      {lang === 'ar'
+        ? 'دورك المخصّص لا يشمل إدارة المستخدمين.'
+        : 'Your custom role does not include user management.'}
+    </div>
+  )
+
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
       <div className="max-w-[1440px] mx-auto space-y-6">
@@ -205,6 +218,13 @@ export default function UsersPage() {
           </div>
           {['admin', 'manager'].includes(currentUser?.role) && (
             <div className="flex items-center gap-2">
+              {currentUser?.role === 'admin' && (
+                <Link href='/dashboard/settings/roles'>
+                  <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg">badge</span>{lang === 'ar' ? 'الأدوار المخصّصة' : 'Custom Roles'}
+                  </button>
+                </Link>
+              )}
               <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/20 transition-colors">
                 <span className="material-symbols-outlined text-lg">download</span>{lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
               </button>
