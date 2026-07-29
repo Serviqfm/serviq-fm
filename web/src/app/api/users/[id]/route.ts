@@ -95,6 +95,27 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     )
   }
 
+  // SAFETY (a2): ONLY an admin may change any user's role. This route admits
+  // managers (for name/active edits), and the role write below runs on the
+  // service_role client, which bypasses enforce_user_privilege_lock — so without
+  // this a manager could create a user at an address they control and PATCH it to
+  // role:'admin', promoting themselves. The create paths (POST /api/users,
+  // /api/users/import) already gate admin-role assignment; PATCH did not.
+  if (newRole !== undefined && newRole !== target.role && profile.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Only admins can change a user role.', code: 'role_change_admin_only' },
+      { status: 403 }
+    )
+  }
+
+  // SAFETY (a3): only an admin may activate/deactivate another admin.
+  if (newActive !== undefined && target.role === 'admin' && profile.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Only admins can change an admin account status.', code: 'admin_status_admin_only' },
+      { status: 403 }
+    )
+  }
+
   // SAFETY (b) + (c): last-admin protection. Refuse demoting or deactivating
   // an active admin if that would leave the organisation with zero active admins.
   const targetIsActiveAdmin = target.role === 'admin' && target.is_active !== false
@@ -161,6 +182,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ('custom_role_id' in body) {
     if (profile.role !== 'admin') {
       return NextResponse.json({ error: 'Only admins can assign a custom role' }, { status: 403 })
+    }
+    // Mirror the self_role_change rule: you can't lift your OWN overlay in one
+    // request (an admin can still edit the role's permissions — restrictions on
+    // admins are advisory by construction — but this leaves a second actor in the loop).
+    if (id === user.id) {
+      return NextResponse.json(
+        { error: 'You cannot change your own custom role. Ask another admin to do it.', code: 'self_custom_role_change' },
+        { status: 403 }
+      )
     }
     const verified = await verifyCustomRoleId(admin, profile.organisation_id, body.custom_role_id)
     if (!verified.ok) {

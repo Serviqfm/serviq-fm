@@ -9,31 +9,29 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+// EVERY capability listed here is enforced SERVER-SIDE on a real API route. We
+// deliberately do NOT advertise a toggle we can't enforce: a switch that only
+// hides a nav item is false assurance, which is worse than no switch at all.
+// (Capabilities for PM/vendors/settings/reports were dropped for exactly this
+// reason — those surfaces write client-side under RLS, with no server route to
+// gate. Add them back only alongside a real server-side check.)
 export type Capability =
-  | 'can_manage_users'
-  | 'can_view_financials'
-  | 'can_delete_assets'
-  | 'can_close_work_orders'
-  | 'can_manage_pm'
-  | 'can_manage_settings'
-  | 'can_export_data'
-  | 'can_manage_vendors'
-  | 'can_approve_requests'
-  | 'can_view_reports'
+  | 'can_manage_users'      // POST /api/users, PATCH /api/users/[id], import, delete, resend-invite
+  | 'can_view_financials'   // POST /api/invoices/create
+  | 'can_delete_assets'     // DELETE /api/asset-log/[id]
+  | 'can_close_work_orders' // POST /api/work-orders/[id]/close
+  | 'can_export_data'       // GET /api/tenant-export
+  | 'can_approve_requests'  // POST /api/requests/[id]/approve
 
 // The catalog the Settings > Roles page renders. Toggles read "this role MAY …";
 // unchecking a box REMOVES the capability from whatever the base role could do.
 export const CAPABILITIES: { key: Capability; en: string; ar: string }[] = [
   { key: 'can_manage_users',      en: 'Manage users',              ar: 'إدارة المستخدمين' },
-  { key: 'can_view_financials',   en: 'View financials',           ar: 'عرض البيانات المالية' },
-  { key: 'can_delete_assets',     en: 'Delete assets',             ar: 'حذف الأصول' },
-  { key: 'can_close_work_orders', en: 'Close work orders',         ar: 'إغلاق أوامر العمل' },
-  { key: 'can_manage_pm',         en: 'Manage PM schedules',       ar: 'إدارة جداول الصيانة الوقائية' },
-  { key: 'can_manage_settings',   en: 'Manage settings',           ar: 'إدارة الإعدادات' },
-  { key: 'can_export_data',       en: 'Export data',               ar: 'تصدير البيانات' },
-  { key: 'can_manage_vendors',    en: 'Manage vendors',            ar: 'إدارة الموردين' },
+  { key: 'can_view_financials',   en: 'Create invoices',           ar: 'إنشاء الفواتير' },
+  { key: 'can_delete_assets',     en: 'Delete asset-log items',    ar: 'حذف عناصر سجل الأصول' },
+  { key: 'can_close_work_orders', en: 'Complete/close work orders', ar: 'إنهاء وإغلاق أوامر العمل' },
+  { key: 'can_export_data',       en: 'Export tenant data',        ar: 'تصدير بيانات المؤسسة' },
   { key: 'can_approve_requests',  en: 'Approve requests',          ar: 'اعتماد الطلبات' },
-  { key: 'can_view_reports',      en: 'View reports',              ar: 'عرض التقارير' },
 ]
 
 export type CapabilityMap = Partial<Record<Capability, boolean>>

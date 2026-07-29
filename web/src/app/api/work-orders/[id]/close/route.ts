@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { getOrgId } from '@/lib/auth-helper'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
@@ -104,6 +105,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (profile.role === 'requester' || !isWorker) {
       return NextResponse.json({ error: 'Only the assigned worker or a manager can complete this work order' }, { status: 403 })
     }
+  }
+
+  // W6-11: the role/assignment checks above are what GRANT; a custom role may
+  // additionally revoke can_close_work_orders from this user.
+  if (await capabilityDeniedForUser(supabase, user.id, 'can_close_work_orders')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
   }
 
   // WO-20: a work order with any incomplete required task cannot be finished.

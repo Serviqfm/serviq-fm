@@ -20,6 +20,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { generateTempPassword } from '@/lib/tempPassword'
 import { seatLimitReached, planLimits } from '@/lib/planLimits'
 import { sanitizeCell } from '@/lib/csv'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,12 @@ export async function POST(req: NextRequest) {
   if (!callerProfile?.organisation_id) return NextResponse.json({ error: 'No organisation' }, { status: 403 })
   if (!['admin', 'manager'].includes(callerProfile.role ?? '')) {
     return NextResponse.json({ error: 'Only a manager or admin can import users' }, { status: 403 })
+  }
+  // W6-11: the base role above is what GRANTS; a custom role may additionally
+  // revoke can_manage_users. Without this, bulk import bypasses the denial that
+  // POST /api/users and PATCH /api/users/[id] enforce.
+  if (await capabilityDeniedForUser(serverSupabase, caller.id, 'can_manage_users')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
   }
   // SECURITY: org is always the caller's — never from the request body.
   const orgId = callerProfile.organisation_id

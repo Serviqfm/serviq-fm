@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import JSZip from 'jszip'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { sanitizeCell } from '@/lib/csv'
 
@@ -45,6 +46,10 @@ export async function GET() {
     .single()
   if (!profile?.organisation_id) return NextResponse.json({ error: 'No organisation' }, { status: 403 })
   if (profile.role !== 'admin') return NextResponse.json({ error: 'Admins only' }, { status: 403 })
+  // W6-11: a custom role may revoke can_export_data from this admin.
+  if (await capabilityDeniedForUser(supabase, user.id, 'can_export_data')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
+  }
 
   const orgId = profile.organisation_id as string
   const admin = createAdminClient(
