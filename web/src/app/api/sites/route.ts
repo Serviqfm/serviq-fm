@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { planLimits, siteLimitReached } from '@/lib/planLimits'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,33 @@ export async function POST(req: NextRequest) {
   }
   if (!profile?.organisation_id) {
     return NextResponse.json({ error: 'No organisation' }, { status: 403 })
+  }
+
+  // AP-02: site-limit enforcement. FAIL OPEN — unknown/null plan_tier, an unlimited
+  // tier, or any lookup error ALLOWS creation so existing orgs are never blocked.
+  {
+    const { data: orgRow } = await supabase
+      .from('organisations')
+      .select('plan_tier')
+      .eq('id', profile.organisation_id)
+      .single()
+    const planTier = orgRow?.plan_tier as string | null | undefined
+    if (planLimits(planTier)?.maxSites != null) {
+      const { count } = await supabase
+        .from('sites')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', profile.organisation_id)
+        .eq('is_active', true)
+      if (typeof count === 'number' && siteLimitReached(planTier, count)) {
+        return NextResponse.json(
+          {
+            error: `Your plan's site limit has been reached. Upgrade your plan to add more sites.`,
+            error_ar: 'لقد وصلت مؤسستك إلى الحد الأقصى لعدد المواقع في خطتك. يرجى ترقية الخطة لإضافة المزيد من المواقع.',
+          },
+          { status: 403 }
+        )
+      }
+    }
   }
 
   const body = (await req.json()) as Record<string, unknown>

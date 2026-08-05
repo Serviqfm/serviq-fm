@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { useActiveSite } from '@/context/ActiveSiteContext'
 import { useFeatureFlag } from '@/lib/featureFlags'
+import { useCustomRole } from '@/lib/useCustomRole'
 import { Logo } from '@/components/brand/Logo'
 import NotificationBell from '@/components/NotificationBell'
 
@@ -19,9 +21,20 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'asset_log_reports', href: '/dashboard/asset-log/reports', en: 'Asset Log Reports', ar: 'تقارير سجل الأصول', icon: 'summarize', exact: false },
   { key: 'pm',          href: '/dashboard/pm-schedules', en: 'PM Schedules', ar: 'جدول الصيانة',  icon: 'event_repeat',   exact: false },
   { key: 'meters',      href: '/dashboard/meters',       en: 'Meters',       ar: 'العدادات',       icon: 'speed',          exact: false },
+  { key: 'iot',         href: '/dashboard/iot',          en: 'Condition Monitoring', ar: 'مراقبة الاستشعار', icon: 'sensors',    exact: false },
+  { key: 'utilities',   href: '/dashboard/utilities',    en: 'Utilities',    ar: 'المرافق والطاقة', icon: 'bolt',           exact: false },
   { key: 'sites',       href: '/dashboard/sites',        en: 'Sites',        ar: 'المواقع',        icon: 'location_city',  exact: false, roles: ['admin', 'manager'] },
+  { key: 'floor_plans', href: '/dashboard/floor-plans',  en: 'Floor Plans',  ar: 'المخططات الطابقية', icon: 'map',         exact: false },
+  { key: 'moves',       href: '/dashboard/moves',        en: 'Move Requests', ar: 'طلبات النقل',   icon: 'moving',         exact: false },
+  { key: 'automation',  href: '/dashboard/automation',   en: 'Automation',   ar: 'الأتمتة',         icon: 'rule',           exact: false, roles: ['admin', 'manager'] },
   { key: 'vendors',     href: '/dashboard/vendors',      en: 'Vendors',      ar: 'الموردون',       icon: 'business',       exact: false, roles: ['admin', 'manager'] },
   { key: 'inspections', href: '/dashboard/inspections',  en: 'Inspections',  ar: 'التفتيش',        icon: 'fact_check',     exact: false },
+  { key: 'permits',     href: '/dashboard/permits',      en: 'Permits',      ar: 'التصاريح',       icon: 'verified',       exact: false },
+  { key: 'incidents',   href: '/dashboard/incidents',    en: 'Incidents',    ar: 'الحوادث',        icon: 'warning',        exact: false },
+  { key: 'handovers',   href: '/dashboard/handovers',    en: 'Handovers',    ar: 'التسليم',        icon: 'move_up',        exact: false },
+  { key: 'xsite_compliance', href: '/dashboard/compliance/cross-site', en: 'Cross-Site Compliance', ar: 'مقارنة الامتثال', icon: 'query_stats', exact: false, roles: ['admin', 'manager'] },
+  { key: 'checkouts',   href: '/dashboard/asset-checkouts', en: 'Checkouts', ar: 'الإعارة',        icon: 'swap_horiz',     exact: false },
+  { key: 'cost_centers', href: '/dashboard/cost-centers', en: 'Cost Centers', ar: 'مراكز التكلفة',  icon: 'account_balance_wallet', exact: false, roles: ['admin', 'manager'] },
   { key: 'inventory',   href: '/dashboard/inventory',    en: 'Inventory',    ar: 'المخزون',        icon: 'category',       exact: false },
   { key: 'files',       href: '/dashboard/files',        en: 'Files',        ar: 'الملفات',       icon: 'folder',         exact: false },
   { key: 'users',       href: '/dashboard/users',        en: 'Users',        ar: 'المستخدمون',     icon: 'group',          exact: false, roles: ['admin', 'manager'] },
@@ -31,7 +44,9 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'reports_builder', href: '/dashboard/reports/builder', en: 'Report Builder', ar: 'منشئ التقارير', icon: 'dashboard_customize', exact: false, roles: ['admin', 'manager'] },
   { key: 'compliance',  href: '/dashboard/compliance',   en: 'Compliance',   ar: 'الامتثال',        icon: 'verified_user',  exact: false, roles: ['admin', 'manager'] },
   { key: 'security',    href: '/dashboard/security',     en: 'Security',     ar: 'الأمان',          icon: 'security',       exact: false },
+  { key: 'privacy',     href: '/dashboard/privacy',      en: 'Privacy',      ar: 'الخصوصية',        icon: 'privacy_tip',    exact: false },
   { key: 'billing',     href: '/dashboard/billing',      en: 'Billing',      ar: 'الفوترة',         icon: 'payments',       exact: false, roles: ['admin'] },
+  { key: 'usage',       href: '/dashboard/usage',        en: 'Usage',        ar: 'الاستخدام',       icon: 'monitoring',     exact: false, roles: ['admin', 'manager'] },
   { key: 'developers',  href: '/dashboard/developers',   en: 'Developers',   ar: 'المطورون',        icon: 'code',           exact: false, roles: ['admin'] },
   { key: 'settings',    href: '/dashboard/settings',     en: 'Settings',     ar: 'الإعدادات',      icon: 'settings',       exact: false },
 ]
@@ -39,6 +54,7 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
 export default function Sidebar() {
   const pathname = usePathname()
   const { lang, setLang } = useLanguage()
+  const { activeSiteId, setActiveSiteId, sites } = useActiveSite()
   const [collapsed, setCollapsed] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null)
@@ -47,6 +63,8 @@ export default function Sidebar() {
   const supabase = createClient()
   const isAr = lang === 'ar'
   const { flags } = useFeatureFlag()
+  // W6-11: custom-role overlay. SHOW-HIDE ONLY — the routes re-check server-side.
+  const { can } = useCustomRole()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUser() }, [])
@@ -103,6 +121,9 @@ export default function Sidebar() {
             // Feature-flag gates
             if (item.key === 'invoices' && !flags.invoicing) return false
             if ((item.key === 'reports' || item.key === 'reports_builder') && !flags.advanced_reporting) return false
+            // W6-11 custom-role gates (cosmetic — server re-checks the capability)
+            if (item.key === 'users' && !can('can_manage_users')) return false
+            if (item.key === 'invoices' && !can('can_view_financials')) return false
             return true
           })
           .map(item => {
@@ -159,6 +180,31 @@ export default function Sidebar() {
 
         {/* Notification bell + in-app alert center (CORE-15) */}
         <NotificationBell collapsed={collapsed} />
+
+        {/* 1C-33: active-site convenience filter (scopes list pages; not a security boundary) */}
+        {collapsed ? (
+          <button
+            onClick={() => setCollapsed(false)}
+            title={isAr ? 'الموقع النشط' : 'Active site'}
+            className="relative flex items-center justify-center px-3 py-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-all w-full"
+          >
+            <span className="material-symbols-outlined text-xl flex-shrink-0">location_on</span>
+            {activeSiteId !== 'all' && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-primary" />}
+          </button>
+        ) : (
+          <div className={`flex items-center gap-2 px-3 py-1 ${isAr ? 'flex-row-reverse' : ''}`}>
+            <span className="material-symbols-outlined text-xl flex-shrink-0 text-on-surface-variant">location_on</span>
+            <select
+              value={activeSiteId}
+              onChange={e => setActiveSiteId(e.target.value)}
+              aria-label={isAr ? 'الموقع النشط' : 'Active site'}
+              className={`flex-1 min-w-0 bg-surface-container-low border border-outline-variant/40 rounded-lg px-2 py-1.5 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer ${isAr ? 'text-right' : ''}`}
+            >
+              <option value="all">{isAr ? 'كل المواقع' : 'All sites'}</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
 
         {/* Language toggle */}
         <button

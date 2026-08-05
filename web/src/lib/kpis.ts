@@ -121,6 +121,27 @@ export function downtimeStats(rows: DowntimeRow[], windowDays: number, now: numb
   return { downtimeMs: downMs, availabilityPct: 100 * (1 - downMs / windowMs) }
 }
 
+/**
+ * AL-07: availability measured against the asset's SCHEDULED operating hours
+ * (hours/week, 0..168) instead of the 24/7 calendar. A 40h/week asset is scored
+ * on 40h, so nights/weekends don't inflate it. null / 0 / >=168 falls back to the
+ * plain calendar availability (identical to downtimeStats().availabilityPct).
+ * `downtimeMs` is the value returned by downtimeStats for the same window.
+ * ponytail: assumes downtime falls within operating hours (standard
+ * uptime/scheduled-time model); refine with per-weekday schedules if ever needed.
+ */
+export function scheduledAvailabilityPct(
+  downtimeMs: number,
+  windowDays: number,
+  operatingHoursPerWeek?: number | null,
+): number {
+  const frac = operatingHoursPerWeek != null && operatingHoursPerWeek > 0
+    ? Math.min(1, operatingHoursPerWeek / 168) : 1
+  const operatingWindowMs = windowDays * DAY_MS * frac
+  if (operatingWindowMs <= 0) return 100
+  return 100 * (1 - Math.min(downtimeMs, operatingWindowMs) / operatingWindowMs)
+}
+
 export interface SlaBreach {
   wo_number?: string | null
   title?: string | null

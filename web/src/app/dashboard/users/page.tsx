@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { usePagination } from '@/lib/usePagination'
 import Pagination from '@/components/Pagination'
+import { exportCSV } from '@/lib/csv'
+import { useCustomRole } from '@/lib/useCustomRole'
 
 const ROLE_BADGE: Record<string, string> = {
   admin:      'bg-primary text-on-primary',
@@ -30,6 +32,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  // 1C-20: deactivated users are hidden by default; the toggle brings them back.
+  const [includeDeactivated, setIncludeDeactivated] = useState(false)
   const [sortKey, setSortKey] = useState<(typeof SORT_OPTIONS)[number]['key']>('name')
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [resendResult, setResendResult] = useState<{ email: string; fullName: string } | null>(null)
@@ -38,7 +42,10 @@ export default function UsersPage() {
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
-  const canManage = ['admin', 'manager'].includes(currentUser?.role)
+  // W6-11: base role decides, a custom role may take can_manage_users away.
+  // Cosmetic only — /api/users and /api/users/[id] re-check server-side.
+  const { can } = useCustomRole()
+  const canManage = ['admin', 'manager'].includes(currentUser?.role) && can('can_manage_users')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -64,13 +71,15 @@ export default function UsersPage() {
         .eq('organisation_id', orgId!)
         .order(sort.col, { ascending: sort.asc, nullsFirst: false })
       if (roleFilter !== 'all') q = q.eq('role', roleFilter)
+      // NULL is_active counts as active everywhere else in this page, so keep it visible.
+      if (!includeDeactivated) q = q.or('is_active.eq.true,is_active.is.null')
       if (debouncedSearch) {
         const s = `%${debouncedSearch}%`
         q = q.or(`full_name.ilike.${s},full_name_ar.ilike.${s},email.ilike.${s}`)
       }
       return q
     },
-    [orgId, roleFilter, debouncedSearch, sortKey],
+    [orgId, roleFilter, debouncedSearch, sortKey, includeDeactivated],
   )
 
   // Whole-org counts for the stat cards, refreshed alongside the list.
@@ -165,10 +174,37 @@ export default function UsersPage() {
     } catch { alert('Network error while deleting user') }
   }
 
+  // 1C-28: export all org users (not just the current page) in the import-template shape.
+  async function handleExport() {
+    if (!orgId) return
+    const { data } = await supabase.from('users').select('*')
+      .eq('organisation_id', orgId).order('full_name', { ascending: true })
+    if (!data || data.length === 0) { alert('No users to export.'); return }
+    exportCSV(`users-${new Date().toISOString().slice(0, 10)}.csv`, data.map(u => ({
+      email: u.email ?? '',
+      full_name: u.full_name ?? '',
+      full_name_ar: u.full_name_ar ?? '',
+      role: u.role ?? '',
+      phone: u.phone ?? '',
+      is_active: u.is_active !== false ? 'true' : 'false',
+      created_at: u.created_at ?? '',
+      last_sign_in_at: u.last_sign_in_at ?? '',
+    })))
+  }
+
   const roleCount = (role: string) => (counts as Record<string, number>)[role] ?? 0
   const activeCount = counts.active
 
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
+
+  // W6-11: route-level show-hide for a custom role that revoked can_manage_users.
+  if (!can('can_manage_users')) return (
+    <div className="p-8 text-on-surface-variant text-sm">
+      {lang === 'ar'
+        ? 'دورك المخصّص لا يشمل إدارة المستخدمين.'
+        : 'Your custom role does not include user management.'}
+    </div>
+  )
 
   return (
     <div className="star-pattern bg-surface min-h-screen p-8">
@@ -182,6 +218,16 @@ export default function UsersPage() {
           </div>
           {['admin', 'manager'].includes(currentUser?.role) && (
             <div className="flex items-center gap-2">
+              {currentUser?.role === 'admin' && (
+                <Link href='/dashboard/settings/roles'>
+                  <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg">badge</span>{lang === 'ar' ? 'الأدوار المخصّصة' : 'Custom Roles'}
+                  </button>
+                </Link>
+              )}
+              <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/20 transition-colors">
+                <span className="material-symbols-outlined text-lg">download</span>{lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
+              </button>
               <Link href='/dashboard/users/import'>
                 <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-2">
                   <span className="material-symbols-outlined text-lg">upload_file</span>{lang === 'ar' ? 'استيراد المستخدمين' : 'Import Users'}
@@ -265,6 +311,10 @@ export default function UsersPage() {
             <option value="recent">{lang === 'ar' ? 'الأحدث إضافة' : 'Recently added'}</option>
             <option value="active">{lang === 'ar' ? 'آخر نشاط' : 'Last active'}</option>
           </select>
+          <label className="flex items-center gap-2 text-sm text-on-surface-variant whitespace-nowrap cursor-pointer select-none">
+            <input type="checkbox" checked={includeDeactivated} onChange={e => setIncludeDeactivated(e.target.checked)} className="accent-primary" />
+            {lang === 'ar' ? 'تضمين المعطّلين' : 'Include deactivated'}
+          </label>
         </div>
 
         {/* Table */}

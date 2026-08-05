@@ -42,9 +42,13 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 // ------------------------------------------------------------ mutation queue
 
 export type QueuedMutation =
-  | { kind: 'wo_status'; woId: string; updates: Record<string, any>; body: string; userId: string | null }
+  // CORE-31: orgId/oldStatus carried so replay can write the same audit_logs row
+  // the online path does (older queued items without them just skip the audit).
+  | { kind: 'wo_status'; woId: string; updates: Record<string, any>; body: string; userId: string | null; orgId?: string | null; oldStatus?: string | null }
   | { kind: 'comment'; woId: string; body: string; userId: string | null }
-  | { kind: 'time_log'; woId: string; body: string; addHours: number; userId: string | null }
+  // WO-06: minutes/orgId/hourlyRate/note carried so replay also writes the
+  // work_order_time_logs row the web Labor tab reads (optional = older items skip it).
+  | { kind: 'time_log'; woId: string; body: string; addHours: number; userId: string | null; orgId?: string | null; minutes?: number; hourlyRate?: number | null; note?: string | null }
   // FM-14: a compressed photo saved locally, uploaded + attached to the WO on reconnect.
   | { kind: 'wo_photo'; woId: string; localUri: string; filename: string }
 
@@ -128,6 +132,20 @@ async function replay(m: QueuedItem): Promise<void> {
       work_order_id: m.woId, user_id: m.userId, body: m.body, comment_type: 'status_change',
     })
     if (cErr) throw new Error(cErr.message)
+    // CORE-31: audit the transition — mirrors the online WO detail write so
+    // offline status changes are audited too. ponytail: a retry after a later
+    // failure may duplicate this audit row (same as the comment above) — v1 ok.
+    if (m.orgId) {
+      const { error: aErr } = await supabase.from('audit_logs').insert({
+        entity_type: 'work_order', entity_id: m.woId,
+        action: `Status changed to ${m.updates.status}`,
+        user_id: m.userId, organisation_id: m.orgId,
+        new_values: { status: m.updates.status },
+        old_values: { status: m.oldStatus ?? null },
+        impersonated_by: null,
+      })
+      if (aErr) throw new Error(aErr.message)
+    }
   } else if (m.kind === 'comment') {
     const { error } = await supabase.from('work_order_comments').insert({
       work_order_id: m.woId, user_id: m.userId, body: m.body, comment_type: 'comment',
@@ -145,6 +163,16 @@ async function replay(m: QueuedItem): Promise<void> {
       actual_hours: parseFloat((Number(data?.actual_hours ?? 0) + m.addHours).toFixed(2)),
     }).eq('id', m.woId)
     if (uErr) throw new Error(uErr.message)
+    // WO-06: also write the labor row the web Labor tab reads. minutes has a
+    // CHECK (> 0) constraint, so skip zero-minute logs.
+    if (m.orgId && m.minutes && m.minutes > 0) {
+      const { error: lErr } = await supabase.from('work_order_time_logs').insert({
+        organisation_id: m.orgId, work_order_id: m.woId, user_id: m.userId,
+        minutes: m.minutes, hourly_rate: m.hourlyRate ?? null,
+        note: m.note ?? null, created_by: m.userId,
+      })
+      if (lErr) throw new Error(lErr.message)
+    }
   }
 }
 

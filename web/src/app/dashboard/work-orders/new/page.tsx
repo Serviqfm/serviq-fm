@@ -65,8 +65,8 @@ export default function NewWorkOrderPage() {
     due_at: '',
     start_at: '',
     sla_hours: '',
-    is_recurring: 'false',
-    recurrence_frequency: 'monthly',
+    // 1C-19: the old informational "recurring" checkbox was removed — recurrence
+    // is owned by PM schedules (/dashboard/pm-schedules), which generate WOs.
     estimated_duration: '',
   })
 
@@ -267,8 +267,6 @@ export default function NewWorkOrderPage() {
         assigned_to: form.assigned_to,
         due_at: form.due_at,
         sla_hours: form.sla_hours,
-        is_recurring: form.is_recurring === 'true',
-        recurrence_frequency: form.recurrence_frequency,
         photo_urls: photoUrls,
       }),
     })
@@ -625,38 +623,9 @@ export default function NewWorkOrderPage() {
               </button>
             </div>
 
-            {!isHidden('is_recurring') && (
-              <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <input
-                    type="checkbox"
-                    id="is_recurring"
-                    checked={form.is_recurring === 'true'}
-                    onChange={e => setForm(prev => ({ ...prev, is_recurring: e.target.checked ? 'true' : 'false' }))}
-                    className="w-4 h-4 rounded border border-outline-variant text-primary cursor-pointer"
-                  />
-                  <label htmlFor="is_recurring" className="text-sm font-medium text-on-surface cursor-pointer">
-                    Recurring work order
-                    {isReq('is_recurring') && <span className="text-error"> *</span>}
-                  </label>
-                </div>
-                {form.is_recurring === 'true' && !isHidden('recurrence_frequency') && (
-                  <div>
-                    <p className="text-xs text-on-surface-variant mb-2">This work order will be linked to a PM schedule. Select the recurrence frequency:</p>
-                    <select name="recurrence_frequency" value={form.recurrence_frequency} onChange={handleChange}
-                      required={isReq('recurrence_frequency')}
-                      className={inputCls}>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="quarterly">Quarterly</option>
-                      <option value="biannual">Every 6 Months</option>
-                      <option value="annual">Annual</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* 1C-19: the informational "recurring" checkbox was removed — it never
+                created a schedule. Recurring work is set up via PM schedules
+                (/dashboard/pm-schedules), which generate WOs automatically. */}
 
             {!isHidden('photos') && (
               <div>

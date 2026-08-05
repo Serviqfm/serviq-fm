@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createClient } from '@/lib/supabase'
 
 type Language = 'en' | 'ar'
 
@@ -55,6 +56,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.cookie = 'serviq_lang=' + newLang + '; path=/; max-age=31536000'
     document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.lang = newLang
+    // CORE-11: keep the notification language in sync with the app toggle so the
+    // two never diverge. Fire-and-forget; the RPC updates only auth.uid()'s own
+    // row (no-op / permission-denied when signed out — safely ignored).
+    try {
+      createClient().rpc('set_notification_language', { lang: newLang }).then(() => {}, () => {})
+    } catch { /* ignore */ }
   }
 
   // Prevent hydration mismatch by using suppressHydrationWarning
@@ -426,6 +433,27 @@ const en: Record<string, string> = {
   'assets.custom_fields': 'Custom Fields',
   'assets.decommission': 'Decommission Asset',
   'assets.lifecycle': 'Lifecycle Cost',
+  // Asset check-in / check-out (AL-06)
+  'checkout.title': 'Asset Checkouts',
+  'checkout.subtitle': 'Check tools and movable assets out to a user and back in.',
+  'checkout.new': 'New Check-Out',
+  'checkout.asset': 'Asset',
+  'checkout.to': 'Checked out to',
+  'checkout.expected': 'Expected return',
+  'checkout.notes': 'Notes',
+  'checkout.notes_ph': 'Optional',
+  'checkout.select_asset': 'Select an asset…',
+  'checkout.select_user': 'Select a user…',
+  'checkout.check_out': 'Check Out',
+  'checkout.check_in': 'Check In',
+  'checkout.open': 'Currently Checked Out',
+  'checkout.history': 'History',
+  'checkout.none_open': 'No assets are currently checked out.',
+  'checkout.none_history': 'No check-in history yet.',
+  'checkout.out_at': 'Checked out',
+  'checkout.in_at': 'Checked in',
+  'checkout.status_out': 'Out',
+  'checkout.overdue': 'Overdue',
 }
 
 // ── Arabic translations ──
@@ -777,4 +805,25 @@ const ar: Record<string, string> = {
   'assets.custom_fields': 'حقول مخصصة',
   'assets.decommission': 'إيقاف تشغيل الأصل',
   'assets.lifecycle': 'تكلفة دورة الحياة',
+  // Asset check-in / check-out (AL-06)
+  'checkout.title': 'إعارة الأصول',
+  'checkout.subtitle': 'إعارة الأدوات والأصول المتنقلة لمستخدم واستلامها.',
+  'checkout.new': 'إعارة جديدة',
+  'checkout.asset': 'الأصل',
+  'checkout.to': 'مُعار إلى',
+  'checkout.expected': 'تاريخ الإرجاع المتوقع',
+  'checkout.notes': 'ملاحظات',
+  'checkout.notes_ph': 'اختياري',
+  'checkout.select_asset': 'اختر أصلًا…',
+  'checkout.select_user': 'اختر مستخدمًا…',
+  'checkout.check_out': 'إعارة',
+  'checkout.check_in': 'استلام',
+  'checkout.open': 'المُعار حاليًا',
+  'checkout.history': 'السجل',
+  'checkout.none_open': 'لا توجد أصول معارة حاليًا.',
+  'checkout.none_history': 'لا يوجد سجل استلام بعد.',
+  'checkout.out_at': 'تاريخ الإعارة',
+  'checkout.in_at': 'تاريخ الاستلام',
+  'checkout.status_out': 'معار',
+  'checkout.overdue': 'متأخر',
 }

@@ -7,6 +7,8 @@ import { C, F, primaryBtn, secondaryBtn, inputStyle, pageStyle, labelStyle, LUMI
 import { useFieldConfig } from '@/lib/useFieldConfig'
 import { isSystemRequired } from '@/lib/field-catalog'
 import { useLanguage } from '@/context/LanguageContext'
+import AssetCustomFields from '@/components/AssetCustomFields'
+import { AssetStatus } from '@/lib/assetFields'
 import { flattenAssetTree, getDescendantIds, MAX_ASSET_DEPTH, type FlatHierarchyAsset } from '../../asset-hierarchy'
 
 export default function EditAssetPage() {
@@ -25,9 +27,14 @@ export default function EditAssetPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [spaces, setSpaces] = useState<any[]>([])
   const [parentOptions, setParentOptions] = useState<FlatHierarchyAsset[]>([])
+  const [statuses, setStatuses] = useState<AssetStatus[]>([])
+  const [customStatusId, setCustomStatusId] = useState('')
+  // AL-02: full custom_fields map (org-defined + any free-form keys), preserved on save.
+  const [customFields, setCustomFields] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     name: '',
     category: '',
+    criticality: '',
     site_id: '',
     space_id: '',
     parent_asset_id: '',
@@ -39,6 +46,10 @@ export default function EditAssetPage() {
     purchase_cost: '',
     warranty_expiry: '',
     expected_lifespan_years: '',
+    salvage_value: '',
+    useful_life_years: '',
+    operating_hours_per_week: '',
+    qr_code: '',
     description: '',
     location_notes: '',
   })
@@ -52,15 +63,18 @@ export default function EditAssetPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
 
-    const [{ data: asset }, { data: siteData }, { data: assetData }, { data: spaceData }] = await Promise.all([
+    const [{ data: asset }, { data: siteData }, { data: assetData }, { data: spaceData }, { data: statusData }] = await Promise.all([
       supabase.from('assets').select('*').eq('id', id).single(),
       supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true),
       supabase.from('assets').select('id, name, parent_asset_id, site_id').eq('organisation_id', profile.organisation_id),
       supabase.from('spaces').select('id, name, site_id'),
+      // AL-04: org custom statuses. Table may not exist pre-migration → null → hidden.
+      supabase.from('asset_statuses').select('*').eq('organisation_id', profile.organisation_id).eq('is_active', true).order('sort_order'),
     ])
 
     if (siteData) setSites(siteData)
     if (spaceData) setSpaces(spaceData)
+    if (statusData) setStatuses(statusData as AssetStatus[])
     if (assetData) {
       // Exclude the asset itself and all of its descendants from the parent dropdown.
       const descendants = getDescendantIds(assetData, id)
@@ -70,6 +84,7 @@ export default function EditAssetPage() {
       setForm({
         name: asset.name ?? '',
         category: asset.category ?? '',
+        criticality: asset.criticality ?? '',
         site_id: asset.site_id ?? '',
         space_id: asset.space_id ?? '',
         parent_asset_id: asset.parent_asset_id ?? '',
@@ -81,9 +96,15 @@ export default function EditAssetPage() {
         purchase_cost: asset.purchase_cost ? String(asset.purchase_cost) : '',
         warranty_expiry: asset.warranty_expiry ?? '',
         expected_lifespan_years: asset.expected_lifespan_years ? String(asset.expected_lifespan_years) : '',
+        salvage_value: asset.salvage_value != null ? String(asset.salvage_value) : '',
+        useful_life_years: asset.useful_life_years != null ? String(asset.useful_life_years) : '',
+        operating_hours_per_week: asset.operating_hours_per_week != null ? String(asset.operating_hours_per_week) : '',
+        qr_code: asset.qr_code ?? '',
         description: asset.description ?? '',
         location_notes: asset.location_notes ?? '',
       })
+      setCustomStatusId(asset.custom_status_id ?? '')
+      setCustomFields((asset.custom_fields as Record<string, string>) ?? {})
     }
     setLoading(false)
   }
@@ -111,6 +132,7 @@ export default function EditAssetPage() {
       body: JSON.stringify({
         name: form.name,
         category: form.category,
+        criticality: form.criticality,
         site_id: form.site_id,
         space_id: form.space_id,
         parent_asset_id: form.parent_asset_id,
@@ -123,6 +145,12 @@ export default function EditAssetPage() {
         purchase_cost: form.purchase_cost,
         warranty_expiry: form.warranty_expiry,
         expected_lifespan_years: form.expected_lifespan_years,
+        salvage_value: form.salvage_value,
+        useful_life_years: form.useful_life_years,
+        operating_hours_per_week: form.operating_hours_per_week,
+        qr_code: form.qr_code,
+        custom_status_id: customStatusId,
+        custom_fields: customFields,
         description: form.description,
       }),
     })
@@ -185,6 +213,16 @@ export default function EditAssetPage() {
               </select>
             </div>
           )}
+        </div>
+        <div>
+          <label style={labelStyle}>{lang === 'ar' ? 'الأهمية' : 'Criticality'}</label>
+          <select name='criticality' value={form.criticality} onChange={handleChange} style={fieldStyle}>
+            <option value=''>{lang === 'ar' ? 'اختر الأهمية' : 'Select criticality'}</option>
+            <option value='low'>{lang === 'ar' ? 'منخفضة' : 'Low'}</option>
+            <option value='medium'>{lang === 'ar' ? 'متوسطة' : 'Medium'}</option>
+            <option value='high'>{lang === 'ar' ? 'عالية' : 'High'}</option>
+            <option value='critical'>{lang === 'ar' ? 'حرجة' : 'Critical'}</option>
+          </select>
         </div>
         <div>
           <label style={labelStyle}>{lang === 'ar' ? 'الأصل الرئيسي (اختياري)' : 'Parent Asset (optional)'}</label>
@@ -273,6 +311,44 @@ export default function EditAssetPage() {
             </div>
           )}
         </div>
+        {/* AL-04: custom status — maps to a base status server-side on save. */}
+        {statuses.length > 0 && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'الحالة المخصّصة' : 'Custom Status'}</label>
+            <select value={customStatusId} onChange={e => setCustomStatusId(e.target.value)} style={fieldStyle}>
+              <option value=''>{lang === 'ar' ? 'بدون (الحالة الأساسية)' : 'None (base status)'}</option>
+              {statuses.map(s => (
+                <option key={s.id} value={s.id}>{lang === 'ar' && s.label_ar ? s.label_ar : s.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {/* AL-05: depreciation inputs. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'القيمة المتبقية (ريال)' : 'Salvage Value (SAR)'}</label>
+            <input name='salvage_value' type='number' value={form.salvage_value} onChange={handleChange} style={fieldStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'العمر الإنتاجي للإهلاك (سنوات)' : 'Useful Life for Depreciation (years)'}</label>
+            <input name='useful_life_years' type='number' value={form.useful_life_years} onChange={handleChange} style={fieldStyle} />
+          </div>
+        </div>
+        {/* AL-07 operating hours + AL-09 editable barcode/QR number */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'ساعات التشغيل / أسبوع' : 'Operating Hours / week'}</label>
+            <input name='operating_hours_per_week' type='number' min={0} max={168} value={form.operating_hours_per_week} onChange={handleChange} placeholder='168' style={fieldStyle} />
+            <p style={{ fontSize: 12, color: '#999', margin: '4px 0 0' }}>
+              {lang === 'ar' ? 'تُستخدم لحساب نسبة التوفر. فارغ = تشغيل مستمر (٢٤/٧).' : 'Used for availability %. Blank = continuous (24/7).'}
+            </p>
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'رقم الباركود / QR' : 'Barcode / QR Number'}</label>
+            <input name='qr_code' value={form.qr_code} onChange={handleChange} placeholder={lang === 'ar' ? 'مثال: باركود موجود' : 'e.g. existing barcode'} style={fieldStyle} />
+          </div>
+        </div>
+        <AssetCustomFields values={customFields} onChange={setCustomFields} />
         {!isHidden('description') && (
           <div>
             <label style={labelStyle}>Description{reqMark('description')}</label>

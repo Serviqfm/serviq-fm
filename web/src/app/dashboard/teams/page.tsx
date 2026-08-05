@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { usePagination } from '@/lib/usePagination'
 import Pagination from '@/components/Pagination'
+import { exportCSV } from '@/lib/csv'
 
 export default function TeamsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +51,19 @@ export default function TeamsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const memberCount = (team: any) => Array.isArray(team.team_members) ? (team.team_members[0]?.count ?? 0) : 0
 
+  // 1C-28: export all org teams in the teams-only import shape (name, name_ar).
+  async function handleExport() {
+    if (!orgId) return
+    const { data } = await supabase.from('teams').select('*')
+      .eq('organisation_id', orgId).order('name', { ascending: true })
+    if (!data || data.length === 0) { alert('No teams to export.'); return }
+    exportCSV(`teams-${new Date().toISOString().slice(0, 10)}.csv`, data.map(tm => ({
+      name: tm.name ?? '',
+      name_ar: tm.name_ar ?? '',
+      description: tm.description ?? '',
+    })))
+  }
+
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
   if (currentUser && !['admin', 'manager'].includes(currentUser.role)) {
@@ -72,12 +86,17 @@ export default function TeamsPage() {
               {total} {lang === 'ar' ? 'فريق في مؤسستك' : 'team(s) in your organisation'}
             </p>
           </div>
-          <Link href="/dashboard/teams/new">
-            <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
-              <span className="material-symbols-outlined text-lg">group_add</span>
-              {lang === 'ar' ? 'إنشاء فريق' : 'Create Team'}
+          <div className="flex items-center gap-2">
+            <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-secondary/20 transition-colors">
+              <span className="material-symbols-outlined text-lg">download</span>{lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
             </button>
-          </Link>
+            <Link href="/dashboard/teams/new">
+              <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+                <span className="material-symbols-outlined text-lg">group_add</span>
+                {lang === 'ar' ? 'إنشاء فريق' : 'Create Team'}
+              </button>
+            </Link>
+          </div>
         </div>
 
         {/* Table */}

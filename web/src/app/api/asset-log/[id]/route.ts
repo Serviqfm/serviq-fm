@@ -5,6 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveCaller, auditAssetLog } from '../_helpers'
 import { ASSET_LOG_STATUSES } from '@/lib/asset-log'
+import { enforceFieldConfig } from '@/lib/fieldEnforcement'
+import { FIELD_CATALOG } from '@/lib/field-catalog'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +43,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const { orgId, userId, admin } = caller
 
   const body = (await req.json()) as Record<string, unknown>
+
+  // AG-14 — only full edit-form submits carry `name`; partial patches (e.g. a
+  // quick status change from the detail page) skip the field-config gate.
+  if ('name' in body) {
+    const payload: Record<string, unknown> = {}
+    for (const meta of FIELD_CATALOG.asset_log_edit) {
+      payload[meta.key] = meta.key === 'photos' ? body.photo_urls : body[meta.key]
+    }
+    const res = await enforceFieldConfig(orgId, 'asset_log_edit', payload)
+    if ('error' in res) return NextResponse.json({ error: res.error }, { status: 400 })
+  }
+
   const update: Record<string, unknown> = {}
 
   for (const f of TEXT_FIELDS) if (f in body) update[f] = str(body[f])
@@ -110,7 +124,9 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const { id } = await ctx.params
   if (!id) return NextResponse.json({ error: 'Missing item id' }, { status: 400 })
 
-  const caller = await resolveCaller(['admin'])
+  // W6-11 reference integration: base role still decides (admin only); a custom
+  // role may additionally revoke can_delete_assets from that admin.
+  const caller = await resolveCaller(['admin'], 'can_delete_assets')
   if (caller instanceof NextResponse) return caller
   const { orgId, userId, admin } = caller
 

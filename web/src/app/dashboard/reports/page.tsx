@@ -52,6 +52,8 @@ export default function ReportsPage() {
     mttr: number | null; mtbf: number | null; cost: number; activeTechs: number
     slaCompliance: number | null; breaches: SlaBreach[]
   }>({ mttr: null, mtbf: null, cost: 0, activeTechs: 0, slaCompliance: null, breaches: [] })
+  // MKT-15: work orders closed with a failure code, counted per code.
+  const [failureCodeCounts, setFailureCodeCounts] = useState<{ code: string; label: string; label_ar: string | null; count: number }[]>([])
   const supabase = createClient()
   const { lang } = useLanguage()
 
@@ -109,6 +111,25 @@ export default function ReportsPage() {
 
     if (pms) {
       setKpis(prev => ({ ...prev, totalPM: pms.filter(p => p.is_active).length }))
+    }
+
+    // MKT-15: count-by-failure-code. Queried separately so a missing migration
+    // (SQL Files/w6-1-failure-codes.sql) errors out quietly and hides the block.
+    const [{ data: fcodes }, { data: fcWos }] = await Promise.all([
+      supabase.from('failure_codes').select('id, code, label, label_ar').eq('organisation_id', orgId),
+      supabase.from('work_orders').select('failure_code_id').eq('organisation_id', orgId).not('failure_code_id', 'is', null),
+    ])
+    if (fcodes && fcWos) {
+      const countMap: Record<string, number> = {}
+      for (const w of fcWos as { failure_code_id: string }[]) {
+        countMap[w.failure_code_id] = (countMap[w.failure_code_id] ?? 0) + 1
+      }
+      setFailureCodeCounts(
+        fcodes
+          .map(fc => ({ code: fc.code, label: fc.label, label_ar: fc.label_ar, count: countMap[fc.id] ?? 0 }))
+          .filter(r => r.count > 0)
+          .sort((a, b) => b.count - a.count)
+      )
     }
 
     setLoading(false)
@@ -386,6 +407,36 @@ export default function ReportsPage() {
                 </div>
               )}
             </div>
+
+            {/* MKT-15 — failure-code breakdown (codes applied at WO closure); hidden until data exists. */}
+            {failureCodeCounts.length > 0 && (
+              <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-5 border-b border-outline-variant/20 bg-surface-container-low/30 flex justify-between items-center">
+                  <h3 className="text-base font-bold text-on-surface">{lang === 'ar' ? 'الأعطال حسب الرمز' : 'Failures by Code'}</h3>
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">{failureCodeCounts.reduce((s, r) => s + r.count, 0)}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/20">
+                        <th className="px-5 py-3">{lang === 'ar' ? 'الرمز' : 'Code'}</th>
+                        <th className="px-5 py-3">{lang === 'ar' ? 'الوصف' : 'Label'}</th>
+                        <th className="px-5 py-3 text-right">{lang === 'ar' ? 'العدد' : 'Count'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10">
+                      {failureCodeCounts.map(r => (
+                        <tr key={r.code} className="hover:bg-surface-container-low/40">
+                          <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">{r.code}</td>
+                          <td className="px-5 py-3 text-on-surface">{lang === 'ar' && r.label_ar ? r.label_ar : r.label}</td>
+                          <td className="px-5 py-3 text-right font-semibold text-on-surface">{r.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Standard Reports */}
             <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">

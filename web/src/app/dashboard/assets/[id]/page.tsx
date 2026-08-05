@@ -9,7 +9,8 @@ import QRCode from 'qrcode'
 import TranslateButton from '@/components/TranslateButton'
 import EntityFilesTab from '@/components/EntityFilesTab'
 import { useLanguage } from '@/context/LanguageContext'
-import { mtbfDays, downtimeStats } from '@/lib/kpis'
+import { mtbfDays, downtimeStats, scheduledAvailabilityPct } from '@/lib/kpis'
+import { AssetFieldDef, AssetStatus, assetFieldLabel, assetBookValue } from '@/lib/assetFields'
 
 // FIX #1: Move createClient() outside component (singleton) to prevent infinite re-render loop
 const supabase = createClient()
@@ -41,6 +42,13 @@ interface Asset {
   custom_fields?: Record<string, string>
   parent_asset_id?: string | null
   parent?: { id: string; name: string } | null
+  // AL-04 / AL-05
+  site_id?: string | null
+  custom_status_id?: string | null
+  salvage_value?: number | null
+  useful_life_years?: number | null
+  // AL-07: expected operating hours per week (0..168); null = continuous (24/7).
+  operating_hours_per_week?: number | null
 }
 
 interface AncestorAsset {
@@ -86,6 +94,15 @@ export default function AssetDetailPage() {
   const [ancestors, setAncestors] = useState<AncestorAsset[]>([])
   const [downtime, setDowntime] = useState<DowntimePeriod[]>([])
   const [downtimeDays, setDowntimeDays] = useState(30) // availability window (AL-03 default 30)
+  // AL-02/AL-04: org-defined custom fields + custom statuses.
+  const [fieldDefs, setFieldDefs] = useState<AssetFieldDef[]>([])
+  const [assetStatuses, setAssetStatuses] = useState<AssetStatus[]>([])
+  // AL-12: gate the Edit affordance — technicians edit only assets at their sites.
+  const [canEdit, setCanEdit] = useState(true)
+  // AL-08: client-side filters on the Work Orders tab (status + created date range).
+  const [woStatusFilter, setWoStatusFilter] = useState('all')
+  const [woFrom, setWoFrom] = useState('')
+  const [woTo, setWoTo] = useState('')
 
   // FIX #1 continued: Wrap fetchAll in useCallback to avoid re-renders
   const fetchAll = useCallback(async () => {
@@ -110,6 +127,28 @@ export default function AssetDetailPage() {
     ])
     if (assetData) setAsset(assetData as Asset)
     if (woData) setWorkOrders(woData)
+
+    // AL-02/AL-04: org-defined field defs + custom statuses (tolerate missing tables).
+    // AL-12: compute whether the caller may edit this asset (technicians = own sites).
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
+      if (profile) {
+        const [{ data: defsData }, { data: statusData }] = await Promise.all([
+          supabase.from('asset_field_defs').select('*').eq('organisation_id', profile.organisation_id).eq('is_active', true).order('sort_order'),
+          supabase.from('asset_statuses').select('*').eq('organisation_id', profile.organisation_id),
+        ])
+        if (defsData) setFieldDefs(defsData as AssetFieldDef[])
+        if (statusData) setAssetStatuses(statusData as AssetStatus[])
+        if (profile.role === 'technician') {
+          const { data: scopeRows } = await supabase.from('user_site_scope').select('site_id').eq('user_id', user.id)
+          const scoped = (scopeRows ?? []).map(r => r.site_id)
+          const site = (assetData as Asset | null)?.site_id ?? null
+          // Unscoped technician = unrestricted (matches user_can_access_site default).
+          setCanEdit(scoped.length === 0 || site == null || scoped.includes(site))
+        }
+      }
+    }
     if (pmData) setPmSchedules(pmData)
     if (childData) setChildAssets(childData as ChildAsset[])
     if (pmHistoryData) setPmHistory(pmHistoryData)
@@ -209,6 +248,9 @@ export default function AssetDetailPage() {
   }
 
   const sCfg = statusConfig[asset.status] ?? statusConfig.active
+  // AL-04: custom display status (falls back to none). AL-05: straight-line book value.
+  const customStatus = asset.custom_status_id ? assetStatuses.find(s => s.id === asset.custom_status_id) : undefined
+  const bookValue = assetBookValue(asset)
 
   const tabCls = (active: boolean) =>
     `px-4 py-2 border-0 bg-transparent cursor-pointer text-sm font-${active ? 'semibold' : 'normal'} ${active ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant border-b-2 border-transparent'}`
@@ -216,9 +258,22 @@ export default function AssetDetailPage() {
   const openWOs = workOrders.filter(w => !['completed','closed'].includes(w.status)).length
   const photos = asset.photo_urls ?? []
 
+  // AL-08: apply the tab's status + date-range filters client-side.
+  const toMs = woTo ? new Date(woTo).getTime() + 86_400_000 : null // inclusive end-of-day
+  const fromMs = woFrom ? new Date(woFrom).getTime() : null
+  const filteredWorkOrders = workOrders.filter(w => {
+    if (woStatusFilter !== 'all' && w.status !== woStatusFilter) return false
+    const c = new Date(w.created_at).getTime()
+    if (fromMs != null && c < fromMs) return false
+    if (toMs != null && c >= toMs) return false
+    return true
+  })
+
   // B8/AL-03 — reliability, computed from downtime rows (lib/kpis math).
   const openDowntime = downtime.find(d => !d.ended_at)
-  const { downtimeMs, availabilityPct } = downtimeStats(downtime, downtimeDays)
+  const { downtimeMs } = downtimeStats(downtime, downtimeDays)
+  // AL-07: score availability against scheduled operating hours (lib/kpis).
+  const effectiveAvailability = scheduledAvailabilityPct(downtimeMs, downtimeDays, asset.operating_hours_per_week)
   // MTBF = mean days between downtime starts; reuse the per-asset gap math.
   const mtbf = mtbfDays(downtime.map(d => ({ asset_id: assetId, completed_at: d.started_at })))
   const fmtDur = (ms: number) => ms >= 48 * 3_600_000
@@ -233,10 +288,12 @@ export default function AssetDetailPage() {
             {/* FIX #6: Add aria-label to back link */}
             {t('common.back')}
           </a>
-          {/* FIX #6: Add aria-label to edit button */}
-          <a href={'/dashboard/assets/' + assetId + '/edit'}>
-            <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" aria-label="Edit asset">{t('common.edit')}</button>
-          </a>
+          {/* FIX #6: Add aria-label to edit button. AL-12: hidden for technicians outside the asset's site scope. */}
+          {canEdit && (
+            <a href={'/dashboard/assets/' + assetId + '/edit'}>
+              <button className="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors" aria-label="Edit asset">{t('common.edit')}</button>
+            </a>
+          )}
         </div>
 
         <div>
@@ -263,6 +320,13 @@ export default function AssetDetailPage() {
             </div>
             {/* FIX #5: Decorative status badge */}
             <span className={`${sCfg.className} px-2.5 py-0.5 rounded-full text-xs font-medium`}>{sCfg.label}</span>
+            {/* AL-04: custom display status badge (maps onto the base status above) */}
+            {customStatus && (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium"
+                style={{ backgroundColor: (customStatus.color ?? '#6b7280') + '22', color: customStatus.color ?? '#6b7280' }}>
+                {lang === 'ar' && customStatus.label_ar ? customStatus.label_ar : customStatus.label}
+              </span>
+            )}
             {asset.category && <span className="bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full text-xs">{asset.category}</span>}
           </div>
           <p className="text-on-surface-variant text-sm mt-1.5">
@@ -368,6 +432,8 @@ export default function AssetDetailPage() {
                 { label: 'Warranty Expiry',              value: asset.warranty_expiry ? format(new Date(asset.warranty_expiry), 'dd MMM yyyy') : '—' },
                 { label: 'Expected Lifespan',            value: asset.expected_lifespan_years ? asset.expected_lifespan_years + ' years' : '—' },
                 { label: 'Lifecycle Cost (closed WOs)',  value: lifecycleCost > 0 ? 'SAR ' + lifecycleCost.toLocaleString() : '—' },
+                // AL-05: straight-line current book value.
+                { label: lang === 'ar' ? 'القيمة الدفترية الحالية' : 'Current Book Value', value: bookValue != null ? 'SAR ' + Math.round(bookValue).toLocaleString() : '—' },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-surface-container-low rounded-lg px-4 py-3">
                   <p className="text-xs text-on-surface-variant mb-1">{label}</p>
@@ -379,6 +445,17 @@ export default function AssetDetailPage() {
               <div className="bg-surface-container-low rounded-lg px-4 py-3 mt-1">
                 <p className="text-xs text-on-surface-variant mb-1.5">Description</p>
                 <p className="text-sm m-0 leading-relaxed text-on-surface">{asset.description}</p>
+              </div>
+            )}
+            {/* AL-02: org-defined custom fields, shown with their labels when a value is set. */}
+            {fieldDefs.some(d => (asset.custom_fields?.[d.key] ?? '') !== '') && (
+              <div className="grid grid-cols-2 gap-2.5 mt-1">
+                {fieldDefs.filter(d => (asset.custom_fields?.[d.key] ?? '') !== '').map(d => (
+                  <div key={d.id} className="bg-surface-container-low rounded-lg px-4 py-3">
+                    <p className="text-xs text-on-surface-variant mb-1">{assetFieldLabel(d, lang)}</p>
+                    <p className="text-sm font-medium text-on-surface m-0">{asset.custom_fields?.[d.key]}</p>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -409,6 +486,37 @@ export default function AssetDetailPage() {
             {workOrders.length === 0 ? (
               <p className="text-sm text-on-surface-variant">No work orders raised for this asset yet.</p>
             ) : (
+              <>
+              {/* AL-08: client-side status + date-range filters */}
+              <div className="flex flex-wrap items-end gap-3 mb-4">
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
+                  <select value={woStatusFilter} onChange={e => setWoStatusFilter(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none">
+                    <option value='all'>{lang === 'ar' ? 'الكل' : 'All'}</option>
+                    {['new','assigned','in_progress','on_hold','completed','closed'].map(s => (
+                      <option key={s} value={s}>{s.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'من' : 'From'}</label>
+                  <input type='date' value={woFrom} onChange={e => setWoFrom(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">{lang === 'ar' ? 'إلى' : 'To'}</label>
+                  <input type='date' value={woTo} onChange={e => setWoTo(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm text-on-surface outline-none" />
+                </div>
+                {(woStatusFilter !== 'all' || woFrom || woTo) && (
+                  <button onClick={() => { setWoStatusFilter('all'); setWoFrom(''); setWoTo('') }}
+                    className="text-xs text-primary font-bold hover:underline py-2">{lang === 'ar' ? 'مسح' : 'Clear'}</button>
+                )}
+              </div>
+              {filteredWorkOrders.length === 0 ? (
+                <p className="text-sm text-on-surface-variant">{lang === 'ar' ? 'لا توجد أوامر عمل مطابقة للفلاتر.' : 'No work orders match the filters.'}</p>
+              ) : (
               <div className="border border-outline-variant rounded-xl overflow-hidden">
                 <table className="w-full border-collapse">
                   <thead>
@@ -419,7 +527,7 @@ export default function AssetDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {workOrders.map((wo) => {
+                    {filteredWorkOrders.map((wo) => {
                       const woCfg = woStatusConfig[wo.status] ?? woStatusConfig.new
                       return (
                         <tr key={wo.id} className="bg-surface-container-lowest hover:bg-surface-container-low transition-colors">
@@ -442,6 +550,8 @@ export default function AssetDetailPage() {
                   </tbody>
                 </table>
               </div>
+              )}
+              </>
             )}
           </div>
         )}
@@ -569,7 +679,7 @@ export default function AssetDetailPage() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
               {[
-                { label: lang === 'ar' ? 'نسبة التوفر' : 'Availability', value: availabilityPct.toFixed(1) + '%', alert: availabilityPct < 95 },
+                { label: lang === 'ar' ? 'نسبة التوفر' : 'Availability', value: effectiveAvailability.toFixed(1) + '%', alert: effectiveAvailability < 95 },
                 { label: lang === 'ar' ? 'إجمالي التوقف' : 'Total downtime', value: downtimeMs > 0 ? fmtDur(downtimeMs) : '0h', alert: false },
                 { label: lang === 'ar' ? 'متوسط بين الأعطال' : 'MTBF', value: mtbf == null ? '—' : mtbf.toFixed(1) + (lang === 'ar' ? ' يوم' : 'd'), alert: false },
               ].map(({ label, value, alert: isAlert }) => (

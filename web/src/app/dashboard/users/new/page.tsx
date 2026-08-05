@@ -26,6 +26,9 @@ export default function NewUserPage() {
     hourly_rate: '',
   })
   const [skillCategories, setSkillCategories] = useState<string[]>([])
+  // W6-11: optional custom-role overlay. Admin-only, assigned by the server route.
+  const [customRoles, setCustomRoles] = useState<{ id: string; name: string; name_ar: string | null }[]>([])
+  const [customRoleId, setCustomRoleId] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadOrg() }, [])
@@ -34,7 +37,17 @@ export default function NewUserPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data: profile } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
-    if (profile) { setOrgId(profile.organisation_id); setIsAdmin(profile.role === 'admin') }
+    if (profile) {
+      setOrgId(profile.organisation_id)
+      setIsAdmin(profile.role === 'admin')
+      if (profile.role === 'admin') {
+        // Missing table (migration not applied) just yields no options.
+        const { data } = await supabase.from('custom_roles')
+          .select('id, name, name_ar').eq('organisation_id', profile.organisation_id)
+          .eq('is_active', true).order('name')
+        if (data) setCustomRoles(data)
+      }
+    }
   }
 
   // Fixed WO category list (mirrors work-orders page); used for skill categories.
@@ -67,6 +80,9 @@ export default function NewUserPage() {
         hourly_rate: form.hourly_rate,
         skill_categories: skillCategories,
         organisation_id: orgId,
+        // Only sent when the org actually has custom roles — keeps orgs that
+        // haven't run the W6-11 migration on exactly the old payload.
+        ...(customRoles.length > 0 ? { custom_role_id: customRoleId || null } : {}),
       }),
     })
 
@@ -178,6 +194,20 @@ export default function NewUserPage() {
                 {roleDescriptions[form.role]}
               </p>
             )}
+          </div>
+        )}
+        {isAdmin && customRoles.length > 0 && (
+          <div>
+            <label style={labelStyle}>{lang === 'ar' ? 'دور مخصّص (اختياري)' : 'Custom role (optional)'}</label>
+            <select value={customRoleId} onChange={e => setCustomRoleId(e.target.value)} style={fieldStyle}>
+              <option value=''>{lang === 'ar' ? 'بدون — صلاحيات الدور الأساسي كاملة' : 'None — full base-role permissions'}</option>
+              {customRoles.map(r => (
+                <option key={r.id} value={r.id}>{lang === 'ar' && r.name_ar ? r.name_ar : r.name}</option>
+              ))}
+            </select>
+            <p style={{ fontSize: 12, color: '#666', margin: '6px 0 0' }}>
+              {lang === 'ar' ? 'الدور المخصّص يزيل صلاحيات فقط — لا يمنح أي صلاحية إضافية.' : 'A custom role only removes capabilities — it never grants extra access.'}
+            </p>
           </div>
         )}
         <div>

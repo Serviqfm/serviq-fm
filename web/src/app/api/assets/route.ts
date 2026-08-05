@@ -37,6 +37,14 @@ export async function POST(req: NextRequest) {
   const spaceId = typeof body.space_id === 'string' && body.space_id.trim() !== ''
     ? body.space_id.trim()
     : null
+  // MKT-14: criticality — constrained to the DB CHECK set; anything else stores null.
+  const criticality = typeof body.criticality === 'string' && ['low', 'medium', 'high', 'critical'].includes(body.criticality)
+    ? body.criticality
+    : null
+  // AL-02: org-defined custom field values (assets.custom_fields JSONB).
+  const customFields = body.custom_fields && typeof body.custom_fields === 'object' && !Array.isArray(body.custom_fields)
+    ? (body.custom_fields as Record<string, unknown>)
+    : {}
 
   // Build payload that matches catalog keys for enforcement.
   const enforcePayload: Record<string, unknown> = {
@@ -82,6 +90,14 @@ export async function POST(req: NextRequest) {
       ? lifespanRaw
       : null
 
+  // AL-05: depreciation inputs (salvage_value, useful_life_years). Non-catalog.
+  const toNumOrNull = (v: unknown): number | null =>
+    typeof v === 'number' ? v
+      : typeof v === 'string' && v.trim() !== '' ? Number(v)
+      : null
+  const salvageValue = toNumOrNull(body.salvage_value)
+  const usefulLifeYears = toNumOrNull(body.useful_life_years)
+
   const qrCode = typeof body.qr_code === 'string' && body.qr_code.trim() !== ''
     ? body.qr_code
     : 'SERVIQ-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11).toUpperCase()
@@ -126,6 +142,10 @@ export async function POST(req: NextRequest) {
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
     parent_asset_id: parentAssetId,
     space_id: spaceId,
+    criticality,
+    custom_fields: customFields,
+    salvage_value: salvageValue,
+    useful_life_years: usefulLifeYears,
     status: 'active',
     qr_code: qrCode,
   }

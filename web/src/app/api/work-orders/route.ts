@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
 import { slaDueDates } from '@/lib/sla'
+import { planLimits, openWorkOrderLimitReached } from '@/lib/planLimits'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,11 +28,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No organisation' }, { status: 403 })
   }
 
+  // AP-02: open-work-order limit. Open = status not in (completed, closed), matching the
+  // work-orders list "open" filter. FAIL OPEN — unknown/null plan_tier, an unlimited tier,
+  // or any lookup error ALLOWS creation so existing orgs are never blocked.
+  {
+    const { data: orgRow } = await supabase
+      .from('organisations')
+      .select('plan_tier')
+      .eq('id', profile.organisation_id)
+      .single()
+    const planTier = orgRow?.plan_tier as string | null | undefined
+    if (planLimits(planTier)?.maxOpenWorkOrders != null) {
+      const { count } = await supabase
+        .from('work_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', profile.organisation_id)
+        .not('status', 'in', '(completed,closed)')
+      if (typeof count === 'number' && openWorkOrderLimitReached(planTier, count)) {
+        return NextResponse.json(
+          {
+            error: `Your plan's open work-order limit has been reached. Close some work orders or upgrade your plan.`,
+            error_ar: 'لقد وصلت مؤسستك إلى الحد الأقصى لأوامر العمل المفتوحة في خطتك. يرجى إغلاق بعض الأوامر أو ترقية الخطة.',
+          },
+          { status: 403 }
+        )
+      }
+    }
+  }
+
   const body = (await req.json()) as Record<string, unknown>
 
   // Separate non-catalog/system fields from the field-config-gated fields.
-  // is_recurring is a UI-only field (used to decide `source`), not a column.
-  const isRecurring = body.is_recurring === true || body.is_recurring === 'true'
+  // Recurrence is owned by PM schedules, not work_orders — the old is_recurring/
+  // recurrence_frequency UI fields were removed (1C-19), so they are no longer in
+  // the field catalog or this payload.
   const photoUrls = Array.isArray(body.photo_urls) ? (body.photo_urls as string[]) : []
 
   // Build payload that matches catalog keys for enforcement.
@@ -45,8 +75,6 @@ export async function POST(req: NextRequest) {
     assigned_to: body.assigned_to,
     due_at: body.due_at,
     sla_hours: body.sla_hours,
-    is_recurring: isRecurring ? 'true' : '',
-    recurrence_frequency: body.recurrence_frequency,
     photos: photoUrls.length > 0 ? photoUrls : '',
   }
 

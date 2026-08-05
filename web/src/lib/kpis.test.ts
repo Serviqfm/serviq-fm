@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   mttrHours, mtbfDays, totalMaintenanceCost, activeTechnicians,
-  slaBreaches, slaCompliancePercent, downtimeStats, type WoKpiRow, type TechRow,
+  slaBreaches, slaCompliancePercent, downtimeStats, scheduledAvailabilityPct,
+  type WoKpiRow, type TechRow,
 } from './kpis'
 
 const H = 3_600_000
@@ -59,6 +60,22 @@ describe('downtimeStats', () => {
       [{ started_at: iso(-40 * D), ended_at: iso(-35 * D) }], 30, NOW)
     expect(downtimeMs).toBe(0)
     expect(availabilityPct).toBe(100)
+  })
+})
+
+describe('scheduledAvailabilityPct (AL-07)', () => {
+  it('null/0/full hours falls back to calendar availability', () => {
+    // 1d down of 10d calendar = 90%
+    expect(scheduledAvailabilityPct(D, 10, null)).toBe(90)
+    expect(scheduledAvailabilityPct(D, 10, 0)).toBe(90)
+    expect(scheduledAvailabilityPct(D, 10, 168)).toBe(90)
+  })
+  it('scores against scheduled hours, not the calendar', () => {
+    // 84h/week = half the calendar → operating window is 5d; 1d down of 5d = 80%
+    expect(scheduledAvailabilityPct(D, 10, 84)).toBe(80)
+  })
+  it('clamps downtime to the operating window and never goes negative', () => {
+    expect(scheduledAvailabilityPct(100 * D, 10, 84)).toBe(0)
   })
 })
 

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { getOrgId } from '@/lib/auth-helper'
 import { deliverWebhookEvent } from '@/lib/webhookDelivery'
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     closeout_photo_urls?: string[]
     signoff?: string
     completion_notes?: string
+    // MKT-15: optional failure code applied at closure (SQL Files/w6-1-failure-codes.sql).
+    failure_code_id?: string
   }
 
   const newStatus = body.status
@@ -104,6 +107,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
+  // W6-11: the role/assignment checks above are what GRANT; a custom role may
+  // additionally revoke can_close_work_orders from this user.
+  if (await capabilityDeniedForUser(supabase, user.id, 'can_close_work_orders')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
+  }
+
+  // WO-20: a work order with any incomplete required task cannot be finished.
+  // Query fails open (returns []) if w6-6-wo-tasks.sql hasn't added is_required yet.
+  const { data: openRequired } = await admin
+    .from('work_order_tasks')
+    .select('id')
+    .eq('work_order_id', id)
+    .eq('is_required', true)
+    .eq('is_done', false)
+    .limit(1)
+  if (openRequired && openRequired.length > 0) {
+    return NextResponse.json(
+      { error: 'Complete all required tasks before finishing this work order. / أكمل جميع المهام المطلوبة قبل إنهاء أمر العمل.' },
+      { status: 400 }
+    )
+  }
+
   const existingPhotos: string[] = Array.isArray(existingWO.photo_urls) ? existingWO.photo_urls : []
   const allPhotos = [...existingPhotos, ...closeoutPhotoUrls]
 
@@ -125,6 +150,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: enforcement.error }, { status: 400 })
   }
 
+  // MKT-15: optional failure code — must belong to the caller's org (the admin
+  // client bypasses RLS, so verify org-scope in app code).
+  const failureCodeId = typeof body.failure_code_id === 'string' && body.failure_code_id ? body.failure_code_id : null
+  if (failureCodeId) {
+    const { data: fc } = await admin
+      .from('failure_codes')
+      .select('id')
+      .eq('id', failureCodeId)
+      .eq('organisation_id', profile.organisation_id)
+      .maybeSingle()
+    if (!fc) {
+      return NextResponse.json({ error: 'Invalid failure code' }, { status: 400 })
+    }
+  }
+
   const updateRow: Record<string, unknown> = {
     status: newStatus,
     updated_at: new Date().toISOString(),
@@ -137,6 +177,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // WO-01: store the sign-off in its own column instead of overwriting the
     // technician's completion_notes.
     ...(body.signoff ? { signed_off_by: body.signoff } : {}),
+    // MKT-15: optional failure code at closure. Only written when provided so
+    // the route still works before SQL Files/w6-1-failure-codes.sql is applied.
+    ...(failureCodeId ? { failure_code_id: failureCodeId } : {}),
   }
 
   const { data, error } = await admin
@@ -195,14 +238,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (existingWO.created_by) ids.push(existingWO.created_by)
       // Dedupe and drop the actor (they don't self-notify on their own completion).
       const recipients = ids.filter((uid, i) => uid !== user.id && ids.indexOf(uid) === i)
-      for (const uid of recipients) {
-        await NotificationService.insertInApp(uid, profile.organisation_id, 'wo_i_assigned_updated', {
-          title: `${label} completed`,
-          body: existingWO.title,
-          link,
-          dedupeKey: `wo_completed:${id}`,
-        })
-      }
+      // DV-22: one batched upsert for the whole fan-out instead of N inserts.
+      await NotificationService.insertInAppMany(recipients, profile.organisation_id, 'wo_i_assigned_updated', {
+        title: `${label} completed`,
+        body: existingWO.title,
+        link,
+        dedupeKey: `wo_completed:${id}`,
+      })
     } catch (notifyErr) {
       console.error('[work-orders close POST] completion notify failed', notifyErr)
     }

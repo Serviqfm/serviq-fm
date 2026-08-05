@@ -5,8 +5,10 @@ import { createClient } from '@/lib/supabase'
 import { format, isPast } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { useActiveSite } from '@/context/ActiveSiteContext'
 import { archiveConfirmMessage, nextDueOnDaysOfWeek, setPmScheduleActive, clearOpenGeneratedWorkOrders, DELETE_CLEARABLE_STATUSES } from './pm-utils'
 import { stampChecklistTasks } from './checklist-stamp'
+import { exportCSV } from '@/lib/csv'
 
 export default function PMSchedulesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,20 +19,44 @@ export default function PMSchedulesPage() {
   const [deleting, setDeleting] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [groups, setGroups] = useState<any[]>([])
+  const [groupFilter, setGroupFilter] = useState('')   // '' = all, 'none' = ungrouped, else group id
+  const [groupBusy, setGroupBusy] = useState(false)
+  const [orgId, setOrgId] = useState<string | null>(null)
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  // 1C-33: active-site convenience filter (client-side; layered on RLS).
+  const { activeSiteId } = useActiveSite()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchSchedules() }, [])
+  useEffect(() => { fetchGroups() }, [])
+  // Re-fetch whenever the active site changes ('all' = unscoped, as before).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchSchedules() }, [activeSiteId])
 
   async function fetchSchedules() {
     setLoading(true)
-    const { data, error } = await supabase
+    let q = supabase
       .from('pm_schedules')
       .select('*, asset:asset_id(name), site:site_id(name), assignee:assigned_to(full_name)')
       .order('next_due_at', { ascending: true })
+    if (activeSiteId !== 'all') q = q.eq('site_id', activeSiteId)
+    const { data, error } = await q
     if (!error && data) setSchedules(data)
     setLoading(false)
+  }
+
+  async function fetchGroups() {
+    // 1C-26: pm_schedule_groups may not exist yet (migration not run) — fail soft so
+    // the page still works, just with the group filter showing only "All".
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+      if (profile) setOrgId(profile.organisation_id)
+    }
+    const { data, error } = await supabase.from('pm_schedule_groups').select('*').order('name')
+    if (!error && data) setGroups(data)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,7 +169,8 @@ export default function PMSchedulesPage() {
   }
 
   function toggleSelectAll() {
-    setSelected(prev => prev.length === activeList.length ? [] : activeList.map(s => s.id))
+    const visible = (showArchived ? archivedList : activeList).filter(groupMatch)
+    setSelected(prev => prev.length === visible.length ? [] : visible.map(s => s.id))
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,6 +178,83 @@ export default function PMSchedulesPage() {
     // 1C-16: pause cancels never-started auto WOs; resume rebaselines next_due_at.
     await setPmScheduleActive(supabase, schedule, !schedule.is_active)
     fetchSchedules()
+  }
+
+  // --- 1C-26: schedule groups (management-only grouping — the generator is untouched) ---
+
+  // Assign the currently-selected schedules to a group (or ungroup with null). '__new'
+  // prompts for a name and creates the group first. Reuses the same org-scoped insert
+  // the create form uses; RLS gates writes to admin/manager.
+  async function handleAssignGroup(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value
+    e.target.value = '' // reset the picker
+    if (!val || selected.length === 0) return
+    let groupId: string | null = null
+    if (val === '__none') {
+      groupId = null
+    } else if (val === '__new') {
+      const name = (window.prompt(lang === 'ar' ? 'اسم المجموعة الجديدة' : 'New group name') ?? '').trim()
+      if (!name || !orgId) return
+      const { data, error } = await supabase.from('pm_schedule_groups').insert({ organisation_id: orgId, name }).select('id').single()
+      if (error || !data) { alert((lang === 'ar' ? 'تعذّر إنشاء المجموعة: ' : 'Could not create group: ') + (error?.message ?? '')); return }
+      groupId = data.id
+    } else {
+      groupId = val
+    }
+    await supabase.from('pm_schedules').update({ group_id: groupId }).in('id', selected)
+    setSelected([])
+    await Promise.all([fetchSchedules(), fetchGroups()])
+  }
+
+  // Schedules (any state, non-archived) belonging to the filtered group.
+  function schedulesInFilteredGroup() {
+    return schedules.filter(s => !s.is_archived && s.group_id === groupFilter)
+  }
+
+  async function setGroupActive(active: boolean) {
+    const targets = schedulesInFilteredGroup().filter(s => s.is_active !== active)
+    if (targets.length === 0) return
+    setGroupBusy(true)
+    // Reuse the shipped lifecycle helper so WO-cleanup semantics stay identical.
+    for (const s of targets) await setPmScheduleActive(supabase, s, active)
+    await fetchSchedules()
+    setGroupBusy(false)
+  }
+
+  async function deleteGroup() {
+    const targets = schedulesInFilteredGroup()
+    const grp = groups.find(g => g.id === groupFilter)
+    if (!confirm(lang === 'ar'
+      ? `حذف المجموعة "${grp?.name ?? ''}" و${targets.length} جدول/جداول بداخلها نهائياً؟`
+      : `Delete group "${grp?.name ?? ''}" and its ${targets.length} schedule(s) permanently?`)) return
+    setGroupBusy(true)
+    const ids = targets.map(s => s.id)
+    if (ids.length > 0) {
+      // 1C-17: clear still-open generated WOs before the FK is SET NULL by the delete.
+      await clearOpenGeneratedWorkOrders(supabase, ids, DELETE_CLEARABLE_STATUSES)
+      await supabase.from('pm_schedules').delete().in('id', ids)
+    }
+    await supabase.from('pm_schedule_groups').delete().eq('id', groupFilter)
+    setGroupFilter('')
+    await Promise.all([fetchSchedules(), fetchGroups()])
+    setGroupBusy(false)
+  }
+
+  function handleExport() {
+    const list = (showArchived ? archivedList : activeList).filter(groupMatch)
+    if (list.length === 0) { alert(lang === 'ar' ? 'لا توجد جداول للتصدير.' : 'No schedules to export.'); return }
+    // exportCSV sanitizes every cell against CSV formula-injection (lib/csv).
+    exportCSV(`pm-schedules-${new Date().toISOString().slice(0, 10)}.csv`, list.map(s => ({
+      title: s.title ?? '', description: s.description ?? '', frequency: s.frequency ?? '',
+      priority: s.priority ?? '', category: s.category ?? '',
+      site_name: s.site?.name ?? '', asset_name: s.asset?.name ?? '',
+      next_due_at: s.next_due_at ? s.next_due_at.slice(0, 10) : '',
+      end_date: s.end_date ? String(s.end_date).slice(0, 10) : '',
+      interval_count: s.interval_count ?? '', interval_unit: s.interval_unit ?? '',
+      anchor_day: s.anchor_day ?? '', estimated_duration_minutes: s.estimated_duration_minutes ?? '',
+      group: groupsById.get(s.group_id)?.name ?? '',
+      is_active: s.is_active ? 'true' : 'false',
+    })))
   }
 
   const freqLabel: Record<string, string> = {
@@ -175,7 +279,12 @@ export default function PMSchedulesPage() {
   // Archived schedules are hidden from the default list (and from stats).
   const activeList = schedules.filter(s => !s.is_archived)
   const archivedList = schedules.filter(s => s.is_archived)
-  const rows = showArchived ? archivedList : activeList
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const groupsById = new Map<string, any>(groups.map(g => [g.id, g]))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const groupMatch = (s: any) => groupFilter === '' ? true : groupFilter === 'none' ? !s.group_id : s.group_id === groupFilter
+  const rows = (showArchived ? archivedList : activeList).filter(groupMatch)
+  const groupSelected = groupFilter !== '' && groupFilter !== 'none'
 
   const stats = {
     total:  activeList.length,
@@ -200,7 +309,16 @@ export default function PMSchedulesPage() {
               {stats.soon > 0 && <span className="text-[#f57f17] ml-1">· {stats.soon} {lang === 'ar' ? 'قريباً' : 'due soon'}</span>}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={handleExport}
+              className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
+              {lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
+            </button>
+            <Link href="/dashboard/pm-schedules/import">
+              <button className="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                {lang === 'ar' ? 'استيراد CSV' : 'Import CSV'}
+              </button>
+            </Link>
             <button
               onClick={() => { setShowArchived(v => !v); setSelected([]) }}
               className={`px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${showArchived ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low'}`}
@@ -244,10 +362,48 @@ export default function PMSchedulesPage() {
           ))}
         </div>
 
+        {/* Group filter + whole-group bulk actions (1C-26) */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-sm font-semibold text-on-surface-variant">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
+          <select
+            value={groupFilter}
+            onChange={e => { setGroupFilter(e.target.value); setSelected([]) }}
+            className="px-3 py-2 rounded-xl border border-outline-variant/40 text-sm bg-surface-container-lowest text-on-surface"
+          >
+            <option value="">{lang === 'ar' ? 'كل المجموعات' : 'All groups'}</option>
+            <option value="none">{lang === 'ar' ? 'بدون مجموعة' : 'Ungrouped'}</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          {groupSelected && !showArchived && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-on-surface-variant">{schedulesInFilteredGroup().length} {lang === 'ar' ? 'في المجموعة' : 'in group'}</span>
+              <button onClick={() => setGroupActive(false)} disabled={groupBusy}
+                className="px-3 py-2 rounded-xl border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50">
+                {lang === 'ar' ? 'إيقاف المجموعة' : 'Pause group'}
+              </button>
+              <button onClick={() => setGroupActive(true)} disabled={groupBusy}
+                className="px-3 py-2 rounded-xl border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50">
+                {lang === 'ar' ? 'تفعيل المجموعة' : 'Resume group'}
+              </button>
+              <button onClick={deleteGroup} disabled={groupBusy}
+                className="px-3 py-2 rounded-xl border border-error/30 text-xs font-semibold text-error hover:bg-error/5 transition-colors disabled:opacity-50">
+                {lang === 'ar' ? 'حذف المجموعة' : 'Delete group'}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Bulk archive / delete */}
         {selected.length > 0 && !showArchived && (
           <div className="bg-error/5 border border-error/20 rounded-xl p-3 flex items-center gap-3 flex-wrap">
             <span className="text-sm font-semibold text-error">{selected.length} {t('common.selected')}</span>
+            <select onChange={handleAssignGroup} defaultValue=""
+              className="px-3 py-2 rounded-xl border border-outline-variant/40 text-sm bg-surface-container-lowest text-on-surface">
+              <option value="">{lang === 'ar' ? 'نقل إلى مجموعة…' : 'Move to group…'}</option>
+              <option value="__none">{lang === 'ar' ? 'إزالة من المجموعة' : 'Ungroup'}</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              <option value="__new">{lang === 'ar' ? '＋ مجموعة جديدة…' : '＋ New group…'}</option>
+            </select>
             <button onClick={archiveSelected} disabled={archiving}
               className="px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors">
               {archiving ? t('common.loading') : (lang === 'ar' ? 'أرشفة المحددة' : 'Archive Selected')}
@@ -281,7 +437,7 @@ export default function PMSchedulesPage() {
                   <tr className="bg-surface-container border-b border-outline-variant/30">
                     <th className="p-3 w-10">
                       {!showArchived && (
-                        <input type="checkbox" checked={selected.length === activeList.length && activeList.length > 0} onChange={toggleSelectAll} className="rounded" />
+                        <input type="checkbox" checked={selected.length === rows.length && rows.length > 0} onChange={toggleSelectAll} className="rounded" />
                       )}
                     </th>
                     {[t('pm.col.title'), t('pm.col.asset'), t('pm.col.freq'), t('pm.col.compliance'), t('pm.col.due'), t('wo.col.assigned'), t('common.status'), t('common.actions')].map(h => (
@@ -306,6 +462,11 @@ export default function PMSchedulesPage() {
                           </Link>
                           {s.description && (
                             <p className="text-xs text-on-surface-variant mt-0.5 max-w-[240px] truncate">{s.description}</p>
+                          )}
+                          {s.group_id && groupsById.get(s.group_id) && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/10 text-secondary">
+                              <span className="material-symbols-outlined text-[12px]">folder</span>{groupsById.get(s.group_id).name}
+                            </span>
                           )}
                         </td>
                         <td className="p-3 text-sm text-on-surface-variant whitespace-nowrap">{s.asset?.name ?? s.site?.name ?? '—'}</td>

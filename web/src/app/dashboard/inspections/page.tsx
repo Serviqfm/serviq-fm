@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { useActiveSite } from '@/context/ActiveSiteContext'
 
 export default function InspectionsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,9 +18,11 @@ export default function InspectionsPage() {
   const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
   const { t, lang } = useLanguage()
+  // 1C-33: active-site convenience filter (client-side; layered on RLS).
+  const { activeSiteId } = useActiveSite()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { fetchAll() }, [activeSiteId])
 
   async function fetchAll() {
     setLoading(true)
@@ -28,11 +31,15 @@ export default function InspectionsPage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setLoading(false); return }
 
+    let inspQ = supabase.from('inspection_results')
+      .select('*, template:template_id(name, vertical), site:site_id(name), asset:asset_id(name), inspector:conducted_by(full_name)')
+      .eq('organisation_id', profile.organisation_id)
+      .order('created_at', { ascending: false })
+    // 1C-33: scope inspection results to the active site (templates are org-wide, unscoped).
+    if (activeSiteId !== 'all') inspQ = inspQ.eq('site_id', activeSiteId)
+
     const [{ data: inspData }, { data: tmplData }] = await Promise.all([
-      supabase.from('inspection_results')
-        .select('*, template:template_id(name, vertical), site:site_id(name), asset:asset_id(name), inspector:conducted_by(full_name)')
-        .eq('organisation_id', profile.organisation_id)
-        .order('created_at', { ascending: false }),
+      inspQ,
       supabase.from('inspection_templates')
         .select('*')
         .eq('organisation_id', profile.organisation_id)

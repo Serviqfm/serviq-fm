@@ -23,6 +23,8 @@ import AssetLogDetailScreen from '../screens/AssetLogDetailScreen'
 import QRScannerScreen from '../screens/QRScannerScreen'
 import CreateWorkOrderScreen from '../screens/CreateWorkOrderScreen'
 import CreateAssetScreen from '../screens/CreateAssetScreen'
+import LocationsScreen from '../screens/LocationsScreen'
+import RequestSubmitScreen from '../screens/RequestSubmitScreen'
 import RunInspectionScreen from '../screens/RunInspectionScreen'
 
 const Stack = createNativeStackNavigator()
@@ -146,8 +148,12 @@ function RootNavigator() {
             options={{ headerShown: true, title: 'Asset Log Item', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='CreateWorkOrder' component={CreateWorkOrderScreen}
             options={{ headerShown: true, title: 'Create Work Order', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
+          <Stack.Screen name='RequestSubmit' component={RequestSubmitScreen}
+            options={{ headerShown: true, title: 'Submit Request', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='AssetForm' component={CreateAssetScreen}
             options={{ headerShown: true, title: 'Asset', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
+          <Stack.Screen name='Locations' component={LocationsScreen}
+            options={{ headerShown: true, title: 'Locations', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='RunInspection' component={RunInspectionScreen}
             options={{ headerShown: true, title: 'Inspection', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen

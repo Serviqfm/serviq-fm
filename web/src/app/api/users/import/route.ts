@@ -10,6 +10,9 @@
 // created with the SAME mechanism the single path uses (service-role auth.admin
 // createUser + profile insert + welcome email with a CSPRNG temp password). A
 // supplied team name is find-or-created within the org and the user is added to it.
+//
+// Teams-only mode (1C-28): a CSV with a `name` header and NO `email` header is
+// treated as a teams import (name, name_ar) — find-or-create only, no users touched.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -17,6 +20,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { generateTempPassword } from '@/lib/tempPassword'
 import { seatLimitReached, planLimits } from '@/lib/planLimits'
 import { sanitizeCell } from '@/lib/csv'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +46,12 @@ export async function POST(req: NextRequest) {
   if (!['admin', 'manager'].includes(callerProfile.role ?? '')) {
     return NextResponse.json({ error: 'Only a manager or admin can import users' }, { status: 403 })
   }
+  // W6-11: the base role above is what GRANTS; a custom role may additionally
+  // revoke can_manage_users. Without this, bulk import bypasses the denial that
+  // POST /api/users and PATCH /api/users/[id] enforce.
+  if (await capabilityDeniedForUser(serverSupabase, caller.id, 'can_manage_users')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
+  }
   // SECURITY: org is always the caller's — never from the request body.
   const orgId = callerProfile.organisation_id
   const callerIsAdmin = callerProfile.role === 'admin'
@@ -60,6 +70,34 @@ export async function POST(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  const norm = (s: string) => s.trim().toLowerCase()
+
+  // Teams-only mode: `name` header present, `email` absent (parseCSV gives every
+  // row the same headers, so checking the first row is enough). No seat limit —
+  // teams are not seats.
+  if (rows[0] && !('email' in rows[0]) && 'name' in rows[0]) {
+    let created = 0
+    const errors: string[] = []
+    const warnings: string[] = []
+    const { data: existingTeams } = await admin.from('teams').select('name').eq('organisation_id', orgId)
+    const seen = new Set((existingTeams ?? []).map(t => norm(t.name ?? '')))
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i]
+      const ln = i + 2
+      if (!r || typeof r !== 'object' || Array.isArray(r)) { errors.push(`Row ${ln}: malformed row`); continue }
+      const name = (r.name ?? '').toString().trim()
+      const nameAr = (r.name_ar ?? '').toString().trim()
+      if (!name) { errors.push(`Row ${ln}: name is required`); continue }
+      if (seen.has(norm(name))) { warnings.push(`Row ${ln}: team "${safeCell(name)}" already exists — skipped`); continue }
+      const { error } = await admin.from('teams')
+        .insert({ organisation_id: orgId, name, name_ar: nameAr || null })
+      if (error) { errors.push(`Row ${ln}: ${error.message}`); continue }
+      seen.add(norm(name))
+      created++
+    }
+    return NextResponse.json({ created, errors, warnings })
+  }
+
   // Seat limit for the WHOLE batch. FAIL OPEN — unknown/unlimited tier or any lookup
   // error leaves `cap` null and never blocks. `activeSeats` is the live active-user
   // count; it is bumped as we create so seatLimitReached() gates each row against
@@ -76,7 +114,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Preload existing emails (skip duplicates) and teams (find-or-create by name).
-  const norm = (s: string) => s.trim().toLowerCase()
   const [existingUsersRes, teamsRes] = await Promise.all([
     admin.from('users').select('email').eq('organisation_id', orgId),
     admin.from('teams').select('id, name').eq('organisation_id', orgId),

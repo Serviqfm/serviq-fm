@@ -21,6 +21,111 @@ export default function SitesPage() {
   const { flags } = useFeatureFlag()
   const canAddSite = flags.multi_site || totalSites === 0
 
+  // AL-20 — inline site→space tree with re-parenting.
+  const [showTree, setShowTree] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [treeSites, setTreeSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [treeSpaces, setTreeSpaces] = useState<any[]>([])
+  const [treeLoading, setTreeLoading] = useState(false)
+
+  async function loadTree() {
+    if (!orgId) return
+    setTreeLoading(true)
+    const [{ data: st }, spRes] = await Promise.all([
+      supabase.from('sites').select('id, name').eq('organisation_id', orgId).order('name'),
+      supabase.from('spaces').select('id, name, floor, site_id, parent_space_id').order('floor').order('name'),
+    ])
+    // Degrade gracefully if the deploy lands before w6-9-space-hierarchy.sql: the
+    // parent_space_id column won't exist yet, which 400s the whole select. Retry
+    // without it so the tree still renders (flat, no sub-space nesting).
+    let sp = spRes.data
+    if (spRes.error) {
+      const { data } = await supabase.from('spaces').select('id, name, floor, site_id').order('floor').order('name')
+      sp = (data ?? []).map(s => ({ ...s, parent_space_id: null }))
+    }
+    setTreeSites(st ?? [])
+    setTreeSpaces(sp ?? [])
+    setTreeLoading(false)
+  }
+
+  async function moveSpace(spaceId: string, siteId: string) {
+    // Changing site detaches from any parent (parent lived in the old site).
+    const res = await fetch(`/api/spaces/${spaceId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site_id: siteId, parent_space_id: null }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      alert('Move failed: ' + (j.error ?? 'Unknown error'))
+      return
+    }
+    setTreeSpaces(prev => prev.map(s => s.id === spaceId ? { ...s, site_id: siteId, parent_space_id: null } : s))
+  }
+
+  // AL-14 — set/clear a space's parent (nested sub-locations).
+  async function setParent(spaceId: string, parentId: string | null) {
+    const res = await fetch(`/api/spaces/${spaceId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parent_space_id: parentId }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      alert('Re-parent failed: ' + (j.error ?? 'Unknown error'))
+      return
+    }
+    setTreeSpaces(prev => prev.map(s => s.id === spaceId ? { ...s, parent_space_id: parentId } : s))
+  }
+
+  // Descendant ids of a space (within treeSpaces) — used to block picking a
+  // parent that would create a cycle.
+  function descendantIds(spaceId: string): Set<string> {
+    const out = new Set<string>()
+    const walk = (pid: string) => {
+      for (const s of treeSpaces) {
+        if (s.parent_space_id === pid && !out.has(s.id)) { out.add(s.id); walk(s.id) }
+      }
+    }
+    walk(spaceId)
+    return out
+  }
+
+  // Recursive site → space → sub-space node.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function renderSpaceNode(sp: any, site: any): JSX.Element {
+    const children = treeSpaces.filter(c => c.site_id === site.id && c.parent_space_id === sp.id)
+    const blocked = descendantIds(sp.id)
+    // Candidate parents: other spaces in the same site that aren't this space
+    // or one of its descendants (cycle guard).
+    const parentOptions = treeSpaces.filter(c => c.site_id === site.id && c.id !== sp.id && !blocked.has(c.id))
+    return (
+      <li key={sp.id}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-on-surface">{sp.name}</span>
+          {sp.floor && <span className="text-xs text-on-surface-variant">({sp.floor})</span>}
+          <label className="text-[11px] text-on-surface-variant ms-auto">{lang === 'ar' ? 'ضمن:' : 'Under:'}</label>
+          <select value={sp.parent_space_id ?? ''} onChange={e => setParent(sp.id, e.target.value || null)}
+            className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-2 py-1 text-xs text-on-surface outline-none max-w-[160px]">
+            <option value="">{lang === 'ar' ? '— جذر الموقع —' : '— Site root —'}</option>
+            {parentOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <label className="text-[11px] text-on-surface-variant">{lang === 'ar' ? 'نقل إلى:' : 'Move to:'}</label>
+          <select value={sp.site_id} onChange={e => { if (e.target.value !== sp.site_id) moveSpace(sp.id, e.target.value) }}
+            className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-2 py-1 text-xs text-on-surface outline-none">
+            {treeSites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        {children.length > 0 && (
+          <ul className="ps-4 border-s border-outline-variant/50 space-y-1.5 mt-1.5">
+            {children.map(c => renderSpaceNode(c, site))}
+          </ul>
+        )}
+      </li>
+    )
+  }
+
   // Debounce search so we don't fire a query on every keystroke.
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 300)
@@ -120,6 +225,9 @@ export default function SitesPage() {
           </div>
           <div className="flex items-center gap-2">
             <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+            <button onClick={() => { const n = !showTree; setShowTree(n); if (n && treeSites.length === 0) loadTree() }} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">
+              {showTree ? (lang === 'ar' ? 'إخفاء الشجرة' : 'Hide Tree') : (lang === 'ar' ? 'عرض الشجرة' : 'Location Tree')}
+            </button>
             <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">Import CSV</button>
             <button onClick={handleExport} className="bg-secondary/10 text-secondary px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-secondary/20 transition-colors">Export CSV</button>
             {canAddSite ? (
@@ -143,6 +251,41 @@ export default function SitesPage() {
           placeholder={lang === 'ar' ? 'البحث...' : 'Search by name, city, or address...'}
           className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
         />
+
+        {showTree && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-5">
+            <h2 className="text-sm font-bold text-on-surface mb-3">{lang === 'ar' ? 'شجرة المواقع والمساحات' : 'Site → Space Tree'}</h2>
+            {treeLoading ? (
+              <p className="text-on-surface-variant text-sm">{t('common.loading')}</p>
+            ) : treeSites.length === 0 ? (
+              <p className="text-on-surface-variant text-sm">{lang === 'ar' ? 'لا توجد مواقع' : 'No sites yet.'}</p>
+            ) : (
+              <div className="space-y-4">
+                {treeSites.map(site => {
+                  const kids = treeSpaces.filter(sp => sp.site_id === site.id)
+                  // Top-level = spaces with no parent, or whose parent lives in
+                  // another site (orphaned reference) — render at the site root.
+                  const roots = kids.filter(sp => !sp.parent_space_id || !kids.some(k => k.id === sp.parent_space_id))
+                  return (
+                    <div key={site.id}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-on-surface font-semibold text-sm">{site.name}</span>
+                        <span className="text-xs text-on-surface-variant">{kids.length} {lang === 'ar' ? 'مساحة' : 'space(s)'}</span>
+                      </div>
+                      {kids.length === 0 ? (
+                        <p className="text-xs text-on-surface-variant ps-4">{lang === 'ar' ? 'لا توجد مساحات' : 'No spaces'}</p>
+                      ) : (
+                        <ul className="ps-4 border-s border-outline-variant/50 space-y-1.5">
+                          {roots.map(sp => renderSpaceNode(sp, site))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <p className="text-on-surface-variant">{t('common.loading')}</p>

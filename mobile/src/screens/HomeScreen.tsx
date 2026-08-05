@@ -46,7 +46,8 @@ export default function HomeScreen() {
       .select('*')
       .eq('organisation_id', profile.organisation_id)
       .not('status', 'in', '("completed","closed")')
-      .order('created_at', { ascending: false })
+      // Soonest due first → overdue rises to the top; WOs with no due date sink to the bottom.
+      .order('due_at', { ascending: true, nullsFirst: false })
       .limit(5)
     if (profile.role === 'technician') {
       listQuery = listQuery.eq('assigned_to', profile.id)
@@ -133,6 +134,14 @@ export default function HomeScreen() {
           </View>
         ))}
       </View>
+
+      {stats.overdue > 0 && (
+        <TouchableOpacity style={styles.overdueBanner} onPress={() => navigation.navigate('WorkOrders')}>
+          <Ionicons name='alert-circle' size={18} color='white' />
+          <Text style={styles.overdueBannerText}>{t('overdue_banner', { n: stats.overdue })}</Text>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color='white' />
+        </TouchableOpacity>
+      )}
 
       <View style={styles.quickActions}>
         <TouchableOpacity style={styles.qaBtn} onPress={() => navigation.navigate('QRScanner')}>
@@ -255,6 +264,8 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: 'white', borderRadius: radius.md, padding: 12, alignItems: 'center', ...shadow.sm },
   statValue: { fontSize: 20, fontWeight: '700', marginTop: 4 },
   statLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
+  overdueBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.error, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.md, ...shadow.sm },
+  overdueBannerText: { flex: 1, color: 'white', fontSize: 13, fontWeight: '700' },
   quickActions: { flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 8 },
   qaBtn: { flex: 1, alignItems: 'center', backgroundColor: 'white', borderRadius: radius.md, padding: 16, ...shadow.sm },
   qaIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },

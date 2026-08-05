@@ -69,6 +69,11 @@ export interface WorkOrderTask {
   done_at: string | null
   sort_order: number
   created_at: string
+  // WO-20: per-task note, attached image, pass/flag/fail result, required flag.
+  note: string | null
+  image_url: string | null
+  result: 'pass' | 'flag' | 'fail' | null
+  is_required: boolean
   done_by_user?: { full_name: string } | null
 }
 
