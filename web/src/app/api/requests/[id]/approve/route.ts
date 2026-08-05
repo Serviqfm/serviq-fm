@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 import { sendRequestApproved } from '@/lib/email'
 import { escapeHtml } from '@/lib/escapeHtml'
 
@@ -24,6 +25,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   if (!['admin', 'manager'].includes(callerProfile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  // W6-11: a custom role may revoke can_approve_requests from this admin/manager.
+  if (await capabilityDeniedForUser(serverSupabase, user.id, 'can_approve_requests')) {
+    return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
   }
 
   // Service role for the actual inserts so spaces/work_orders RLS does not bite.

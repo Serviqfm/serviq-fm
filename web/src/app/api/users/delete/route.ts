@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,10 @@ export async function POST(req: NextRequest) {
     }
     if (callerProfile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden — admin role required' }, { status: 403 })
+    }
+    // W6-11: a custom role may revoke can_manage_users from this admin.
+    if (await capabilityDeniedForUser(serverSupabase, caller.id, 'can_manage_users')) {
+      return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
     }
 
     const { userId } = await req.json()

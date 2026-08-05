@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { enforceFieldConfig } from '@/lib/fieldEnforcement'
 import { generateTempPassword } from '@/lib/tempPassword'
 import { seatLimitReached, planLimits } from '@/lib/planLimits'
+import { capabilityDeniedForUser, verifyCustomRoleId } from '@/lib/customRoles'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,11 @@ export async function POST(req: NextRequest) {
     }
     if (!['admin', 'manager'].includes(callerProfile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    // W6-11: the base role above is what GRANTS. A custom role may additionally
+    // revoke can_manage_users from this admin/manager.
+    if (await capabilityDeniedForUser(serverSupabase, caller.id, 'can_manage_users')) {
+      return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
     }
 
     const body = await req.json()
@@ -122,6 +128,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Only admins can create admin users' }, { status: 403 })
     }
 
+    // W6-11: optional custom-role overlay. ADMIN-only, and the id is verified to
+    // belong to the caller's org. The key is only written when the client actually
+    // sent one, so orgs that haven't run the migration are unaffected.
+    let customRoleId: string | null = null
+    if (isAdmin && 'custom_role_id' in body) {
+      const verified = await verifyCustomRoleId(supabaseAdmin, organisation_id, body.custom_role_id)
+      if (!verified.ok) {
+        return NextResponse.json({ error: 'Invalid custom role' }, { status: 400 })
+      }
+      customRoleId = verified.value
+    }
+
     // Create auth user with a CSPRNG temporary password (DV-09)
     const tempPassword = generateTempPassword()
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -149,6 +167,7 @@ export async function POST(req: NextRequest) {
       is_active: true,
       invited_at: new Date().toISOString(),
       must_change_password: true,
+      ...(customRoleId ? { custom_role_id: customRoleId } : {}),
     })
 
     if (profileError) {

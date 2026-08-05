@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser } from '@/lib/customRoles'
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +33,10 @@ export async function POST(req: NextRequest) {
     }
     if (!['admin', 'manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    // W6-11: a custom role may revoke can_view_financials from this admin/manager.
+    if (await capabilityDeniedForUser(supabase, user.id, 'can_view_financials')) {
+      return NextResponse.json({ error: 'Forbidden', code: 'capability_denied' }, { status: 403 })
     }
 
     // The work order must belong to the caller's organisation.

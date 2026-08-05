@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { capabilityDeniedForUser, type Capability } from '@/lib/customRoles'
 
 export type CallerCtx = {
   userId: string
@@ -14,7 +15,13 @@ export type CallerCtx = {
 
 // Authenticates, loads the caller profile (org from the profile, never the body),
 // gates on the allowed roles, and hands back a service-role client for the write.
-export async function resolveCaller(allowedRoles: string[]): Promise<NextResponse | CallerCtx> {
+//
+// W6-11: `requiredCapability` is an OPTIONAL extra DENIAL. The base-role gate below
+// is unchanged and is the only thing that grants — a custom role can only subtract.
+export async function resolveCaller(
+  allowedRoles: string[],
+  requiredCapability?: Capability
+): Promise<NextResponse | CallerCtx> {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,6 +40,12 @@ export async function resolveCaller(allowedRoles: string[]): Promise<NextRespons
   }
   if (!allowedRoles.includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (requiredCapability && await capabilityDeniedForUser(supabase, user.id, requiredCapability)) {
+    return NextResponse.json(
+      { error: 'Forbidden', code: 'capability_denied', capability: requiredCapability },
+      { status: 403 }
+    )
   }
 
   const admin = createAdminClient(
