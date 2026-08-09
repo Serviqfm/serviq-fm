@@ -3,6 +3,7 @@
     "name": "Serviq FM",
     "slug": "serviqfm-mobile",
     "version": "1.0.0",
+    "scheme": "serviqfm",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -43,7 +44,21 @@
           "androidCollapsedTitle": "Serviq FM"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Serviq FM uses the camera to scan asset QR/barcodes and to take work-order and inspection photos.",
+          "microphonePermission": "Serviq FM does not record audio; the camera module requests this permission on some devices.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Serviq FM accesses your photo library so you can attach existing photos to work orders and inspections."
+        }
+      ]
     ],
     "notification": {
       "icon": "./assets/icon.png",

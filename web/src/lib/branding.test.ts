@@ -23,9 +23,28 @@ describe('isSafeLogoUrl — SSRF guard', () => {
     expect(isSafeLogoUrl('not a url')).toBe(false)
     expect(isSafeLogoUrl('')).toBe(false)
   })
+  // These two cases CONTROL the env var explicitly rather than inheriting it.
+  // CI sets NEXT_PUBLIC_SUPABASE_URL for the test step, so a test that assumed
+  // it was absent passed locally and failed in CI.
   it('accepts an https url when no supabase origin is configured', () => {
-    // No NEXT_PUBLIC_SUPABASE_URL in the test env → https is sufficient.
-    expect(isSafeLogoUrl('https://example.com/logo.png')).toBe(true)
+    const prev = process.env.NEXT_PUBLIC_SUPABASE_URL
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL
+    try {
+      expect(isSafeLogoUrl('https://example.com/logo.png')).toBe(true)
+    } finally {
+      if (prev !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prev
+    }
+  })
+  it('restricts to the storage origin when one IS configured', () => {
+    const prev = process.env.NEXT_PUBLIC_SUPABASE_URL
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://dummy.supabase.co'
+    try {
+      expect(isSafeLogoUrl('https://dummy.supabase.co/storage/v1/object/public/media/l.png')).toBe(true)
+      expect(isSafeLogoUrl('https://example.com/logo.png')).toBe(false)
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = prev
+    }
   })
 })
 
