@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { useActiveSite } from '@/context/ActiveSiteContext'
@@ -10,6 +10,7 @@ import { useFeatureFlag } from '@/lib/featureFlags'
 import { useCustomRole } from '@/lib/useCustomRole'
 import { Logo } from '@/components/brand/Logo'
 import NotificationBell from '@/components/NotificationBell'
+import { readWorkspace, writeWorkspace, type Workspace } from '@/lib/workspace'
 
 // roles: items listed here are visible only to these roles. Items without `roles` are visible to everyone.
 const NAV: { key: string; href: string; en: string; ar: string; icon: string; exact: boolean; roles?: string[] }[] = [
@@ -51,6 +52,21 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
   { key: 'settings',    href: '/dashboard/settings',     en: 'Settings',     ar: 'الإعدادات',      icon: 'settings',       exact: false },
 ]
 
+// P0 (playbook §2 A1/A2): the procurement workspace's nav. Same item shape as
+// NAV — and mostly the SAME routes: vendors, POs, inventory, invoices, cost
+// centers and reports are shared tables/pages, not procurement copies. Only
+// /dashboard/procurement is procurement-only today; requisitions arrive in P1.
+const PROCUREMENT_NAV: typeof NAV = [
+  { key: 'proc_home',     href: '/dashboard/procurement',    en: 'Procurement',   ar: 'المشتريات',     icon: 'shopping_cart',          exact: true  },
+  { key: 'purchase_orders', href: '/dashboard/purchase-orders', en: 'Purchase Orders', ar: 'أوامر الشراء', icon: 'shopping_bag',       exact: false },
+  { key: 'vendors',       href: '/dashboard/vendors',        en: 'Vendors',       ar: 'الموردون',       icon: 'business',               exact: false, roles: ['admin', 'manager'] },
+  { key: 'inventory',     href: '/dashboard/inventory',      en: 'Inventory',     ar: 'المخزون',        icon: 'category',               exact: false },
+  { key: 'invoices',      href: '/dashboard/invoices',       en: 'Invoices',      ar: 'الفواتير',        icon: 'receipt_long',           exact: false, roles: ['admin', 'manager'] },
+  { key: 'cost_centers',  href: '/dashboard/cost-centers',   en: 'Cost Centers',  ar: 'مراكز التكلفة',   icon: 'account_balance_wallet', exact: false, roles: ['admin', 'manager'] },
+  { key: 'reports',       href: '/dashboard/reports',        en: 'Reports',       ar: 'التقارير',        icon: 'bar_chart',              exact: false, roles: ['admin', 'manager'] },
+  { key: 'settings',      href: '/dashboard/settings',       en: 'Settings',      ar: 'الإعدادات',      icon: 'settings',               exact: false },
+]
+
 export default function Sidebar() {
   const pathname = usePathname()
   const { lang, setLang } = useLanguage()
@@ -60,6 +76,12 @@ export default function Sidebar() {
   const [user, setUser] = useState<any>(null)
   const [woBadge, setWoBadge] = useState(0)
   const [reqBadge, setReqBadge] = useState(0)
+  // P0 workspace flags. Permissive defaults = today's CAFM-only sidebar, which is
+  // also what a pre-migration DB (no such columns) yields.
+  const [hasCafm, setHasCafm] = useState(true)
+  const [hasProcurement, setHasProcurement] = useState(false)
+  const [workspace, setWorkspace] = useState<Workspace>('cafm')
+  const router = useRouter()
   const supabase = createClient()
   const isAr = lang === 'ar'
   const { flags } = useFeatureFlag()
@@ -91,7 +113,41 @@ export default function Sidebar() {
         .eq('organisation_id', profile.organisation_id)
         .eq('status', 'pending')
       if (rCount) setReqBadge(rCount)
+
+      // Separate query so a missing column (pre-migration) leaves the permissive
+      // defaults rather than nulling the whole profile — same philosophy as
+      // settings/purchasing and lib/featureFlags.
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('has_cafm, has_procurement')
+        .eq('id', profile.organisation_id)
+        .single()
+      const cafm = org?.has_cafm !== false
+      const proc = org?.has_procurement === true
+      setHasCafm(cafm)
+      setHasProcurement(proc)
+      const stored = readWorkspace()
+      setWorkspace(!cafm && proc ? 'procurement' : (stored ?? 'cafm'))
+      // Both workspaces and no choice recorded yet: ask once, on the CAFM home.
+      // Middleware can't do this — the choice lives in localStorage (A2).
+      if (cafm && proc && !stored && pathname === '/dashboard') {
+        router.replace('/dashboard/workspace-selector')
+      }
     }
+  }
+
+  // Which nav to render. A procurement-only tenant never sees the CAFM nav; a
+  // both-workspace tenant follows the path first (so a deep link into
+  // /dashboard/procurement flips the nav) and their stored choice otherwise.
+  const inProcurementPath = pathname === '/dashboard/procurement' || pathname.startsWith('/dashboard/procurement/')
+  const activeWorkspace: Workspace =
+    hasProcurement && ((!hasCafm) || inProcurementPath || workspace === 'procurement') ? 'procurement' : 'cafm'
+  const navItems = activeWorkspace === 'procurement' ? PROCUREMENT_NAV : NAV
+
+  function switchWorkspace(next: Workspace) {
+    writeWorkspace(next)
+    setWorkspace(next)
+    router.push(next === 'procurement' ? '/dashboard/procurement' : '/dashboard')
   }
 
   return (
@@ -115,7 +171,28 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-2 flex flex-col gap-0.5">
-        {NAV
+
+        {/* P0: workspace switcher — only for tenants that have both workspaces */}
+        {hasCafm && hasProcurement && (
+          <div className={`flex gap-1 mb-2 ${collapsed ? 'flex-col' : ''}`}>
+            {(['cafm', 'procurement'] as Workspace[]).map(w => {
+              const on = activeWorkspace === w
+              const label = w === 'cafm' ? (isAr ? 'المرافق' : 'FM') : (isAr ? 'المشتريات' : 'Procurement')
+              return (
+                <button key={w} onClick={() => switchWorkspace(w)}
+                  title={collapsed ? label : undefined}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    on ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:text-primary'
+                  }`}>
+                  <span className="material-symbols-outlined text-base">{w === 'cafm' ? 'engineering' : 'shopping_cart'}</span>
+                  {!collapsed && <span className="truncate">{label}</span>}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {navItems
           .filter(item => !item.roles || (user && item.roles.includes(user.role)))
           .filter(item => {
             // Feature-flag gates
