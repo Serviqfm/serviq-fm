@@ -25,3 +25,25 @@ commit and the evidence it was verified against. "Not verified" means exactly th
 - The middleware allows a procurement-only tenant onto the **shared** CAFM routes the procurement
   nav links to (POs, vendors, inventory, invoices, cost centers, reports, settings), per A1
   "shared tables, procurement nav". Everything else under `/dashboard` stays CAFM-only.
+
+### Batch P1 — Requisitions + approval chains
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `procurement-02-requisitions.sql` — 5 tables, 2 RPCs, status-guard trigger, `purchase_orders.requisition_id` | _see PR_ | Not verified — needs the live DB. `.test.sql` covers all 8 acceptance points. |
+| `submit_requisition()` — band selection, chain materialisation, auto-approve fallback | _see PR_ | `.test.sql` 2a/2b/2c (300 → 1 step, 1000 → 2, 9000 → 3) and 7 (no band → auto-approve). |
+| `decide_requisition()` — sequential approve/reject, comment-required reject | _see PR_ | `.test.sql` 3 (out-of-order raises), 5a/5b (blank comment raises; reject short-circuits), 6 (resubmit rebuilds). |
+| Status-guard trigger — RPCs are the only end-user status path | _see PR_ | `.test.sql` 8 (direct `UPDATE … status='approved'` refused). |
+| API: create / patch / submit / decide / convert under `api/procurement/requisitions/` | _see PR_ | Build green; all five routes emitted as `ƒ` server routes. Runtime behavior not verified — needs the live DB. |
+| Pages: list, new, detail (chain timeline + actions) | _see PR_ | Built: list 2.5 kB, new 3.02 kB, detail 4.3 kB. |
+| Settings → Procurement approvals (band + ordered approver editor) | _see PR_ | Built as `ƒ /dashboard/settings/procurement` (3.49 kB). Writes gated by admin/manager RLS, not just the UI. |
+| Notifications `req_pending_approval` / `req_decided` | _see PR_ | New `procurement` category renders itself in Settings → Notifications (`getAllCategories()`); emission not verified — needs a live send. |
+| Requisitions nav item (deferred from P0) + procurement home tiles wired | _see PR_ | Build green; home tiles now query real counts. |
+| PO list back-link to the source requisition | _see PR_ | Fetched in a separate tolerant query so a pre-migration tenant sees the page unchanged. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` ✓ 141/141 pages · `vitest run` 21 files / 119 tests passed. |
+
+**Deviations / notes:**
+
+- No Vitest added: P1 has no pure-TS logic worth pinning (band selection and sequencing live in SQL, covered by `.test.sql`). The playbook's Vitest item lands in P4 with the 3-way matcher.
+- The requisition detail's "view the purchase order" link goes to the PO **list** — there is no PO detail page until P2.
+- Known residual, documented in the migration header: `requisition_items` keeps open org RLS, so a direct PostgREST write could edit lines of an in-flight requisition. Status changes are trigger-guarded; lines are not.

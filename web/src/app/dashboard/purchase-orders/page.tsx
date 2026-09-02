@@ -21,6 +21,10 @@ export default function PurchaseOrdersPage() {
   // FM-17: org-level module toggle (Settings → Purchasing). Default on;
   // a missing column (pre-migration) leaves it on, like lib/featureFlags.ts.
   const [moduleEnabled, setModuleEnabled] = useState(true)
+  // P1: po id -> requisition it came from. Fetched separately (and tolerantly) so
+  // a tenant that hasn't run procurement-02-requisitions.sql sees this page
+  // exactly as before instead of a failed join.
+  const [reqByPo, setReqByPo] = useState<Record<string, { id: string; number: number }>>({})
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -42,6 +46,17 @@ export default function PurchaseOrdersPage() {
       .eq('organisation_id', profile.organisation_id)
       .order('created_at', { ascending: false })
     if (data) setPos(data)
+
+    const { data: reqs } = await supabase
+      .from('requisitions')
+      .select('id, requisition_number, purchase_order_id')
+      .eq('organisation_id', profile.organisation_id)
+      .not('purchase_order_id', 'is', null)
+    if (reqs) {
+      setReqByPo(Object.fromEntries(
+        reqs.map(r => [r.purchase_order_id as string, { id: r.id as string, number: r.requisition_number as number }])
+      ))
+    }
     setLoading(false)
   }
 
@@ -138,7 +153,17 @@ export default function PurchaseOrdersPage() {
                 <tbody className="divide-y divide-outline-variant/20">
                   {filtered.map(po => (
                     <tr key={po.id} className="hover:bg-surface-container-low transition-colors">
-                      <td className="px-4 py-4 text-sm font-semibold text-on-surface whitespace-nowrap">#{po.po_number}</td>
+                      <td className="px-4 py-4 text-sm font-semibold text-on-surface whitespace-nowrap">
+                        #{po.po_number}
+                        {reqByPo[po.id] && (
+                          <Link href={`/dashboard/procurement/requisitions/${reqByPo[po.id].id}`}
+                            title="Created from a requisition"
+                            className="ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold hover:bg-primary/20 transition-colors">
+                            <span className="material-symbols-outlined text-[11px]">edit_note</span>
+                            REQ #{reqByPo[po.id].number}
+                          </Link>
+                        )}
+                      </td>
                       <td className="px-4 py-4 text-sm text-on-surface-variant">{po.vendor?.company_name ?? '—'}</td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_CLS[po.status] ?? ''}`}>{po.status}</span>

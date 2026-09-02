@@ -81,6 +81,18 @@ export const NOTIFICATION_TYPES = {
     emitted: false,
   },
 
+  // Procurement (P1 — requisitions)
+  REQ_PENDING_APPROVAL: {
+    key: 'req_pending_approval',
+    label: 'A requisition is waiting for my approval',
+    category: 'procurement',
+  },
+  REQ_DECIDED: {
+    key: 'req_decided',
+    label: 'A requisition I created has been approved or rejected',
+    category: 'procurement',
+  },
+
   // Parts/Inventory
   PART_LOW_STOCK: {
     key: 'part_low_stock',

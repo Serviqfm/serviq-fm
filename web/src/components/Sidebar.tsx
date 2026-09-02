@@ -55,9 +55,10 @@ const NAV: { key: string; href: string; en: string; ar: string; icon: string; ex
 // P0 (playbook §2 A1/A2): the procurement workspace's nav. Same item shape as
 // NAV — and mostly the SAME routes: vendors, POs, inventory, invoices, cost
 // centers and reports are shared tables/pages, not procurement copies. Only
-// /dashboard/procurement is procurement-only today; requisitions arrive in P1.
+// /dashboard/procurement and its requisitions are the procurement-only routes.
 const PROCUREMENT_NAV: typeof NAV = [
   { key: 'proc_home',     href: '/dashboard/procurement',    en: 'Procurement',   ar: 'المشتريات',     icon: 'shopping_cart',          exact: true  },
+  { key: 'requisitions',  href: '/dashboard/procurement/requisitions', en: 'Requisitions', ar: 'طلبات الشراء', icon: 'edit_note',    exact: false },
   { key: 'purchase_orders', href: '/dashboard/purchase-orders', en: 'Purchase Orders', ar: 'أوامر الشراء', icon: 'shopping_bag',       exact: false },
   { key: 'vendors',       href: '/dashboard/vendors',        en: 'Vendors',       ar: 'الموردون',       icon: 'business',               exact: false, roles: ['admin', 'manager'] },
   { key: 'inventory',     href: '/dashboard/inventory',      en: 'Inventory',     ar: 'المخزون',        icon: 'category',               exact: false },
