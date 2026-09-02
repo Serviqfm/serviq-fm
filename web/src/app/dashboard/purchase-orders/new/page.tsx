@@ -31,6 +31,7 @@ export default function NewPurchaseOrderPage() {
   const [status, setStatus] = useState<'draft' | 'sent'>('draft')
   const [expectedAt, setExpectedAt] = useState('')
   const [notes, setNotes] = useState('')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
   const [lines, setLines] = useState<Line[]>([{ item_id: '', quantity: '1', unit_cost: '' }])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,6 +89,7 @@ export default function NewPurchaseOrderPage() {
         status,
         expected_at: expectedAt || null,
         notes: notes || null,
+        delivery_address: deliveryAddress || null,
         lines: validLines.map(l => ({ item_id: l.item_id, quantity: Number(l.quantity), unit_cost: Number(l.unit_cost || 0) })),
       }),
     })
@@ -150,6 +152,13 @@ export default function NewPurchaseOrderPage() {
               <label style={labelStyle}>Expected date</label>
               <input type="date" value={expectedAt} onChange={e => setExpectedAt(e.target.value)} style={fieldStyle} />
             </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Delivery address</label>
+            <textarea value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} rows={2}
+              placeholder="Appears on the PDF the vendor receives"
+              style={{ ...fieldStyle, resize: 'vertical' }} />
           </div>
 
           <div>

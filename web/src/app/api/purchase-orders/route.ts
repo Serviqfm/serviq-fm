@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       status,
       notes: str(body.notes),
       expected_at: str(body.expected_at),
+      delivery_address: str(body.delivery_address),
     })
     .select()
     .single()
