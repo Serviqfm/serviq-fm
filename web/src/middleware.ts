@@ -115,6 +115,23 @@ function makeUserClient(req: NextRequest) {
   return { supabase, getUser, applyCookies }
 }
 
+// P0 (playbook §2 A2): the workspace split. `organisations.has_cafm` /
+// `has_procurement` decide which half of /dashboard a tenant may reach. A
+// procurement-only tenant still uses the CAFM pages listed below — vendors, POs,
+// inventory, invoices, cost centers, reports and settings are SHARED, not
+// duplicated (A1) — so those prefixes stay reachable; everything else in
+// /dashboard (work orders, assets, PM, …) is CAFM-only.
+const PROCUREMENT_SHARED_PREFIXES = [
+  '/dashboard/purchase-orders',
+  '/dashboard/vendors',
+  '/dashboard/inventory',
+  '/dashboard/invoices',
+  '/dashboard/cost-centers',
+  '/dashboard/reports',
+  '/dashboard/settings',
+]
+const underPrefix = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + '/')
+
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
@@ -198,14 +215,31 @@ export async function middleware(req: NextRequest) {
     // `organisations.offboarded_at` column (Sprint F migration); the joined select would
     // then fail and PostgREST returns null — which the middleware used to read as 'no
     // profile' and log the user out on every navigation. Do this defensively:
-    //  1. Try the full select; if it errors, fall back to a minimal id check.
+    //  1. Try the full select (with the P0 workspace flags, then without); if both
+    //     error, fall back to a minimal id check.
     //  2. Only deny access if we can prove the user is disabled or their org is
     //     offboarded — otherwise let them through.
-    const full = await supabase
+    type Profile = {
+      role: string | null
+      is_active: boolean | null
+      disabled: boolean | null
+      must_change_password: boolean | null
+      organisations: { offboarded_at: string | null; has_cafm?: boolean | null; has_procurement?: boolean | null } | null
+    }
+    type ProfileResult = { data: Profile | null; error: { code?: string; message?: string } | null }
+    const PROFILE_BASE = 'role, is_active, disabled, must_change_password, organisations(offboarded_at'
+    const selectProfile = (cols: string) => supabase
       .from('users')
-      .select('role, is_active, disabled, must_change_password, organisations(offboarded_at)')
+      .select(cols)
       .eq('id', user.id)
-      .maybeSingle() as { data: { role: string | null; is_active: boolean | null; disabled: boolean | null; must_change_password: boolean | null; organisations: { offboarded_at: string | null } | null } | null; error: { code?: string; message?: string } | null }
+      .maybeSingle() as unknown as Promise<ProfileResult>
+
+    // Try with the P0 workspace flags; if organisations doesn't have them yet
+    // (procurement-01-workspace.sql not run), fall back to the flag-less select
+    // so every check below — disabled, offboarded, password, requester — keeps
+    // running exactly as it does today instead of dropping to the minimal path.
+    let full = await selectProfile(PROFILE_BASE + ', has_cafm, has_procurement)')
+    if (full.error) full = await selectProfile(PROFILE_BASE + ')')
 
     if (full.error) {
       console.warn('[middleware] full profile query failed, falling back', full.error)
@@ -238,6 +272,25 @@ export async function middleware(req: NextRequest) {
     // /request is top-level (not under this matcher), so there is no redirect loop.
     if (profile.role === 'requester') {
       return applyCookies(NextResponse.redirect(new URL('/request', req.url)))
+    }
+
+    // P0 workspace routing. Both flags read permissively: a missing column or a
+    // pre-migration DB gives hasCafm=true / hasProcurement=false, i.e. today's
+    // CAFM-only behavior, and none of the branches below fire.
+    const org = profile.organisations
+    const hasCafm = org?.has_cafm !== false
+    const hasProcurement = org?.has_procurement === true
+    const inProcurement = underPrefix(path, '/dashboard/procurement')
+
+    if (path === '/dashboard/workspace-selector') {
+      // Only a both-workspace tenant has a choice to make.
+      if (!(hasCafm && hasProcurement)) {
+        return applyCookies(NextResponse.redirect(new URL(hasProcurement ? '/dashboard/procurement' : '/dashboard', req.url)))
+      }
+    } else if (inProcurement && !hasProcurement) {
+      return applyCookies(NextResponse.redirect(new URL('/dashboard', req.url)))
+    } else if (!hasCafm && hasProcurement && !PROCUREMENT_SHARED_PREFIXES.some(p => underPrefix(path, p))) {
+      return applyCookies(NextResponse.redirect(new URL('/dashboard/procurement', req.url)))
     }
 
     return applyCookies(NextResponse.next())
