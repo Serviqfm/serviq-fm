@@ -691,3 +691,85 @@ merged between batches.
 Adversarial review caught, across the wave: a dashboard SECURITY DEFINER intra-org RLS bypass
 (CRITICAL-class), a dead SLA engine, a stranded-downtime trigger path, a false-audit-on-rejection,
 a silent 1000-row purge cap, and a non-idempotent migration — all fixed pre-merge.
+
+---
+
+## Wave 6 — Tracker burndown + mobile release (2026-07-21 → 2026-08-09)
+
+Burned down the owner's `Serviq-FM-Tracker.xlsx` "To Do" list. A reconciliation pass over all
+126 To-Do IDs against shipped code found ~28 already done (tracker was stale, pre-dating Waves 4.8/5);
+the genuinely-open items were built across **10 stacked batches (PRs #103–#113)**, plus the SQL reorg
+(#102), the stack-landing PR (#114) and the mobile store-prep fix (#115).
+
+**Stacked-branch model:** each batch based on the previous one; disjoint-file tracks per batch; the
+parent added Sidebar nav centrally (agents never touched it) and consolidated the log. NOTE for future
+waves: stacked PRs merge into their PARENT branch — landing the stack on main needed one final
+top-of-stack → main PR (#114). Merge top-down or expect that extra step.
+
+### Batches
+- **W6.1** (#103) — invoice labor/cost prefill, vendor-invoice status, PM seasonal + lead-time form
+  fields, user list/profile/export residuals, **MKT-15 failure codes**, dashboard completeness, asset
+  criticality + last_pm_at trigger. *SQL: w6-1-vendor-invoice-status, w6-1-failure-codes, w6-1-asset-criticality.*
+- **W6.2** (#104) — mobile: DB categories, native due-date picker, scan-to-confirm, barcode formats,
+  mobile time-logs → web Labor tab, auto-timer, offline-replay audit rows, Today home, requester submit.
+- **W6.3** (#105) — mobile: drawn close-out signature (WO-19), locations browse/edit, full asset edit,
+  in-app change password. *Native deps added: signature-canvas, webview.*
+- **W6.4** (#106) — asset custom fields/statuses/depreciation, **AL-12 technicians edit only assets at
+  their sites**, Asset Log review-due cron + field-config + import + re-parent, warranty claims.
+  *SQL: w6-4-asset-custom-fields, -asset-statuses, -asset-depreciation, -warranty-claims.*
+- **W6.5** (#107) — full plan limits + usage page, **custom branding wired** (hex-validated, SSRF-guarded
+  logo), batched notification fan-out, polling refresh, shift muting, app↔notification language sync,
+  POST /api/v1/work-orders, asset polish (op-hours, filters, barcode, labels, rollup).
+  *SQL: w6-5-branding, w6-5-shift, w6-5-asset-ophours.*
+- **W6.6** (#108) — tenant announcements, tenant data export, monthly bank-transfer invoice auto-draft,
+  **PDPL** (self-service export, deletion queue, retention notice + closed an RLS read-hole on
+  account_deletion_requests), WO task upgrades + required-to-close, @mentions, inspection-PDF distribution.
+  *SQL: w6-6-announcements, -tenant-invoice-autodraft, -pdpl, -wo-tasks, -inspection-recipients.*
+- **W6.7** (#109) — NEW MODULES (MVP): permit-to-work, incident log, cost centers + budget-vs-actual,
+  asset check-in/out. *SQL: w6-7-permits, -incidents, -cost-centers, -asset-checkout.*
+- **W6.8** (#110) — NEW MODULES (MVP): IoT/BMS condition monitoring (+ key-authed ingest), utilities/
+  energy dashboard, cross-site inspection compliance, unit handovers + Hijri helper.
+  *SQL: w6-8-iot, -utilities, -handovers.*
+- **W6.9** (#111) — space hierarchy + floor plans, move management, PM CSV import/export + schedule
+  groups, **automation builder MVP** (rules → notify-role via a non-fatal AFTER trigger).
+  *SQL: w6-9-space-hierarchy, -floor-plans, -moves, -pm-groups, -automation.*
+- **W6.10** (#112) — active-site switcher (1C-33, single-org, no RLS change) + **AL-16 Core-6
+  site-scoping** (additive RESTRICTIVE SELECT policies; default-unrestricted preserved).
+  *SQL: w6-10-sitescope-core6.*
+- **W6.11** (#113) — **1C-32 custom roles** as a strictly SUBTRACTIVE overlay (base role + capability
+  toggles; authorization always decided by users.role; custom_role_id locked from self-assignment via a
+  purely additive extension to enforce_user_privilege_lock). *SQL: w6-11-custom-roles.*
+
+### Design decisions taken with the owner
+- **1C-32** built as the UI/route OVERLAY, never the full-RBAC RLS rewrite.
+- **1C-33** scoped to an active-site switcher; the JWT/GUC multi-org rewrite was rejected as the
+  catastrophic path (~89 RLS policies derive tenant from a single-org subquery).
+- **AL-16** limited to the six tables with their own site_id.
+- **1C-27** (multiple PM inactive periods) — DEFERRED by the owner; needs the guarded PM generator.
+
+### Security findings caught pre-merge (adversarial review)
+A **CRITICAL privilege escalation already live on main**: `PATCH /api/users/[id]` admitted managers and
+wrote `role` via the service-role client with no admin-only guard — a manager could create a user at an
+address they controlled and PATCH it to `admin`. The create paths had the guard; PATCH never did. Fixed
+in #113 along with: cost_centers writes being UI-gated only, warranty asset_id not org-bound, move
+approval bypass on INSERT, concurrent double-checkout, an unscoped IoT ingest endpoint, a required
+signature defeated by a prefilled name, a stale active-site id that blanked every list, and 8 capability
+toggles that enforced nothing (4 wired, 4 removed rather than ship false assurance).
+
+### Mobile release (#115)
+`app.json` declared **no iOS permission usage strings** while the code used the camera (6 sites) and
+photo library (3) — an automatic App Store rejection and an on-device crash at the permission prompt.
+Added the expo-camera + expo-image-picker config plugins with permission copy, plus a URL scheme.
+No location permission requested (unused). **iOS: built and submitted for review.** Android: build
+succeeds; the first Play release must be uploaded manually (Google rejects API upload for a new package),
+after which a Google Service Account key enables `eas submit`.
+
+Also fixed: `branding.test.ts` was environment-coupled (asserted a fallback that only holds when
+NEXT_PUBLIC_SUPABASE_URL is unset — CI sets it), so it passed locally and failed in CI. Both branches
+now control the env var explicitly; the origin-restriction branch gained coverage.
+
+### Still owner-only
+DV-06 (Supabase CLI `db pull` DR baseline) · AP-01 (Stripe activation env) · Vercel WAF rules ·
+env vars (IMPERSONATION_SIGNING_KEY, SERVIQ_VAT_NUMBER, MEDIA_RETENTION_MONTHS) · enabling the
+media-purge / tenant-invoice-autodraft crons after review · Play Console first upload + reviewer
+test account, privacy policy URL and privacy nutrition labels.
