@@ -14,6 +14,8 @@ export default function EditVendorPage() {
   const [form, setForm] = useState({
     company_name: '', company_name_ar: '', contact_name: '',
     phone: '', email: '', specialisation: '', vat_number: '', cr_number: '',
+    // P2: commercial terms + contract window. bank_* are ERP-sync placeholders.
+    payment_terms: '', bank_name: '', bank_iban: '', contract_start: '', contract_end: '',
   })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -29,6 +31,11 @@ export default function EditVendorPage() {
       email: data.email ?? '',
       specialisation: data.specialisation ?? '',
       vat_number: data.vat_number ?? '',
+      payment_terms: data.payment_terms ?? '',
+      bank_name: data.bank_name ?? '',
+      bank_iban: data.bank_iban ?? '',
+      contract_start: data.contract_start ?? '',
+      contract_end: data.contract_end ?? '',
       cr_number: data.cr_number ?? '',
     })
     setLoading(false)
@@ -51,6 +58,11 @@ export default function EditVendorPage() {
       specialisation: form.specialisation || null,
       vat_number: form.vat_number || null,
       cr_number: form.cr_number || null,
+      payment_terms: form.payment_terms || null,
+      bank_name: form.bank_name || null,
+      bank_iban: form.bank_iban || null,
+      contract_start: form.contract_start || null,
+      contract_end: form.contract_end || null,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
     if (updateError) { setError(updateError.message); setSaving(false) }
@@ -119,6 +131,34 @@ export default function EditVendorPage() {
             <input name='cr_number' value={form.cr_number} onChange={handleChange} style={fieldStyle} />
           </div>
         </div>
+        <div>
+          <label style={labelStyle}>Payment Terms</label>
+          <input name='payment_terms' value={form.payment_terms} onChange={handleChange} style={fieldStyle}
+            placeholder='e.g. Net 30' />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Contract Start</label>
+            <input name='contract_start' type='date' value={form.contract_start} onChange={handleChange} style={fieldStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Contract End</label>
+            <input name='contract_end' type='date' value={form.contract_end} onChange={handleChange} style={fieldStyle} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Bank Name</label>
+            <input name='bank_name' value={form.bank_name} onChange={handleChange} style={fieldStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Bank IBAN</label>
+            <input name='bank_iban' value={form.bank_iban} onChange={handleChange} style={fieldStyle} />
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
+          Bank details are stored for ERP sync only — ServIQ-FM never executes payments.
+        </p>
         {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button type='submit' disabled={saving} style={{ flex: 1, background: '#1a1a2e', color: 'white', padding: '11px', borderRadius: 8, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 500, fontSize: 15, opacity: saving ? 0.7 : 1 }}>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { onTimeDelivery } from '@/lib/purchaseOrders'
 
 export default function VendorDetailPage() {
   const { id } = useParams()
@@ -23,6 +24,9 @@ export default function VendorDetailPage() {
   const [rating, setRating] = useState(0)
   const [savingRating, setSavingRating] = useState(false)
   const [statusBusy, setStatusBusy] = useState<string | null>(null)
+  // P2: on-time delivery is COMPUTED from received POs, never stored — there is
+  // no metric to drift out of date.
+  const [delivery, setDelivery] = useState<{ onTime: number; total: number; percent: number | null } | null>(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll(); fetchVendorWOs() }, [id])
@@ -31,12 +35,19 @@ export default function VendorDetailPage() {
     // Work orders are loaded by fetchVendorWOs via assigned_vendor_id (DV-12) — do not
     // also query assigned_to here (that matched the old vendor-id-in-assigned_to bug and
     // raced this state to empty).
-    const [{ data: v }, { data: inv }] = await Promise.all([
+    const [{ data: v }, { data: inv }, { data: pos }] = await Promise.all([
       supabase.from('vendors').select('*').eq('id', id).single(),
       supabase.from('vendor_invoices').select('*').eq('vendor_id', id).order('created_at', { ascending: false }),
+      // Only POs that actually landed AND carried a promised date can be judged
+      // on-time; everything else is excluded from both halves of the fraction.
+      supabase.from('purchase_orders')
+        .select('received_at, expected_at')
+        .eq('vendor_id', id).eq('status', 'received')
+        .not('expected_at', 'is', null).not('received_at', 'is', null),
     ])
     if (v) { setVendor(v); setRating(v.average_rating ?? 0) }
     if (inv) setInvoices(inv)
+    if (pos) setDelivery(onTimeDelivery(pos))
     setLoading(false)
   }
 
@@ -142,6 +153,22 @@ export default function VendorDetailPage() {
     closed:      { bg: '#f5f5f5', color: '#424242' },
   }
 
+  // Contract-expiry badge: 30 days matches the /api/cron/compliance-expiry window
+  // that emails the admins, so the screen and the alert agree.
+  const daysToContractEnd = vendor.contract_end
+    ? Math.ceil((new Date(vendor.contract_end).getTime() - Date.now()) / 86400000)
+    : null
+  const contractLabel = !vendor.contract_end
+    ? ''
+    : daysToContractEnd! < 0
+      ? `${vendor.contract_end} · EXPIRED`
+      : daysToContractEnd! <= 30
+        ? `${vendor.contract_end} · expires in ${daysToContractEnd} days`
+        : vendor.contract_end
+  const onTimeLabel = !delivery || delivery.percent === null
+    ? 'No delivered POs yet'
+    : `${delivery.percent}% (${delivery.onTime}/${delivery.total})`
+
   const invStatusConfig: Record<string, { bg: string; color: string }> = {
     pending:  { bg: '#fff8e1', color: '#f57f17' },
     approved: { bg: '#e8eaf6', color: '#283593' },
@@ -208,10 +235,21 @@ export default function VendorDetailPage() {
             { label: 'Specialisation', value: vendor.specialisation ?? '' },
             { label: 'VAT Number', value: vendor.vat_number ?? '' },
             { label: 'CR Number', value: vendor.cr_number ?? '' },
+            { label: 'Payment Terms', value: vendor.payment_terms ?? '' },
+            { label: 'On-Time Delivery', value: onTimeLabel },
+            { label: 'Contract Start', value: vendor.contract_start ?? '' },
+            { label: 'Contract End', value: contractLabel },
+            { label: 'Bank Name', value: vendor.bank_name ?? '' },
+            { label: 'Bank IBAN', value: vendor.bank_iban ?? '' },
           ].map(({ label, value }) => (
             <div key={label} style={cardStyle}>
               <p style={{ fontSize: 12, color: '#999', margin: '0 0 4px' }}>{label}</p>
-              <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{value}</p>
+              <p style={{
+                fontSize: 14, fontWeight: 500, margin: 0,
+                color: label === 'Contract End' && daysToContractEnd != null && daysToContractEnd <= 30
+                  ? (daysToContractEnd < 0 ? '#b71c1c' : '#f57f17')
+                  : undefined,
+              }}>{value}</p>
             </div>
           ))}
         </div>
