@@ -29,6 +29,9 @@ export default function PurchaseOrdersPage() {
   // a tenant that hasn't run procurement-02-requisitions.sql sees this page
   // exactly as before instead of a failed join.
   const [reqByPo, setReqByPo] = useState<Record<string, { id: string; number: number }>>({})
+  // P3: POs with at least one non-ok goods-receipt line. Same tolerant pattern —
+  // a tenant without the goods-receipt migration simply sees no badges.
+  const [flaggedPos, setFlaggedPos] = useState<Set<string>>(new Set())
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -60,6 +63,21 @@ export default function PurchaseOrdersPage() {
       setReqByPo(Object.fromEntries(
         reqs.map(r => [r.purchase_order_id as string, { id: r.id as string, number: r.requisition_number as number }])
       ))
+    }
+
+    const { data: grs } = await supabase
+      .from('goods_receipts')
+      .select('purchase_order_id, lines:goods_receipt_lines(condition)')
+      .eq('organisation_id', profile.organisation_id)
+    if (grs) {
+      const flagged = new Set<string>()
+      for (const gr of grs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((gr.lines ?? []).some((l: any) => l.condition !== 'ok')) {
+          flagged.add(gr.purchase_order_id as string)
+        }
+      }
+      setFlaggedPos(flagged)
     }
     setLoading(false)
   }
@@ -161,6 +179,13 @@ export default function PurchaseOrdersPage() {
                         <Link href={`/dashboard/purchase-orders/${po.id}`} className="text-primary hover:underline">
                           #{po.po_number}
                         </Link>
+                        {flaggedPos.has(po.id) && (
+                          <span title="A delivery on this PO was damaged, wrong or short"
+                            className="ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-semibold">
+                            <span className="material-symbols-outlined text-[11px]">report</span>
+                            flagged
+                          </span>
+                        )}
                         {reqByPo[po.id] && (
                           <Link href={`/dashboard/procurement/requisitions/${reqByPo[po.id].id}`}
                             title="Created from a requisition"

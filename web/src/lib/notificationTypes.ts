@@ -92,6 +92,11 @@ export const NOTIFICATION_TYPES = {
     label: 'A requisition I created has been approved or rejected',
     category: 'procurement',
   },
+  PO_RECEIPT_DISCREPANCY: {
+    key: 'po_receipt_discrepancy',
+    label: 'A delivery arrived damaged, short or wrong',
+    category: 'procurement',
+  },
 
   // Parts/Inventory
   PART_LOW_STOCK: {

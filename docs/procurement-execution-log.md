@@ -68,3 +68,23 @@ commit and the evidence it was verified against. "Not verified" means exactly th
 - Added `PATCH /api/purchase-orders/[id]` (draft-only), which the playbook does not list. Without it `delivery_address` is unreachable on a PO created by requisition conversion, so the column and the vendor PDF would both be dead on arrival.
 - No cancel action: the status vocabulary keeps `cancelled`, but nothing in P2 sets it and the playbook does not ask for it.
 - The receipt-history panel shows the stock ledger, which is the only receipt record V1 has. P3 replaces it with per-line goods receipts.
+
+### Batch P3 — Goods receipt & inspection
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `procurement-04-goods-receipt.sql` — `goods_receipts`, `goods_receipt_lines`, `stock_transactions.ref_goods_receipt_id` | _see PR_ | Not verified — needs the live DB. `.test.sql` covers all 7 assertions. |
+| `receive_purchase_order_lines(po, JSONB)` — per-line qty/condition/bin, ok-only stock movement, completion rule | _see PR_ | `.test.sql` 1a/1b (partial: +6 stock, PO stays open), 2 (damaged writes no ledger row), 4 (completing receipt flips to received). |
+| Over-receipt guard | _see PR_ | `.test.sql` 5 — cumulative ok qty may not exceed the order. Not in the playbook; added because nothing else prevented it. |
+| `receive_purchase_order()` kept working as receive-all sugar | _see PR_ | `.test.sql` 7 — the PO list button and empty-body POST behave as before and now write a real receipt. |
+| Cross-org receive raises | _see PR_ | `.test.sql` 6. |
+| `/api/purchase-orders/[id]/receive` takes an optional JSON body | _see PR_ | Build green; empty body is the old path exactly. |
+| Per-line receive UI, receipt history, discrepancy badges (detail + list) | _see PR_ | Built as `ƒ /dashboard/purchase-orders/[id]` (5.96 kB). Falls back to the all-or-nothing button pre-migration. |
+| `po_receipt_discrepancy` notification to PO creator + admins | _see PR_ | Renders itself in Settings → Notifications via the existing `procurement` category. Delivery not verified. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` ✓ 141/141 pages · `vitest run` 22 files / 128 tests passed. |
+
+**Deviations / notes:**
+
+- No Vitest: P3's logic is all in the RPC and covered by `.test.sql`. The client-side per-line aggregation is a sum.
+- `condition` is a reserved word in PL/pgSQL, so it is quoted inside the function body. The column name itself follows the playbook.
+- The receipt UI and the completion rule read the same cumulative-ok-quantity definition the RPC uses, so screen and database cannot disagree about what is outstanding.
