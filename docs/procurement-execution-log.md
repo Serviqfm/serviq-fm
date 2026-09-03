@@ -47,3 +47,24 @@ commit and the evidence it was verified against. "Not verified" means exactly th
 - No Vitest added: P1 has no pure-TS logic worth pinning (band selection and sequencing live in SQL, covered by `.test.sql`). The playbook's Vitest item lands in P4 with the 3-way matcher.
 - The requisition detail's "view the purchase order" link goes to the PO **list** — there is no PO detail page until P2.
 - Known residual, documented in the migration header: `requisition_items` keeps open org RLS, so a direct PostgREST write could edit lines of an in-flight requisition. Status changes are trigger-guarded; lines are not.
+
+### Batch P2 — PO lifecycle + vendor upgrades
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `procurement-03-po-vendor.sql` — widened PO status, `delivery_address` / `sent_at` / `vendor_email_snapshot`, 5 vendor columns | _see PR_ | Not verified — needs the live DB. `.test.sql` covers the vocabulary, the receive path and the vendor columns. |
+| `receive_purchase_order()` widened to accept `acknowledged` / `in_transit` | _see PR_ | `.test.sql` 2 — **required, not cosmetic**: the shipped RPC only received draft/sent, so the new in-flight states would have been unreceivable. |
+| Send-to-vendor: PO PDF + email, `draft → sent` | _see PR_ | Build green; route emitted. Actual delivery not verified — needs a live send (Resend). |
+| Forward-only status advance route | _see PR_ | `lib/purchaseOrders.test.ts` — 5 cases incl. backwards, terminal, and the statuses the route must refuse to own. |
+| PO detail page (stepper, lines, send, requisition link, receipt ledger) | _see PR_ | Built as `ƒ /dashboard/purchase-orders/[id]` (4.28 kB). |
+| PO PATCH (draft-only delivery details) + create-form address field | _see PR_ | Build green. Needed so a PO converted from a requisition can still get an address before it is sent. |
+| Vendor edit/detail: payment terms, bank fields, contract window | _see PR_ | Build green. |
+| On-time delivery %, computed not stored | _see PR_ | `lib/purchaseOrders.test.ts` — including a hand-computed 2/3 = 67% sample. A timezone bug (deadline parsed local, receipts UTC) was caught by this test and fixed. |
+| Contract-expiry alerts (30/7 day) | _see PR_ | Extended `/api/cron/compliance-expiry` rather than adding a cron; no `vercel.json` change. Not verified — needs a live cron run. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` ✓ 141/141 pages · `vitest run` 22 files / 128 tests passed. |
+
+**Deviations / notes:**
+
+- Added `PATCH /api/purchase-orders/[id]` (draft-only), which the playbook does not list. Without it `delivery_address` is unreachable on a PO created by requisition conversion, so the column and the vendor PDF would both be dead on arrival.
+- No cancel action: the status vocabulary keeps `cancelled`, but nothing in P2 sets it and the playbook does not ask for it.
+- The receipt-history panel shows the stock ledger, which is the only receipt record V1 has. P3 replaces it with per-line goods receipts.

@@ -8,6 +8,10 @@ import Link from 'next/link'
 const STATUS_CLS: Record<string, string> = {
   draft: 'bg-outline-variant/20 text-on-surface-variant border border-outline-variant/30',
   sent: 'bg-secondary/10 text-secondary border border-secondary/20',
+  // P2 lifecycle: acknowledged/in_transit share the sent palette — all three mean
+  // "with the vendor, not here yet".
+  acknowledged: 'bg-secondary/10 text-secondary border border-secondary/20',
+  in_transit: 'bg-secondary/10 text-secondary border border-secondary/20',
   received: 'bg-primary/10 text-primary border border-primary/20',
   cancelled: 'bg-error/10 text-error border border-error/20',
 }
@@ -17,7 +21,7 @@ export default function PurchaseOrdersPage() {
   const [pos, setPos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [receiving, setReceiving] = useState<string | null>(null)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'sent' | 'received' | 'cancelled'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'sent' | 'acknowledged' | 'in_transit' | 'received' | 'cancelled'>('all')
   // FM-17: org-level module toggle (Settings → Purchasing). Default on;
   // a missing column (pre-migration) leaves it on, like lib/featureFlags.ts.
   const [moduleEnabled, setModuleEnabled] = useState(true)
@@ -79,7 +83,7 @@ export default function PurchaseOrdersPage() {
   }
 
   const filtered = pos.filter(p => filterStatus === 'all' || p.status === filterStatus)
-  const openCount = pos.filter(p => p.status === 'draft' || p.status === 'sent').length
+  const openCount = pos.filter(p => ['draft', 'sent', 'acknowledged', 'in_transit'].includes(p.status)).length
 
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
 
@@ -125,10 +129,10 @@ export default function PurchaseOrdersPage() {
 
         {/* Status filter tabs */}
         <div className="flex gap-2 flex-wrap">
-          {(['all', 'draft', 'sent', 'received', 'cancelled'] as const).map(s => (
+          {(['all', 'draft', 'sent', 'acknowledged', 'in_transit', 'received', 'cancelled'] as const).map(s => (
             <button key={s} onClick={() => setFilterStatus(s)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${filterStatus === s ? 'bg-primary/10 text-primary border border-primary/40' : 'border border-outline-variant text-on-surface-variant hover:bg-surface-container-low'}`}>
-              {s}
+              {s.replace(/_/g, ' ')}
             </button>
           ))}
         </div>
@@ -154,7 +158,9 @@ export default function PurchaseOrdersPage() {
                   {filtered.map(po => (
                     <tr key={po.id} className="hover:bg-surface-container-low transition-colors">
                       <td className="px-4 py-4 text-sm font-semibold text-on-surface whitespace-nowrap">
-                        #{po.po_number}
+                        <Link href={`/dashboard/purchase-orders/${po.id}`} className="text-primary hover:underline">
+                          #{po.po_number}
+                        </Link>
                         {reqByPo[po.id] && (
                           <Link href={`/dashboard/procurement/requisitions/${reqByPo[po.id].id}`}
                             title="Created from a requisition"
@@ -166,13 +172,13 @@ export default function PurchaseOrdersPage() {
                       </td>
                       <td className="px-4 py-4 text-sm text-on-surface-variant">{po.vendor?.company_name ?? '—'}</td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_CLS[po.status] ?? ''}`}>{po.status}</span>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_CLS[po.status] ?? ''}`}>{String(po.status).replace(/_/g, ' ')}</span>
                       </td>
                       <td className="px-4 py-4 text-sm text-on-surface-variant">{(po.items ?? []).length}</td>
                       <td className="px-4 py-4 text-sm text-on-surface-variant whitespace-nowrap">{poTotal(po).toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td className="px-4 py-4 text-sm text-on-surface-variant whitespace-nowrap">{po.expected_at ?? '—'}</td>
                       <td className="px-4 py-4">
-                        {(po.status === 'draft' || po.status === 'sent') ? (
+                        {['draft', 'sent', 'acknowledged', 'in_transit'].includes(po.status) ? (
                           <button onClick={() => receive(po.id)} disabled={receiving === po.id}
                             className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50">
                             {receiving === po.id ? '…' : 'Receive'}

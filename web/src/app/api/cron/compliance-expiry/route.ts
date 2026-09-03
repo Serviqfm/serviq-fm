@@ -1,7 +1,10 @@
-// FM-04 — compliance certificate expiry cron. Runs daily.
-// Notifies org admins of active certificates expiring in exactly 30 or 7 days
-// (compliance_certificates.expires_at) via in-app alert-center rows. Each notice
-// is deduped per (cert, window) so re-runs never re-notify.
+// FM-04 — expiry cron. Runs daily.
+// Notifies org admins of things expiring in exactly 30 or 7 days, via in-app
+// alert-center rows deduped per (subject, window) so re-runs never re-notify:
+//   * compliance_certificates.expires_at (FM-04)
+//   * vendors.contract_end               (P2 — procurement)
+// Extending this cron rather than adding a procurement one: same cadence, same
+// recipients, same dedupe machinery.
 //
 // Auth: mirrors /api/cron/escalations exactly — requires Authorization: Bearer
 // ${CRON_SECRET}, fails closed if unset. Vercel cron sends that header automatically.
@@ -26,6 +29,13 @@ type CertRow = {
   title: string
   type: string
   expires_at: string // DATE
+}
+
+type VendorRow = {
+  id: string
+  organisation_id: string
+  company_name: string | null
+  contract_end: string // DATE
 }
 
 // YYYY-MM-DD for `days` from today (UTC), matching the DATE column.
@@ -86,6 +96,32 @@ async function run() {
       }
     } catch (e) {
       errors.push(`${days}d: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    // P2 — vendor contracts. Distinct dedupe namespace from certificates.
+    // A missing contract_end column (pre-migration) throws here and is recorded
+    // as a soft error, leaving the certificate half of the run untouched.
+    try {
+      const target = isoDate(days)
+      const { data: vendors } = await admin
+        .from('vendors')
+        .select('id, organisation_id, company_name, contract_end')
+        .eq('contract_end', target)
+        .returns<VendorRow[]>()
+
+      for (const v of vendors ?? []) {
+        const link = `${APP_URL}/dashboard/vendors/${v.id}`
+        const title = `Vendor contract expiring in ${days} days`
+        const body = `${v.company_name ?? 'Vendor'} — contract ends ${v.contract_end}`
+        const key = `vendor_contract:${v.id}:${days}`
+        for (const a of await orgAdmins(v.organisation_id)) {
+          if (await NotificationService.insertInApp(a.id, v.organisation_id, 'daily_summary_ready', {
+            title, body, link, dedupeKey: `${key}:${a.id}`,
+          })) notified++
+        }
+      }
+    } catch (e) {
+      errors.push(`vendor-contract ${days}d: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
