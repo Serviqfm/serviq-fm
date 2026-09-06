@@ -97,6 +97,11 @@ export const NOTIFICATION_TYPES = {
     label: 'A delivery arrived damaged, short or wrong',
     category: 'procurement',
   },
+  INVOICE_MATCH_MISMATCH: {
+    key: 'invoice_match_mismatch',
+    label: 'A vendor invoice failed the 3-way match',
+    category: 'procurement',
+  },
 
   // Parts/Inventory
   PART_LOW_STOCK: {
