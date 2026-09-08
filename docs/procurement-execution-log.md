@@ -88,3 +88,23 @@ commit and the evidence it was verified against. "Not verified" means exactly th
 - No Vitest: P3's logic is all in the RPC and covered by `.test.sql`. The client-side per-line aggregation is a sum.
 - `condition` is a reserved word in PL/pgSQL, so it is quoted inside the function body. The column name itself follows the playbook.
 - The receipt UI and the completion rule read the same cumulative-ok-quantity definition the RPC uses, so screen and database cannot disagree about what is outstanding.
+
+### Batch P4 — Invoice & 3-way match
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `procurement-05-three-way.sql` — `purchase_order_id` / `match_status` / `match_detail` on `vendor_invoices` | _see PR_ | Not verified — needs the live DB. `.test.sql` covers defaults, the CHECK, and the org-bound FK. |
+| `vendor_invoice_lines` (deviation — see below) | _see PR_ | `.test.sql` 4 (cascade) and 5 (cross-org INSERT refused). |
+| `lib/threeWayMatch.ts` — the pure matcher | _see PR_ | **17 Vitest cases** covering all three checks, both tolerance edges (±1% exactly in and just out), accumulation across lines, unlinked lines, negative deltas, zero-sum totals, and float rounding. |
+| `POST /api/vendor-invoices/[id]/match` | _see PR_ | Build green. Refuses to guess when goods-receipt or line data is missing rather than flagging a false mismatch. |
+| `PATCH /api/vendor-invoices/[id]` — PO link + lines | _see PR_ | Build green. Clears a stored verdict whenever its inputs change; refuses to edit a paid invoice. |
+| Status route additions (`approved_for_payment` / `disputed`) with `can_view_financials` denial | _see PR_ | Build green. Only a `matched` invoice can be approved for payment. |
+| Vendor-invoice detail page with the match panel | _see PR_ | Built as `ƒ /dashboard/vendors/[id]/invoices/[invoiceId]` (4.96 kB). |
+| `invoice_match_mismatch` notification to admins | _see PR_ | Renders in Settings → Notifications via the `procurement` category. Delivery not verified. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` ✓ 141/141 pages · `vitest run` 23 files / 145 tests passed. |
+
+**Deviations / notes:**
+
+- **`vendor_invoice_lines` was added, and the playbook does not list it.** `vendor_invoices` has no line items — only `amount` — so the playbook's own acceptance criterion ("seeded mismatch: invoice qty > received flags red with the exact delta") is impossible to meet without invoiced quantities. Without the table the matcher could only ever compare totals.
+- `match_status` is deliberately NOT the payment status. `vendor_invoices.status` keeps its MKT-18 lifecycle; the API keeps the two in step using only transitions that state machine already allows, so a paid invoice is never dragged back open by a match decision.
+- Approving for payment requires `match_status = 'matched'`. Approving an invoice that failed the match is precisely what the match exists to prevent.

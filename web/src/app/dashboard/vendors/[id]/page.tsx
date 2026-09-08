@@ -356,7 +356,21 @@ export default function VendorDetailPage() {
                     const cfg = invStatusConfig[inv.status] ?? invStatusConfig.pending
                     return (
                       <tr key={inv.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                        <td style={{ padding: '10px 16px', fontSize: 13, fontFamily: 'monospace' }}>{inv.invoice_number ?? ''}</td>
+                        <td style={{ padding: '10px 16px', fontSize: 13, fontFamily: 'monospace' }}>
+                          {/* P4: the invoice detail page is where the 3-way match lives. */}
+                          <Link href={`/dashboard/vendors/${id}/invoices/${inv.id}`} style={{ color: '#006b54', textDecoration: 'none' }}>
+                            {inv.invoice_number ?? '—'}
+                          </Link>
+                          {inv.match_status && inv.match_status !== 'unmatched' && (
+                            <span style={{
+                              marginLeft: 8, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 600,
+                              background: ['mismatch', 'disputed'].includes(inv.match_status) ? '#fce4ec' : '#e8f5e9',
+                              color: ['mismatch', 'disputed'].includes(inv.match_status) ? '#b71c1c' : '#1b5e20',
+                            }}>
+                              {inv.match_status === 'approved_for_payment' ? 'approved to pay' : inv.match_status}
+                            </span>
+                          )}
+                        </td>
                         <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 500 }}>SAR {Number(inv.amount).toLocaleString()}</td>
                         <td style={{ padding: '10px 16px', fontSize: 13, color: '#666' }}>{inv.vat_amount ? 'SAR ' + Number(inv.vat_amount).toLocaleString() : ''}</td>
                         <td style={{ padding: '10px 16px', fontSize: 13, color: '#666' }}>{inv.invoice_date ? format(new Date(inv.invoice_date), 'dd MMM yyyy') : ''}</td>
