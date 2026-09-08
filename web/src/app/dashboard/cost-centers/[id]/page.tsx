@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { woTotalsByWo } from '@/lib/woCost'
+import { budgetUsage } from '@/lib/budget'
 
 const inputCls = 'w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/40'
 const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5'
@@ -30,6 +31,13 @@ export default function CostCenterDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [unassigned, setUnassigned] = useState<any[]>([])
   const [pickWo, setPickWo] = useState('')
+  // P5 budget periods. `periodsAvailable` stays false pre-migration so the whole
+  // section hides rather than showing an empty editor that cannot save.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [periods, setPeriods] = useState<any[]>([])
+  const [periodsAvailable, setPeriodsAvailable] = useState(false)
+  const [spendNow, setSpendNow] = useState<{ reserved: number; actual: number } | null>(null)
+  const [newPeriod, setNewPeriod] = useState({ period: 'annual', starts_on: '', ends_on: '', amount: '' })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
@@ -48,7 +56,47 @@ export default function CostCenterDetailPage() {
     if (cc) setForm({ name: cc.name ?? '', name_ar: cc.name_ar ?? '', code: cc.code ?? '', annual_budget: cc.annual_budget != null ? String(cc.annual_budget) : '' })
 
     await loadWorkOrders(profile.organisation_id)
+    await loadBudget()
     setLoading(false)
+  }
+
+  async function loadBudget() {
+    const { data, error } = await supabase
+      .from('budget_periods').select('*').eq('cost_center_id', id).order('starts_on', { ascending: false })
+    if (error) { setPeriodsAvailable(false); return }
+    setPeriodsAvailable(true)
+    setPeriods(data ?? [])
+
+    const today = new Date().toISOString().slice(0, 10)
+    const current = (data ?? []).find(p => p.starts_on <= today && p.ends_on >= today)
+    if (!current) { setSpendNow(null); return }
+    // budget_spend() is SECURITY INVOKER, so this runs under the caller's RLS and
+    // can only ever total their own organisation.
+    const { data: sp } = await supabase.rpc('budget_spend', {
+      p_cost_center: id, p_from: current.starts_on, p_to: current.ends_on,
+    }).maybeSingle() as { data: { reserved: number; actual: number } | null }
+    setSpendNow(sp ? { reserved: Number(sp.reserved ?? 0), actual: Number(sp.actual ?? 0) } : null)
+  }
+
+  async function addPeriod() {
+    if (!newPeriod.starts_on || !newPeriod.ends_on) return
+    const { error } = await supabase.from('budget_periods').insert({
+      organisation_id: orgId,
+      cost_center_id: id,
+      period: newPeriod.period,
+      starts_on: newPeriod.starts_on,
+      ends_on: newPeriod.ends_on,
+      amount: Number(newPeriod.amount || 0),
+    })
+    if (error) { alert(error.message); return }
+    setNewPeriod({ period: 'annual', starts_on: '', ends_on: '', amount: '' })
+    await loadBudget()
+  }
+
+  async function deletePeriod(periodId: string) {
+    const { error } = await supabase.from('budget_periods').delete().eq('id', periodId)
+    if (error) { alert(error.message); return }
+    await loadBudget()
   }
 
   async function loadWorkOrders(org: string) {
@@ -101,6 +149,15 @@ export default function CostCenterDetailPage() {
   if (loading) return <div className="p-8 text-on-surface-variant">{t('common.loading')}</div>
   if (!center) return <div className="p-8 text-on-surface-variant">{lang === 'ar' ? 'مركز التكلفة غير موجود.' : 'Cost center not found.'}</div>
 
+  const today = new Date().toISOString().slice(0, 10)
+  const currentPeriod = periods.find(p => p.starts_on <= today && p.ends_on >= today) ?? null
+  const usage = currentPeriod && spendNow
+    ? budgetUsage({ reserved: spendNow.reserved, actual: spendNow.actual, amount: Number(currentPeriod.amount) })
+    : null
+  const periodAmount = Number(currentPeriod?.amount ?? 0)
+  const actualPct = periodAmount > 0 ? ((spendNow?.actual ?? 0) / periodAmount) * 100 : 0
+  const reservedPct = periodAmount > 0 ? ((spendNow?.reserved ?? 0) / periodAmount) * 100 : 0
+
   const budget = Number(center.annual_budget || 0)
   const actual = linked.reduce((s, w) => s + (spend[w.id] ?? 0), 0)
   const variance = budget - actual
@@ -131,6 +188,128 @@ export default function CostCenterDetailPage() {
             </p>
           </div>
         </div>
+
+        {/* P5: budget periods — the figure the requisition hard block measures
+            against. cost_centers.annual_budget above stays as the legacy display. */}
+        {periodsAvailable && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
+            <h2 className="text-sm font-bold text-on-surface mb-1">
+              {lang === 'ar' ? 'فترات الميزانية' : 'Budget Periods'}
+            </h2>
+            <p className="text-xs text-on-surface-variant mb-4">
+              {lang === 'ar'
+                ? 'الفترة التي تشمل اليوم هي التي تحكم طلبات الشراء. بدون فترة، لا يوجد حد.'
+                : 'The period covering today governs requisitions. With no period, nothing is blocked.'}
+            </p>
+
+            {currentPeriod && usage && (
+              <div className="mb-5">
+                <div className="flex items-end justify-between mb-2 flex-wrap gap-2">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-secondary">
+                      {lang === 'ar' ? 'الفترة الحالية' : 'Current Period'}
+                    </p>
+                    <p className="text-sm text-on-surface">
+                      {currentPeriod.starts_on} → {currentPeriod.ends_on} · {money(Number(currentPeriod.amount))}
+                    </p>
+                  </div>
+                  <p className={`text-2xl font-bold ${
+                    usage.level === 'full' ? 'text-error' : usage.level === 'warn' ? 'text-secondary' : 'text-primary'
+                  }`}>
+                    {usage.percent}%
+                  </p>
+                </div>
+
+                {/* Reserved sits on top of actual — together they are what the
+                    hard block measures, so they are shown as one stacked bar. */}
+                <div className="h-3 w-full rounded-full bg-surface-container-low overflow-hidden flex">
+                  <div className="bg-primary h-full" style={{ width: `${Math.min(actualPct, 100)}%` }} />
+                  <div className="bg-secondary h-full" style={{ width: `${Math.min(reservedPct, Math.max(100 - actualPct, 0))}%` }} />
+                </div>
+                <div className="flex gap-4 flex-wrap mt-2 text-xs text-on-surface-variant">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" />
+                    {lang === 'ar' ? 'فعلي' : 'Actual'} {money(spendNow?.actual ?? 0)}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-secondary inline-block" />
+                    {lang === 'ar' ? 'محجوز' : 'Reserved'} {money(spendNow?.reserved ?? 0)}
+                  </span>
+                  <span className={usage.remaining < 0 ? 'text-error font-semibold' : ''}>
+                    {lang === 'ar' ? 'المتبقي' : 'Remaining'} {money(usage.remaining)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {periods.length > 0 && (
+              <div className="overflow-x-auto mb-4">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container border-b border-outline-variant/30">
+                      {[
+                        lang === 'ar' ? 'النوع' : 'Type',
+                        lang === 'ar' ? 'من' : 'From',
+                        lang === 'ar' ? 'إلى' : 'To',
+                        lang === 'ar' ? 'المبلغ' : 'Amount',
+                        canWrite ? t('common.actions') : '',
+                      ].filter(Boolean).map(h => (
+                        <th key={h} className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/20">
+                    {periods.map(p => (
+                      <tr key={p.id} className={p.id === currentPeriod?.id ? 'bg-primary/5' : ''}>
+                        <td className="p-3 text-sm text-on-surface capitalize">{p.period}</td>
+                        <td className="p-3 text-sm text-on-surface-variant">{p.starts_on}</td>
+                        <td className="p-3 text-sm text-on-surface-variant">{p.ends_on}</td>
+                        <td className="p-3 text-sm text-on-surface whitespace-nowrap">{money(Number(p.amount))}</td>
+                        {canWrite && (
+                          <td className="p-3">
+                            <button onClick={() => deletePeriod(p.id)}
+                              className="px-3 py-1 rounded-lg border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:text-error hover:bg-error/5 transition-colors">
+                              {t('common.delete')}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {canWrite && (
+              <div className="flex gap-2.5 items-end flex-wrap border-t border-outline-variant/30 pt-4">
+                <div>
+                  <label className={labelCls}>{lang === 'ar' ? 'النوع' : 'Type'}</label>
+                  <select value={newPeriod.period} onChange={e => setNewPeriod(p => ({ ...p, period: e.target.value }))} className={inputCls}>
+                    <option value="monthly">{lang === 'ar' ? 'شهري' : 'Monthly'}</option>
+                    <option value="quarterly">{lang === 'ar' ? 'ربع سنوي' : 'Quarterly'}</option>
+                    <option value="annual">{lang === 'ar' ? 'سنوي' : 'Annual'}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>{lang === 'ar' ? 'من' : 'From'}</label>
+                  <input type="date" value={newPeriod.starts_on} onChange={e => setNewPeriod(p => ({ ...p, starts_on: e.target.value }))} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>{lang === 'ar' ? 'إلى' : 'To'}</label>
+                  <input type="date" value={newPeriod.ends_on} onChange={e => setNewPeriod(p => ({ ...p, ends_on: e.target.value }))} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>{lang === 'ar' ? 'المبلغ (ريال)' : 'Amount (SAR)'}</label>
+                  <input type="number" min="0" step="0.01" value={newPeriod.amount} onChange={e => setNewPeriod(p => ({ ...p, amount: e.target.value }))} className={inputCls} />
+                </div>
+                <button onClick={addPeriod} disabled={!newPeriod.starts_on || !newPeriod.ends_on}
+                  className="bg-primary text-on-primary px-4 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50">
+                  {lang === 'ar' ? 'إضافة فترة' : 'Add Period'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Edit form (admin/manager) */}
         {canWrite && (

@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { STATUS_CLS, statusLabel, type ReqStatus } from '../statusStyles'
+import type { BudgetBreach } from '@/lib/budget'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -44,6 +45,9 @@ export default function RequisitionDetailPage() {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [comment, setComment] = useState('')
+  // P5: a budget block is a specific, explainable refusal — keep it out of the
+  // generic error line so the numbers behind it can be shown.
+  const [breach, setBreach] = useState<BudgetBreach | null>(null)
   const [vendorId, setVendorId] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,7 +81,7 @@ export default function RequisitionDetailPage() {
   }
 
   async function call(path: string, body?: unknown, key = path) {
-    setError(''); setBusy(key)
+    setError(''); setBreach(null); setBusy(key)
     const res = await fetch(`/api/procurement/requisitions/${id}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,7 +90,8 @@ export default function RequisitionDetailPage() {
     setBusy('')
     if (!res.ok) {
       const b = await res.json().catch(() => ({}))
-      setError(b.error || (isAr ? 'فشل الإجراء' : 'Action failed'))
+      if (b.code === 'budget_exceeded' && b.budget) setBreach(b.budget as BudgetBreach)
+      else setError(b.error || (isAr ? 'فشل الإجراء' : 'Action failed'))
       return null
     }
     return res.json()
@@ -144,6 +149,46 @@ export default function RequisitionDetailPage() {
 
         {error && (
           <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2 text-error text-sm">{error}</div>
+        )}
+
+        {breach && (
+          <div className="bg-error/10 border border-error/20 rounded-[12px] p-4 text-sm">
+            <div className="flex items-center gap-2 text-error font-semibold mb-2">
+              <span className="material-symbols-outlined text-lg">block</span>
+              {isAr ? 'تجاوز ميزانية مركز التكلفة' : 'Over the cost center budget'}
+            </div>
+            <p className="text-on-surface-variant mb-2">
+              {isAr
+                ? 'لا يمكن إرسال هذا الطلب: المبلغ المطلوب يتجاوز المتبقي من ميزانية الفترة الحالية.'
+                : 'This requisition cannot be submitted — it would take the current period past its budget.'}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { k: isAr ? 'المطلوب' : 'Requested', v: breach.requested },
+                { k: isAr ? 'محجوز' : 'Reserved', v: breach.reserved },
+                { k: isAr ? 'مصروف فعلي' : 'Actual', v: breach.actual },
+                { k: isAr ? 'الميزانية' : 'Budget', v: breach.budget },
+              ].map(f => (
+                <div key={f.k}>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">{f.k}</div>
+                  <div className="text-on-surface font-semibold">
+                    {f.v.toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-on-surface-variant mt-3">
+              {isAr ? 'المتبقي' : 'Remaining'}:{' '}
+              <strong className="text-on-surface">
+                {(breach.budget - breach.reserved - breach.actual)
+                  .toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SAR
+              </strong>
+              {' · '}
+              {isAr
+                ? 'قلّل الكمية أو اطلب زيادة الميزانية.'
+                : 'Reduce the request, or ask for the budget to be raised.'}
+            </p>
+          </div>
         )}
 
         {/* Meta */}

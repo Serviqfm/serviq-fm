@@ -108,3 +108,23 @@ commit and the evidence it was verified against. "Not verified" means exactly th
 - **`vendor_invoice_lines` was added, and the playbook does not list it.** `vendor_invoices` has no line items — only `amount` — so the playbook's own acceptance criterion ("seeded mismatch: invoice qty > received flags red with the exact delta") is impossible to meet without invoiced quantities. Without the table the matcher could only ever compare totals.
 - `match_status` is deliberately NOT the payment status. `vendor_invoices.status` keeps its MKT-18 lifecycle; the API keeps the two in step using only transitions that state machine already allows, so a paid invoice is never dragged back open by a match decision.
 - Approving for payment requires `match_status = 'matched'`. Approving an invoice that failed the match is precisely what the match exists to prevent.
+
+### Batch P5 — Budgets with reserve + hard block
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `procurement-06-budgets.sql` — `budget_periods` table with 4-policy RLS | _see PR_ | Not verified — needs the live DB. |
+| `budget_spend(cost_center, from, to)` — reserved vs actual | _see PR_ | `.test.sql` 4 (approved requisition counts as reserved, not actual) and 5 (conversion does not double-count). |
+| `submit_requisition()` gains the 100% hard block | _see PR_ | `.test.sql` 1 (no period => no block), 2 (76% succeeds), 3 (over 100% raises with the numbers). |
+| `lib/budget.ts` — error parsing + threshold maths | _see PR_ | 10 Vitest cases. Caught a real parsing bug: Postgres appends CONTEXT after the payload, so the naive split produced NaN and the block would have surfaced as a generic failure. |
+| Submit route returns a structured `budget_exceeded` payload | _see PR_ | Build green. Numbers reach the UI; the database carries no UI copy. |
+| 75%/90% threshold notification to admins | _see PR_ | Emitted from the route after commit, deduped per period + threshold. Delivery not verified. |
+| Budget periods editor + stacked reserved/actual bar on cost-center detail | _see PR_ | Build green. Hidden entirely pre-migration. |
+| Bilingual block panel on the requisition detail | _see PR_ | Build green. Shows requested / reserved / actual / budget / remaining. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` ✓ 141/141 pages · `vitest run` 24 files / 155 tests passed. |
+
+**Deviations / notes:**
+
+- **Reserved does not count a converted requisition and its PO at once.** The playbook defines reserved as "approved/converted requisition totals + open PO totals"; a converted requisition *is* its purchase order, so counting both would double-count and block budgets that are not actually full. Reserved counts a requisition while `approved`, then hands over to the PO. Same for actual: a received PO with a matched invoice is counted once, at the invoice amount.
+- **Known limitation, documented in the migration:** a PO raised directly, never through a requisition, has no cost center (`purchase_orders` has no `cost_center_id`) and is invisible to budgets. Requisitions are the budget-bearing document in V1. Closing it needs a column plus a PO-time block, which is not in P5 scope.
+- The 75%/90% warning is emitted by the route, not the RPC: raising in the RPC would roll the submit back, and a warning must not.
