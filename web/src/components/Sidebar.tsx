@@ -64,7 +64,7 @@ const PROCUREMENT_NAV: typeof NAV = [
   { key: 'inventory',     href: '/dashboard/inventory',      en: 'Inventory',     ar: 'المخزون',        icon: 'category',               exact: false },
   { key: 'invoices',      href: '/dashboard/invoices',       en: 'Invoices',      ar: 'الفواتير',        icon: 'receipt_long',           exact: false, roles: ['admin', 'manager'] },
   { key: 'cost_centers',  href: '/dashboard/cost-centers',   en: 'Cost Centers',  ar: 'مراكز التكلفة',   icon: 'account_balance_wallet', exact: false, roles: ['admin', 'manager'] },
-  { key: 'reports',       href: '/dashboard/reports',        en: 'Reports',       ar: 'التقارير',        icon: 'bar_chart',              exact: false, roles: ['admin', 'manager'] },
+  { key: 'proc_reports',  href: '/dashboard/procurement/reports', en: 'Reports', ar: 'التقارير',       icon: 'bar_chart',              exact: false, roles: ['admin', 'manager'] },
   { key: 'settings',      href: '/dashboard/settings',       en: 'Settings',      ar: 'الإعدادات',      icon: 'settings',               exact: false },
 ]
 
