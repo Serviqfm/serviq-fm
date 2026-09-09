@@ -102,6 +102,11 @@ export const NOTIFICATION_TYPES = {
     label: 'A vendor invoice failed the 3-way match',
     category: 'procurement',
   },
+  BUDGET_THRESHOLD: {
+    key: 'budget_threshold',
+    label: 'A cost center passed 75% or 90% of its budget',
+    category: 'procurement',
+  },
 
   // Parts/Inventory
   PART_LOW_STOCK: {
