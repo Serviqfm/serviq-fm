@@ -352,6 +352,23 @@ export default function SettingsPage() {
                   </div>
                 </a>
               )}
+
+              {/* P7: ERP integration framework */}
+              {user?.role === 'admin' && (
+                <a href="/dashboard/settings/erp" className="block bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 hover:bg-surface-container-low transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-on-surface mb-1">
+                        {lang === 'ar' ? 'تكامل تخطيط الموارد (ERP)' : 'ERP Integration'}
+                      </h3>
+                      <p className="text-sm text-on-surface-variant">
+                        {lang === 'ar' ? 'مزوّد الاتصال وسجل المزامنة' : 'Connection provider and sync log'}
+                      </p>
+                    </div>
+                    <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+                  </div>
+                </a>
+              )}
             </div>
           )}
 

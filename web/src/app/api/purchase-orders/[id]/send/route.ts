@@ -10,6 +10,7 @@ import { resolveCaller } from '../../_helpers'
 import { poPdfBuffer, type PoLine, type PoRecord } from '@/lib/po-pdf'
 import { sendEmail } from '@/lib/email'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { fireErpEvent } from '@/lib/erp'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -100,6 +101,14 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       { status: 500 }
     )
   }
+
+  // P7: fire-and-forget — fireErpEvent never throws, and the vendor already has
+  // the PO, so nothing about the ERP may delay or fail this response.
+  void fireErpEvent(orgId, 'po.sent', params.id, {
+    po_number: po.po_number,
+    vendor_email: vendorEmail,
+    sent_at: updated.sent_at,
+  })
 
   return NextResponse.json({ purchase_order: updated, sent_to: vendorEmail })
 }

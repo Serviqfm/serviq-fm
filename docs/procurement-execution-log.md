@@ -155,3 +155,28 @@ Code only — **no migration to run**.
 
 - The procurement Reports nav entry points at the new procurement report; the CAFM Reports page is unchanged and still reachable from the FM workspace.
 - No date-range filter: spend-by-month gives the trend, and a filter is not in the acceptance criteria. Easy to add later.
+
+### Batch P7 — ERP integration framework
+
+Framework only — **no live connectors** (Phase Q, owner decision gate).
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `procurement-08-erp.sql` — `erp_connections` (one per org, admin-only RLS) + `erp_sync_log` (append-only) | _see PR_ | Not verified — needs the live DB. `.test.sql` covers the provider CHECK, one-connection-per-org, append-only log, admin-only read. |
+| `lib/erp` — one `ErpAdapter` interface + `NoopAdapter` + `fireErpEvent` | _see PR_ | **8 Vitest cases**: every adapter method writes a `skipped` row, event→method routing, and `fireErpEvent` swallowing a missing table, a throwing resolver and a failing log write. |
+| Hook: PO send → `po.sent` | _see PR_ | Fired after the status flip commits; `void`, never throws. |
+| Hook: invoice approved for payment → `invoice.approved` | _see PR_ | Only the finance release fires; a dispute is internal and does not. |
+| Hook: vendor created → `vendor.created` | _see PR_ | Vendor creation is client-side, so the page pings `POST /api/erp/vendor-created` after its insert; the route re-checks the vendor is in the caller's org. |
+| ERP settings page — provider picker (real providers "coming soon") + sync log viewer | _see PR_ | Built as `ƒ /dashboard/settings/erp` (3.27 kB); linked from Settings beside Custom Branding. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` exit 0, ✓ 144/144 pages · `vitest run` 26 files / 183 tests passed. |
+
+**Deviations / notes:**
+
+- **`erp_sync_log` has no write policies at all**, departing from the house 4-policy template on purpose: it is an audit log, written only by the service role, so a browser session can neither forge nor edit a row.
+- **`erp_connections` is admin-only for reads too.** `config` is plain JSONB; the migration documents that credentials must never go in it (Q5 puts secrets in env/vault).
+- **Zero cost for tenants who never enable ERP.** With no active connection the hooks resolve to nothing and write nothing — which also means the acceptance check needs the connection switched **on** (provider "none") first.
+- **The NoopAdapter logs `skipped`, never `success`.** Nothing was delivered, and the log must not claim otherwise.
+- **Known ceiling:** `void` on Next 14 / Vercel means a pending log write *can* be dropped if the function freezes right after responding — the same posture as `lib/webhookDelivery.ts`. Upgrade path, noted in code: `waitUntil()` from `@vercel/functions`, or `after()` on Next 15, once a real connector needs delivery guarantees. The vendor-created route awaits its write, since nobody waits on that response.
+- `pushPayment` and `pullBudgets` are on the interface (per the playbook) but have no V1 caller.
+
+**Phase P (V1) is complete with this batch.** Phase Q is behind the owner decision gate and is not started.
