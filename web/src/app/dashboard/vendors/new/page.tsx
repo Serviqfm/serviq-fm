@@ -34,7 +34,7 @@ export default function NewVendorPage() {
     if (!user) { setError('Not logged in'); setLoading(false); return }
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) { setError('User profile not found'); setLoading(false); return }
-    const { error: insertError } = await supabase.from('vendors').insert({
+    const { data: created, error: insertError } = await supabase.from('vendors').insert({
       company_name: form.company_name,
       company_name_ar: form.company_name_ar || null,
       contact_name: form.contact_name || null,
@@ -45,9 +45,17 @@ export default function NewVendorPage() {
       cr_number: form.cr_number || null,
       organisation_id: profile.organisation_id,
       is_active: true,
-    })
-    if (insertError) { setError(insertError.message); setLoading(false) }
-    else router.push('/dashboard/vendors')
+    }).select('id').single()
+    if (insertError) { setError(insertError.message); setLoading(false); return }
+    // P7: tell the ERP framework, without waiting — vendor creation must never
+    // depend on it. The route re-checks the vendor belongs to this org.
+    if (created?.id) {
+      void fetch('/api/erp/vendor-created', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendor_id: created.id }),
+      }).catch(() => {})
+    }
+    router.push('/dashboard/vendors')
   }
 
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }

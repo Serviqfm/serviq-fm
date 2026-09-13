@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { capabilityDeniedForUser } from '@/lib/customRoles'
+import { fireErpEvent } from '@/lib/erp'
 
 // MKT-18 — vendor-invoice status workflow, mirroring FM-21 (api/invoices/[id]/status).
 // pending → approved → paid; disputed reachable from pending/approved; paid and
@@ -99,6 +100,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (mErr) return NextResponse.json({ error: mErr.message }, { status: 500 })
       if (!mUpdated || mUpdated.length === 0) {
         return NextResponse.json({ error: 'Invoice changed — refresh and retry' }, { status: 409 })
+      }
+      // P7: only the finance RELEASE is an ERP event; a dispute is internal.
+      if (matchStatus === 'approved_for_payment') {
+        void fireErpEvent(profile.organisation_id, 'invoice.approved', id, {
+          payment_status: mUpdated[0].status,
+          match_status: mUpdated[0].match_status,
+        })
       }
       return NextResponse.json({ ok: true, ...mUpdated[0] })
     }
