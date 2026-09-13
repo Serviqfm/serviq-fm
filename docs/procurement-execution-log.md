@@ -128,3 +128,30 @@ commit and the evidence it was verified against. "Not verified" means exactly th
 - **Reserved does not count a converted requisition and its PO at once.** The playbook defines reserved as "approved/converted requisition totals + open PO totals"; a converted requisition *is* its purchase order, so counting both would double-count and block budgets that are not actually full. Reserved counts a requisition while `approved`, then hands over to the PO. Same for actual: a received PO with a matched invoice is counted once, at the invoice amount.
 - **Known limitation, documented in the migration:** a PO raised directly, never through a requisition, has no cost center (`purchase_orders` has no `cost_center_id`) and is invisible to budgets. Requisitions are the budget-bearing document in V1. Closing it needs a column plus a PO-time block, which is not in P5 scope.
 - The 75%/90% warning is emitted by the route, not the RPC: raising in the RPC would roll the submit back, and a warning must not.
+
+### Batch P6 — Procurement reporting
+
+Code only — **no migration to run**.
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `lib/procurementReports.ts` — every figure on the page | _see PR_ | **20 Vitest cases**: grouping, cancelled/draft handling, per-line category split, unattributed bucketing, chronological months, cycle-time sample counts, vendor on-time. |
+| Reports page: spend by vendor / category / cost center / month | _see PR_ | Built as `ƒ /dashboard/procurement/reports` (5.81 kB). |
+| Cycle time — 4 stages with sample counts | _see PR_ | `procurementReports.test.ts` — including the trap test that a requisition still awaiting approval is not averaged in as a zero-day approval. |
+| Vendor performance table | _see PR_ | Tested; reuses the P2 on-time definition (null ≠ 0%). |
+| Budget vs actual (current period) | _see PR_ | Reads P5 `budget_spend`; the panel hides entirely when no period exists. |
+| CSV export on every chart and table | _see PR_ | Uses the existing `lib/csv.ts` (BOM + formula-injection sanitising already handled there). |
+| PDF export | _see PR_ | `ƒ /api/procurement/reports/pdf` — recomputed server-side from the same pure functions, so the document cannot be forged from a request body. |
+| Procurement home KPI tiles + Reports nav entry | _see PR_ | Fourth tile is month-to-date committed spend, totalled by the same `poTotal`/`isCommitted` the reports page uses. |
+| Full build gate | _see PR_ | `npx tsc --noEmit` clean · `npm run build` ✓ 143/143 pages · `vitest run` 25 files / 175 tests passed. |
+
+**Definitions worth knowing (documented at the top of the module):**
+
+- **Spend = committed money**: the value of purchase orders actually placed. Cancelled orders are excluded; drafts are included, because the commitment exists before the order is sent.
+- **Requisitions are never counted as spend.** An approved requisition is an intention; counting it alongside the PO it becomes would double-count the same money — the same trap P5's `reserved` avoids.
+- A PO raised directly, with no requisition behind it, has no cost center and appears under `—` in the cost-center chart rather than being dropped, so that chart still sums to total spend.
+
+**Notes:**
+
+- The procurement Reports nav entry points at the new procurement report; the CAFM Reports page is unchanged and still reachable from the FM workspace.
+- No date-range filter: spend-by-month gives the trend, and a filter is not in the acceptance criteria. Easy to add later.
