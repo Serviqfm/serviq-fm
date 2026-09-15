@@ -65,6 +65,12 @@ const PROCUREMENT_NAV: typeof NAV = [
   { key: 'invoices',      href: '/dashboard/invoices',       en: 'Invoices',      ar: 'الفواتير',        icon: 'receipt_long',           exact: false, roles: ['admin', 'manager'] },
   { key: 'cost_centers',  href: '/dashboard/cost-centers',   en: 'Cost Centers',  ar: 'مراكز التكلفة',   icon: 'account_balance_wallet', exact: false, roles: ['admin', 'manager'] },
   { key: 'proc_reports',  href: '/dashboard/procurement/reports', en: 'Reports', ar: 'التقارير',       icon: 'bar_chart',              exact: false, roles: ['admin', 'manager'] },
+  { key: 'users',         href: '/dashboard/users',          en: 'Users',         ar: 'المستخدمون',     icon: 'group',                  exact: false, roles: ['admin', 'manager'] },
+  { key: 'security',      href: '/dashboard/security',       en: 'Security',      ar: 'الأمان',          icon: 'security',               exact: false },
+  { key: 'privacy',       href: '/dashboard/privacy',        en: 'Privacy',       ar: 'الخصوصية',        icon: 'privacy_tip',            exact: false },
+  { key: 'billing',       href: '/dashboard/billing',        en: 'Billing',       ar: 'الفوترة',         icon: 'payments',               exact: false, roles: ['admin'] },
+  { key: 'usage',         href: '/dashboard/usage',          en: 'Usage',         ar: 'الاستخدام',       icon: 'monitoring',             exact: false, roles: ['admin', 'manager'] },
+  { key: 'developers',    href: '/dashboard/developers',     en: 'Developers',    ar: 'المطورون',        icon: 'code',                   exact: false, roles: ['admin'] },
   { key: 'settings',      href: '/dashboard/settings',       en: 'Settings',      ar: 'الإعدادات',      icon: 'settings',               exact: false },
 ]
 

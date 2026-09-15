@@ -129,6 +129,16 @@ const PROCUREMENT_SHARED_PREFIXES = [
   '/dashboard/cost-centers',
   '/dashboard/reports',
   '/dashboard/settings',
+  // Organisation-account pages. These belong to the org, not to CAFM: users are
+  // one shared table, and a procurement-only tenant still invites people, pays,
+  // enrols MFA and handles data requests. P0 wrongly treated them as CAFM-only,
+  // which left procurement-only admins unable to add a single user.
+  '/dashboard/users',
+  '/dashboard/billing',
+  '/dashboard/security',
+  '/dashboard/privacy',
+  '/dashboard/usage',
+  '/dashboard/developers',
 ]
 const underPrefix = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + '/')
 

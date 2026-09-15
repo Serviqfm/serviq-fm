@@ -180,3 +180,16 @@ Framework only — **no live connectors** (Phase Q, owner decision gate).
 - `pushPayment` and `pullBudgets` are on the interface (per the playbook) but have no V1 caller.
 
 **Phase P (V1) is complete with this batch.** Phase Q is behind the owner decision gate and is not started.
+
+### Hotfix — organisation-account pages unreachable in procurement-only tenants
+
+Reported by the owner at the start of Phase Q: "there is no user module in procurement."
+
+| Item | Commit | Evidence |
+|---|---|---|
+| `middleware.ts` — `/dashboard/users`, `billing`, `security`, `privacy`, `usage`, `developers` added to the procurement-shared prefixes | _see PR_ | `npx tsc --noEmit` clean · `npm run build` exit 0, 144/144 pages · `vitest run` 26 files / 183 tests passed. Redirect behaviour not verified against a live procurement-only tenant. |
+| `Sidebar.tsx` — the same six items in `PROCUREMENT_NAV` | _see PR_ | Same keys as the CAFM nav, so the existing role gates and the `can_manage_users` custom-role gate apply unchanged. |
+
+**Root cause (P0):** users live in one table shared by both workspaces, but P0 listed `/dashboard/users` as CAFM-only. A procurement-only admin was redirected away from the Users page and had no nav entry, so they could not add anyone — including the approvers the P1 approval chains need. The same misclassification covered Billing, Security, Privacy, Usage and Developers, which are organisation-account pages rather than CAFM features.
+
+**Left as is, on purpose:** the user edit page still offers the CAFM site scope and work-order skill categories, and the CSV import still accepts a team column. All three are optional; in a procurement-only tenant they are simply empty. Teams stay CAFM-only — they exist for work-order assignment.
