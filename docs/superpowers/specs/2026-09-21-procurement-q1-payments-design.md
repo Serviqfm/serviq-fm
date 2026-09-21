@@ -17,7 +17,7 @@ This project adds:
 
 ## 2. Scope
 
-**In scope:** vendor account type, the payments table and its three database functions, the prepayment guard at goods receipt, non-credit settlement, notifications, the ERP `payment.confirmed` event, the Payments page and the screen changes in §7.
+**In scope:** vendor account type, the payments table and its three database functions, the prepayment guard at goods receipt, non-credit settlement, notifications, the ERP `payment.confirmed` event, the Payments page and the screen changes in §8.
 
 **Out of scope (later Phase Q projects):**
 
@@ -30,7 +30,7 @@ This project adds:
 | Vendor credit limit and risk | Q4 |
 | Live ERP connectors | Q5 |
 | Cancelling a PO | Not designed. `cancelled` exists in the status vocabulary, but nothing sets it today. |
-| Automatic refunds | Never automated in this project (see §6.4). |
+| Automatic refunds | Never automated in this project (see §6.3). |
 | Payments in the budget maths | P5 still counts a received PO as actual spend, paid or not. |
 
 ## 3. Decisions (locked with the owner)
