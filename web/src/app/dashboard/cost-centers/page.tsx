@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { woTotalsByWo } from '@/lib/woCost'
+import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
 
 const money = (n: number) => `SAR ${n.toFixed(2)}`
 
@@ -17,6 +18,7 @@ export default function CostCentersPage() {
   const [centers, setCenters] = useState<any[]>([])
   // per-center rolled-up actual spend
   const [actuals, setActuals] = useState<Record<string, number>>({})
+  const importRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { t, lang } = useLanguage()
 
@@ -55,6 +57,45 @@ export default function CostCentersPage() {
     setActuals(perCenter)
   }
 
+  function downloadTemplate() {
+    exportCSV('cost-centers-template.csv', [
+      { name: 'Facilities Maintenance', name_ar: 'صيانة المرافق', code: 'CC-100', annual_budget: 250000 },
+      { name: 'Housekeeping', name_ar: 'التدبير المنزلي', code: 'CC-200', annual_budget: 120000 },
+    ])
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !orgId) return
+    try {
+      const rows = parseCSV(await readFileText(file))
+      if (rows.length === 0) { alert(lang === 'ar' ? 'الملف فارغ.' : 'CSV had no data rows.'); return }
+      // Skip codes that already exist in the org (and repeats within the file).
+      const seen = new Set(centers.map(c => (c.code ?? '').trim().toLowerCase()).filter(Boolean))
+      const skipped: string[] = []
+      const payload = []
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i]
+        const name = (r.name ?? '').trim()
+        const code = (r.code ?? '').trim()
+        const budget = r.annual_budget?.trim() ? Number(r.annual_budget.replace(/,/g, '')) : 0
+        if (!name) { skipped.push(`row ${i + 2}: missing name`); continue }
+        if (!Number.isFinite(budget) || budget < 0) { skipped.push(`row ${i + 2}: invalid annual_budget`); continue }
+        if (code && seen.has(code.toLowerCase())) { skipped.push(`row ${i + 2}: code ${code} already exists`); continue }
+        if (code) seen.add(code.toLowerCase())
+        payload.push({ organisation_id: orgId, name, name_ar: r.name_ar?.trim() || null, code: code || null, annual_budget: budget })
+      }
+      if (payload.length > 0) {
+        const { error } = await supabase.from('cost_centers').insert(payload)
+        if (error) { alert((lang === 'ar' ? 'فشل الاستيراد: ' : 'Import failed: ') + error.message); return }
+      }
+      alert(`Imported ${payload.length} cost center(s).` + (skipped.length ? `\nSkipped ${skipped.length}:\n` + skipped.slice(0, 20).join('\n') : ''))
+      await load(orgId)
+    } finally {
+      if (importRef.current) importRef.current.value = ''
+    }
+  }
+
   async function deleteCenter(id: string, name: string) {
     const msg = lang === 'ar'
       ? `هل أنت متأكد من حذف مركز التكلفة "${name}"؟ لن يتم حذف أوامر العمل المرتبطة به.`
@@ -80,12 +121,21 @@ export default function CostCentersPage() {
             </p>
           </div>
           {canWrite && (
+            <div className="flex items-center gap-2">
+            <button onClick={downloadTemplate} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">description</span>{lang === 'ar' ? 'القالب' : 'Template'}
+            </button>
+            <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+            <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">upload</span>{lang === 'ar' ? 'استيراد CSV' : 'Import CSV'}
+            </button>
             <Link href="/dashboard/cost-centers/new">
               <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
                 <span className="material-symbols-outlined text-lg">add</span>
                 {lang === 'ar' ? 'مركز تكلفة جديد' : 'New Cost Center'}
               </button>
             </Link>
+            </div>
           )}
         </div>
 
