@@ -103,6 +103,14 @@ export default function VendorsPage() {
     })))
   }
 
+  // Same columns handleImport reads; company_name is the only required one.
+  function downloadTemplate() {
+    exportCSV('vendors-template.csv', [
+      { company_name: 'Al Faris Technical Services', company_name_ar: 'الفارس للخدمات الفنية', specialisation: 'HVAC', email: 'info@alfaris.sa', phone: '+966 50 000 0000', contact_name: 'Ahmed Al-Rashid', vat_number: '300000000000003', cr_number: '1010000000', is_active: 'true' },
+      { company_name: 'Bright Electrical Co.', company_name_ar: '', specialisation: 'Electrical', email: '', phone: '', contact_name: '', vat_number: '', cr_number: '', is_active: 'true' },
+    ])
+  }
+
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -176,6 +184,9 @@ export default function VendorsPage() {
             <p className="text-on-surface-variant mt-1 text-sm">{stats.total} {t('vendors.title').toLowerCase()} registered</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={downloadTemplate} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">description</span>Template
+            </button>
             <input ref={importRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
             <button onClick={() => importRef.current?.click()} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface-container-low transition-colors">
               <span className="material-symbols-outlined text-lg">upload</span>Import CSV
