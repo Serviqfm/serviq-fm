@@ -299,7 +299,7 @@ export async function middleware(req: NextRequest) {
       }
     } else if (inProcurement && !hasProcurement) {
       return applyCookies(NextResponse.redirect(new URL('/dashboard', req.url)))
-    } else if (!hasCafm && hasProcurement && !PROCUREMENT_SHARED_PREFIXES.some(p => underPrefix(path, p))) {
+    } else if (!hasCafm && hasProcurement && !inProcurement && !PROCUREMENT_SHARED_PREFIXES.some(p => underPrefix(path, p))) {
       return applyCookies(NextResponse.redirect(new URL('/dashboard/procurement', req.url)))
     }
 
