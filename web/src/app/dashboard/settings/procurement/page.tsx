@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { RequestPortalCard } from './RequestPortalCard'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -143,6 +144,8 @@ export default function ProcurementSettingsPage() {
               onToggle={() => toggleBand(r)} onDelete={() => deleteBand(r)}
               onAddStep={(u, l) => addStep(r, u, l)} onDeleteStep={s => deleteStep(r, s)} />
           ))}
+
+          <RequestPortalCard orgId={orgId} role={role} isAr={isAr} />
 
           <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">
             <h2 className="text-sm font-semibold text-on-surface mb-3">{isAr ? 'إضافة حد' : 'Add a band'}</h2>
