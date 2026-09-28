@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { PhotoField } from '@/components/PhotoField'
 
 export default function EditInventoryItemPage() {
   const router = useRouter()
@@ -13,10 +14,11 @@ export default function EditInventoryItemPage() {
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  const [orgId, setOrgId] = useState('')
   const [form, setForm] = useState({
     name: '', name_ar: '', sku: '', category: '',
     unit: 'piece', stock_quantity: '0', minimum_stock_level: '0',
-    unit_cost: '', location_in_store: '', site_id: '',
+    unit_cost: '', location_in_store: '', site_id: '', photo_url: '',
   })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -31,6 +33,7 @@ export default function EditInventoryItemPage() {
       supabase.from('inventory_items').select('*').eq('id', id).single(),
       supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true),
     ])
+    setOrgId(profile.organisation_id)
     if (siteData) setSites(siteData)
     if (item) setForm({
       name: item.name ?? '',
@@ -43,6 +46,7 @@ export default function EditInventoryItemPage() {
       unit_cost: item.unit_cost ? String(item.unit_cost) : '',
       location_in_store: item.location_in_store ?? '',
       site_id: item.site_id ?? '',
+      photo_url: item.photo_url ?? '',
     })
     setLoading(false)
   }
@@ -66,6 +70,7 @@ export default function EditInventoryItemPage() {
       unit_cost: form.unit_cost ? parseFloat(form.unit_cost) : null,
       location_in_store: form.location_in_store || null,
       site_id: form.site_id || null,
+      photo_url: form.photo_url || null,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
     if (updateError) { setError(updateError.message); setSaving(false) }
@@ -141,6 +146,10 @@ export default function EditInventoryItemPage() {
           <div>
             <label style={labelStyle}>Unit Cost (SAR)</label>
             <input name='unit_cost' type='number' value={form.unit_cost} onChange={handleChange} min='0' step='0.01' style={fieldStyle} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <PhotoField value={form.photo_url} prefix={orgId + '/inventory'} label='Item photo'
+              onChange={url => setForm(prev => ({ ...prev, photo_url: url }))} />
           </div>
           <div>
             <label style={labelStyle}>Storage Location</label>

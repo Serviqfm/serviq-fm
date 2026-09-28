@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
+import { PhotoField } from '@/components/PhotoField'
 
 export default function NewInventoryItemPage() {
   const router = useRouter()
@@ -13,10 +14,11 @@ export default function NewInventoryItemPage() {
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  const [orgId, setOrgId] = useState('')
   const [form, setForm] = useState({
     name: '', name_ar: '', sku: '', category: '',
     unit: 'piece', stock_quantity: '0', minimum_stock_level: '0',
-    unit_cost: '', location_in_store: '', site_id: '',
+    unit_cost: '', location_in_store: '', site_id: '', photo_url: '',
   })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -27,6 +29,7 @@ export default function NewInventoryItemPage() {
     if (!user) return
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
+    setOrgId(profile.organisation_id)
     const { data } = await supabase.from('sites').select('id, name').eq('organisation_id', profile.organisation_id).eq('is_active', true)
     if (data) setSites(data)
   }
@@ -54,6 +57,7 @@ export default function NewInventoryItemPage() {
       unit_cost: form.unit_cost ? parseFloat(form.unit_cost) : null,
       location_in_store: form.location_in_store || null,
       site_id: form.site_id || null,
+      photo_url: form.photo_url || null,
       organisation_id: profile.organisation_id,
       is_active: true,
     })
@@ -128,6 +132,11 @@ export default function NewInventoryItemPage() {
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'تكلفة الوحدة (ريال)' : 'Unit Cost (SAR)'}</label>
             <input name='unit_cost' type='number' value={form.unit_cost} onChange={handleChange} placeholder='e.g. 45.00' min='0' step='0.01' style={fieldStyle} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <PhotoField value={form.photo_url} prefix={orgId + '/inventory'}
+              label={lang === 'ar' ? 'صورة الصنف' : 'Item photo'}
+              onChange={url => setForm(prev => ({ ...prev, photo_url: url }))} />
           </div>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'موقع التخزين' : 'Storage Location'}</label>
