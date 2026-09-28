@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { STATUS_CLS, statusLabel, type ReqStatus } from '../statusStyles'
 import type { BudgetBreach } from '@/lib/budget'
+import type { StockShort } from '@/lib/stock'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -48,6 +49,8 @@ export default function RequisitionDetailPage() {
   // P5: a budget block is a specific, explainable refusal — keep it out of the
   // generic error line so the numbers behind it can be shown.
   const [breach, setBreach] = useState<BudgetBreach | null>(null)
+  // P9: same idea for a stock block — the shelf ran out, which is explainable.
+  const [short, setShort] = useState<StockShort | null>(null)
   const [vendorId, setVendorId] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,7 +84,7 @@ export default function RequisitionDetailPage() {
   }
 
   async function call(path: string, body?: unknown, key = path) {
-    setError(''); setBreach(null); setBusy(key)
+    setError(''); setBreach(null); setShort(null); setBusy(key)
     const res = await fetch(`/api/procurement/requisitions/${id}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -91,6 +94,7 @@ export default function RequisitionDetailPage() {
     if (!res.ok) {
       const b = await res.json().catch(() => ({}))
       if (b.code === 'budget_exceeded' && b.budget) setBreach(b.budget as BudgetBreach)
+      else if (b.code === 'stock_short' && b.stock) setShort(b.stock as StockShort)
       else setError(b.error || (isAr ? 'فشل الإجراء' : 'Action failed'))
       return null
     }
@@ -118,13 +122,16 @@ export default function RequisitionDetailPage() {
     </div>
   )
 
-  const total = lines.reduce((s, l) => s + Number(l.quantity ?? 0) * Number(l.unit_cost ?? 0), 0)
+  const purchaseLines = lines.filter(l => l.line_type !== 'stock')
+  const stockLines = lines.filter(l => l.line_type === 'stock')
+  const total = purchaseLines.reduce((s, l) => s + Number(l.quantity ?? 0) * Number(l.unit_cost ?? 0), 0)
   const isPrivileged = me?.role === 'admin' || me?.role === 'manager'
   const isCreator = me?.id === req.created_by
   const currentStep = steps.find(s => s.status === 'pending')
   const canSubmit = ['draft', 'rejected'].includes(req.status) && (isCreator || isPrivileged)
   const canDecide = req.status === 'pending_approval' && currentStep?.approver_user_id === me?.id
-  const canConvert = req.status === 'approved' && isPrivileged
+  // Nothing to buy = nothing to convert: stock lines were issued at approval.
+  const canConvert = req.status === 'approved' && isPrivileged && purchaseLines.length > 0
 
   const fieldCls = 'w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
 
@@ -191,6 +198,26 @@ export default function RequisitionDetailPage() {
           </div>
         )}
 
+        {short && (
+          <div className="bg-error/5 border border-error/20 rounded-[12px] p-4">
+            <div className="flex items-center gap-2 text-error font-semibold text-sm">
+              <span className="material-symbols-outlined text-base">inventory_2</span>
+              {isAr ? 'المخزون غير كافٍ' : 'Not enough stock'}
+            </div>
+            <p className="text-sm text-on-surface mt-2">
+              <strong>{short.item}</strong>{' — '}
+              {isAr
+                ? `طُلب ${short.requested}، والمتاح ${short.available} فقط.`
+                : `${short.requested} requested, only ${short.available} available.`}
+            </p>
+            <p className="text-xs text-on-surface-variant mt-1">
+              {isAr
+                ? 'قلّل الكمية، أو انقل الفرق إلى بند شراء.'
+                : 'Lower the quantity, or move the difference to a purchase line.'}
+            </p>
+          </div>
+        )}
+
         {/* Meta */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           {[
@@ -214,8 +241,18 @@ export default function RequisitionDetailPage() {
           )}
         </div>
 
-        {/* Lines */}
+        {/* Lines to buy */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+          {stockLines.length > 0 && (
+            <div className="px-4 pt-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+              {isAr ? 'أصناف للشراء' : 'To buy'}
+            </div>
+          )}
+          {purchaseLines.length === 0 ? (
+            <p className="px-4 py-4 text-sm text-on-surface-variant">
+              {isAr ? 'لا شيء للشراء — كل البنود من المخزون.' : 'Nothing to buy — every line comes from stock.'}
+            </p>
+          ) : (
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant/30">
@@ -230,7 +267,7 @@ export default function RequisitionDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20">
-              {lines.map(l => (
+              {purchaseLines.map(l => (
                 <tr key={l.id}>
                   <td className="px-4 py-3 text-sm text-on-surface">
                     {l.item?.name ?? l.description ?? '—'}
@@ -255,7 +292,64 @@ export default function RequisitionDetailPage() {
               </tr>
             </tfoot>
           </table>
+          )}
         </div>
+
+        {/* Consumables in stock — issued from inventory, never part of the PO. */}
+        {stockLines.length > 0 && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm overflow-hidden">
+            <div className="px-4 pt-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-on-surface-variant">inventory_2</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+                {isAr ? 'مستهلكات من المخزون' : 'Consumables in stock'}
+              </span>
+            </div>
+            <table className="w-full border-collapse text-left mt-2">
+              <thead>
+                <tr className="bg-surface-container-low border-y border-outline-variant/30">
+                  {[
+                    isAr ? 'البند' : 'Item',
+                    isAr ? 'الكمية' : 'Qty',
+                    isAr ? 'الحالة' : 'Status',
+                  ].map(h => (
+                    <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/20">
+                {stockLines.map(l => {
+                  const state = l.issued_qty != null ? 'issued' : l.reserved_qty != null ? 'held' : 'none'
+                  return (
+                    <tr key={l.id}>
+                      <td className="px-4 py-3 text-sm text-on-surface">
+                        {l.item?.name ?? l.description ?? '—'}
+                        {l.item?.sku && <span className="text-on-surface-variant text-xs mx-2">{l.item.sku}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{Number(l.quantity)}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {state === 'issued' && (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                            {isAr ? `صُرف ${Number(l.issued_qty)}` : `Issued ${Number(l.issued_qty)}`}
+                          </span>
+                        )}
+                        {state === 'held' && (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#f57f17]/10 text-[#f57f17]">
+                            {isAr ? `محجوز ${Number(l.reserved_qty)}` : `Held ${Number(l.reserved_qty)}`}
+                          </span>
+                        )}
+                        {state === 'none' && (
+                          <span className="text-xs text-on-surface-variant">
+                            {isAr ? 'يُحجز عند الإرسال' : 'Held on submit'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Approval timeline */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6">

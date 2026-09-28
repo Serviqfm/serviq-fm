@@ -14,6 +14,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { resolveCaller } from '@/app/api/purchase-orders/_helpers'
 import { notifyCurrentApprover, notifyCreatorDecided } from '../../_notify'
 import { parseBudgetError, budgetUsage } from '@/lib/budget'
+import { parseStockError } from '@/lib/stock'
 import { NotificationService } from '@/lib/NotificationService'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -92,6 +93,15 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     if (breach) {
       return NextResponse.json(
         { error: 'Budget exceeded', code: 'budget_exceeded', budget: breach },
+        { status: 400 }
+      )
+    }
+    // Same shape as the budget block: the shelf ran out between picking the item
+    // and submitting, so tell the UI which item and by how much.
+    const short = parseStockError(error.message)
+    if (short) {
+      return NextResponse.json(
+        { error: 'Not enough stock', code: 'stock_short', stock: short },
         { status: 400 }
       )
     }

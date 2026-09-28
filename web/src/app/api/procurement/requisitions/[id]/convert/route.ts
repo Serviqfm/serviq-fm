@@ -45,13 +45,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!v) return NextResponse.json({ error: 'Vendor not found in your organisation' }, { status: 400 })
   }
 
+  // P9: stock lines were issued from inventory at approval — they are not being
+  // bought, so they never reach a purchase order.
   const { data: lines } = await admin
     .from('requisition_items')
     .select('item_id, description, quantity, unit_cost')
     .eq('requisition_id', params.id)
     .eq('organisation_id', orgId)
+    .eq('line_type', 'purchase')
   if (!lines || lines.length === 0) {
-    return NextResponse.json({ error: 'Requisition has no line items' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'This requisition has nothing to buy — every line was issued from stock' },
+      { status: 400 }
+    )
   }
 
   const { data: po, error: poErr } = await admin

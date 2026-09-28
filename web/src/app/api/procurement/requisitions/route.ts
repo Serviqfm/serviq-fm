@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveCaller } from '@/app/api/purchase-orders/_helpers'
+import { lineType } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,10 @@ function num(v: unknown): number | null {
   return null
 }
 
-type LineInput = { item_id?: unknown; description?: unknown; quantity?: unknown; unit_cost?: unknown }
+type LineInput = {
+  item_id?: unknown; description?: unknown; quantity?: unknown; unit_cost?: unknown
+  line_type?: unknown
+}
 
 export async function POST(req: NextRequest) {
   const caller = await resolveCaller(['admin', 'manager', 'technician'])
@@ -55,13 +59,22 @@ export async function POST(req: NextRequest) {
   }
 
   const itemIds = Array.from(new Set(rawLines.map(l => str(l.item_id)).filter(Boolean))) as string[]
+  const itemCost = new Map<string, number>()
   if (itemIds.length > 0) {
     const { data: items } = await admin
-      .from('inventory_items').select('id').eq('organisation_id', orgId).in('id', itemIds)
+      .from('inventory_items').select('id, unit_cost').eq('organisation_id', orgId).in('id', itemIds)
     const found = new Set((items ?? []).map(i => i.id))
     if (itemIds.some(id => !found.has(id))) {
       return NextResponse.json({ error: 'One or more items are not in your organisation' }, { status: 400 })
     }
+    for (const i of items ?? []) itemCost.set(i.id as string, Number(i.unit_cost ?? 0))
+  }
+
+  if (rawLines.some(l => lineType(l.line_type) === 'stock' && !str(l.item_id))) {
+    return NextResponse.json(
+      { error: 'A stock line must name the inventory item it draws from' },
+      { status: 400 }
+    )
   }
 
   const { data: requisition, error: reqErr } = await admin
@@ -84,14 +97,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: reqErr?.message || 'Failed to create requisition' }, { status: 500 })
   }
 
-  const lineRows = rawLines.map(l => ({
-    organisation_id: orgId,
-    requisition_id: requisition.id,
-    item_id: str(l.item_id),
-    description: str(l.description),
-    quantity: num(l.quantity) ?? 1,
-    unit_cost: num(l.unit_cost) ?? 0,
-  }))
+  const lineRows = rawLines.map(l => {
+    const type = lineType(l.line_type)
+    const id = str(l.item_id)
+    return {
+      organisation_id: orgId,
+      requisition_id: requisition.id,
+      item_id: id,
+      description: str(l.description),
+      quantity: num(l.quantity) ?? 1,
+      // A stock line is valued at what the shelf says, so the approval chain and
+      // the reports see a real number even though nothing is being bought.
+      unit_cost: num(l.unit_cost) ?? (type === 'stock' && id ? itemCost.get(id) ?? 0 : 0),
+      line_type: type,
+    }
+  })
 
   const { error: liErr } = await admin.from('requisition_items').insert(lineRows)
   if (liErr) {

@@ -6,11 +6,11 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { exportCSV, parseCSV, readFileText } from '@/lib/csv'
 
-const TEMPLATE_COLUMNS = ['name', 'name_ar', 'sku', 'category', 'unit', 'stock_quantity', 'minimum_stock_level', 'unit_cost']
+const TEMPLATE_COLUMNS = ['name', 'name_ar', 'sku', 'category', 'unit', 'stock_quantity', 'minimum_stock_level', 'unit_cost', 'photo_url']
 
 const SAMPLE_ROWS = [
-  { name: 'HVAC Filter 20x25', name_ar: 'فلتر تكييف 20x25', sku: 'HVAC-F-2025', category: 'HVAC', unit: 'pcs', stock_quantity: 24, minimum_stock_level: 10, unit_cost: 45 },
-  { name: 'LED Bulb 9W', name_ar: 'لمبة ليد 9 واط', sku: 'EL-LED-9W', category: 'Electrical', unit: 'pcs', stock_quantity: 200, minimum_stock_level: 50, unit_cost: 12 },
+  { name: 'HVAC Filter 20x25', name_ar: 'فلتر تكييف 20x25', sku: 'HVAC-F-2025', category: 'HVAC', unit: 'pcs', stock_quantity: 24, minimum_stock_level: 10, unit_cost: 45, photo_url: '' },
+  { name: 'LED Bulb 9W', name_ar: 'لمبة ليد 9 واط', sku: 'EL-LED-9W', category: 'Electrical', unit: 'pcs', stock_quantity: 200, minimum_stock_level: 50, unit_cost: 12, photo_url: 'https://example.com/led.jpg' },
 ]
 
 export default function InventoryImportPage() {
@@ -59,6 +59,7 @@ export default function InventoryImportPage() {
       stock_quantity: r.stock_quantity ? Number(r.stock_quantity) : 0,
       minimum_stock_level: r.minimum_stock_level ? Number(r.minimum_stock_level) : 0,
       unit_cost: r.unit_cost ? Number(r.unit_cost) : null,
+      photo_url: r.photo_url || null,
     }))
     if (payload.length === 0) { setError('No rows had a name to import.'); setImporting(false); return }
     const { error: insertErr } = await supabase.from('inventory_items').insert(payload)
