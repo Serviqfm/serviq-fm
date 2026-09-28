@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { resolveCaller } from '@/app/api/purchase-orders/_helpers'
-import { notifyCurrentApprover, notifyCreatorDecided } from '../../_notify'
+import { notifyCurrentApprover, notifyCreatorDecided, notifyLowStockAfterIssue } from '../../_notify'
 import { parseBudgetError, budgetUsage } from '@/lib/budget'
 import { parseStockError } from '@/lib/stock'
 import { NotificationService } from '@/lib/NotificationService'
@@ -123,6 +123,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     } else if (requisition.status === 'approved') {
       // No band matched (or the band had no approvers) — auto-approved.
       await notifyCreatorDecided(caller.admin, requisition, requisition.created_by, true, null)
+      await notifyLowStockAfterIssue(caller.admin, requisition.organisation_id, requisition.id)
     }
     if (requisition.cost_center_id) {
       await notifyBudgetThreshold(caller.admin, requisition.organisation_id, requisition.cost_center_id)

@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminClient, siteByToken, verifiedSession } from '../_shared'
 import { parseStockError } from '@/lib/stock'
-import { notifyCurrentApprover } from '@/app/api/procurement/requisitions/_notify'
+import { notifyCurrentApprover, notifyLowStockAfterIssue } from '@/app/api/procurement/requisitions/_notify'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -155,6 +155,9 @@ export async function POST(req: NextRequest) {
         title,
         organisation_id: site.organisation_id,
       })
+    } else if (row?.status === 'approved') {
+      // Auto-approved (no band matched): the stock went out just now.
+      await notifyLowStockAfterIssue(admin, site.organisation_id, requisition.id as string)
     }
   } catch (e) {
     console.error('[requisition-portal submit] notify failed', e)

@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { resolveCaller } from '@/app/api/purchase-orders/_helpers'
-import { notifyCurrentApprover, notifyCreatorDecided } from '../../_notify'
+import { notifyCurrentApprover, notifyCreatorDecided, notifyLowStockAfterIssue } from '../../_notify'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +49,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         caller.admin, requisition, requisition.created_by,
         requisition.status === 'approved', comment
       )
+      if (requisition.status === 'approved') {
+        // Final approval just handed the stock out — tell the admins if that
+        // took anything under its reorder level.
+        await notifyLowStockAfterIssue(caller.admin, requisition.organisation_id, requisition.id)
+      }
     }
   } catch (e) {
     console.error('[requisitions decide] notify failed', e)
