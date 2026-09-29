@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { NotificationService } from '@/lib/NotificationService'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { sendEmail } from '@/lib/email'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://serviqfm.com'
 
@@ -16,6 +17,10 @@ type Requisition = {
   requisition_number?: number | null
   title?: string | null
   organisation_id: string
+  // P11: set only for QR-portal requests, which have no user account behind
+  // them. It is where the decision goes when created_by is null.
+  requester_email?: string | null
+  requester_name?: string | null
 }
 
 function link(id: string): string {
@@ -96,11 +101,32 @@ export async function notifyCreatorDecided(
   approved: boolean,
   comment: string | null
 ): Promise<void> {
-  if (!createdBy) return
+  const verdict = approved ? 'approved' : 'rejected'
+
+  // A portal request has no account to notify in-app — email the address that
+  // verified itself when the request was raised. Previously this returned early
+  // and the requester never heard back at all.
+  if (!createdBy) {
+    if (!req.requester_email) return
+    await sendEmail(
+      req.requester_email,
+      `${label(req)} was ${verdict}`,
+      `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Your request was ${verdict}</h2>
+        <p><strong>${escapeHtml(label(req))}</strong> — ${escapeHtml(req.title ?? '')}</p>
+        ${comment ? `<p><strong>Note:</strong> ${escapeHtml(comment)}</p>` : ''}
+        <p>${approved
+          ? 'Anything you picked from the store is ready to collect.'
+          : 'Nothing has been ordered, and any stock held for you has been released.'}</p>
+        <p style="color:#666;font-size:13px;">Scan the site QR code again to raise another request.</p>
+      </div>`
+    )
+    return
+  }
+
   const creator = await userContact(admin, createdBy)
   if (!creator) return
 
-  const verdict = approved ? 'approved' : 'rejected'
   const title = `${label(req)} was ${verdict}`
   const body = comment ?? req.title ?? ''
   const url = link(req.id)

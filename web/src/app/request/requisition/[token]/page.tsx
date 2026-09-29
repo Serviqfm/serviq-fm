@@ -15,6 +15,10 @@ type Item = {
   unit: string | null; photo_url: string | null; available: number
 }
 type Need = { description: string; quantity: string }
+type Mine = {
+  number: number | null; title: string | null; status: string
+  created_at: string; site: string | null
+}
 
 // Bilingual like the rest of the app. The portal sits outside the dashboard
 // shell (no LanguageContext), so the toggle is local and defaults to English.
@@ -36,6 +40,11 @@ const T = {
     searchPh: 'Search the store...', empty: 'Nothing stocked here yet.',
     none: 'None left', available: 'available', add: 'Add', allWeHave: 'That is all we have.',
     send: 'Send request', titleMissing: 'Say what you need in one line.',
+    mine: 'My requests', noneYet: 'Nothing yet.', newRequest: 'Raise another request',
+    statuses: {
+      draft: 'Draft', pending_approval: 'Waiting for approval', approved: 'Approved',
+      rejected: 'Rejected', converted: 'Ordered', cancelled: 'Cancelled',
+    } as Record<string, string>,
     linesMissing: 'Add at least one item - to order, or from the store.',
     failed: 'Something went wrong.',
     short: (i: string, a: number, r: number) => `${i}: only ${a} left, you asked for ${r}.`,
@@ -57,6 +66,11 @@ const T = {
     stockHint: 'متوفر في هذا الموقع، ويُحجز لك فور إرسال الطلب.',
     searchPh: 'ابحث في المستودع...', empty: 'لا توجد أصناف في هذا الموقع بعد.',
     none: 'غير متوفر', available: 'متاح', add: 'إضافة', allWeHave: 'هذا كل المتوفر.',
+    mine: 'طلباتي', noneYet: 'لا يوجد شيء بعد.', newRequest: 'تقديم طلب آخر',
+    statuses: {
+      draft: 'مسودة', pending_approval: 'بانتظار الموافقة', approved: 'تمت الموافقة',
+      rejected: 'مرفوض', converted: 'تم الطلب', cancelled: 'ملغي',
+    } as Record<string, string>,
     send: 'إرسال الطلب', titleMissing: 'اكتب ما تحتاجه في سطر واحد.',
     linesMissing: 'أضف صنفاً واحداً على الأقل — للشراء أو من المستودع.',
     failed: 'حدث خطأ ما.',
@@ -92,6 +106,7 @@ export default function RequisitionPortalPage() {
   const [items, setItems] = useState<Item[]>([])
   const [cart, setCart] = useState<Record<string, number>>({})
   const [tab, setTab] = useState<'needed' | 'stock'>('needed')
+  const [mine, setMine] = useState<Mine[]>([])
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -100,7 +115,17 @@ export default function RequisitionPortalPage() {
       .then(r => r.json())
       .then(b => setItems(b.items ?? []))
       .catch(() => {})
+    loadMine()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, sessionId, token])
+
+  function loadMine() {
+    if (!sessionId) return
+    fetch(`/api/public/requisition-portal/mine?token=${token}&session=${sessionId}`)
+      .then(r => r.json())
+      .then(b => setMine(b.requests ?? []))
+      .catch(() => {})
+  }
 
   async function post(path: string, body: unknown) {
     setBusy(true); setError('')
@@ -167,7 +192,7 @@ export default function RequisitionPortalPage() {
         ...cartLines.map(c => ({ item_id: c.item.id, description: c.item.name, quantity: c.qty, line_type: 'stock' })),
       ],
     })
-    if (out) { setReqNumber(out.requisition_number ?? null); setStep('done') }
+    if (out) { setReqNumber(out.requisition_number ?? null); setStep('done'); loadMine() }
   }
 
   const filtered = items.filter(i => {
@@ -359,11 +384,43 @@ export default function RequisitionPortalPage() {
           </div>
         )}
 
+        {(step === 'form' || step === 'done') && mine.length > 0 && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-6">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-secondary mb-3">{t.mine}</div>
+            <ul className="divide-y divide-outline-variant/30">
+              {mine.map(m => (
+                <li key={`${m.number}-${m.created_at}`} className="py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm text-on-surface truncate">{m.title}</div>
+                    <div className="text-xs text-on-surface-variant">
+                      {m.number ? `#${m.number} · ` : ''}{new Date(m.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <span className={`text-xs font-semibold whitespace-nowrap px-2.5 py-0.5 rounded-full ${
+                    m.status === 'approved' || m.status === 'converted' ? 'bg-primary/10 text-primary'
+                      : m.status === 'rejected' || m.status === 'cancelled' ? 'bg-error/10 text-error'
+                      : 'bg-[#f57f17]/10 text-[#f57f17]'
+                  }`}>
+                    {t.statuses[m.status] ?? m.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {step === 'done' && (
           <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] p-8 text-center space-y-3">
             <span className="material-symbols-outlined text-5xl text-primary">check_circle</span>
             <h1 className="text-2xl font-bold text-on-surface">{t.sent}</h1>
             <p className="text-sm text-on-surface-variant">{t.doneBody(reqNumber)}</p>
+            <button onClick={() => {
+              setTitle(''); setJustification(''); setNeededBy('')
+              setNeeds([{ description: '', quantity: '1' }]); setCart({}); setTab('needed')
+              setReqNumber(null); setStep('form')
+            }} className="text-primary text-sm font-semibold hover:underline">
+              {t.newRequest}
+            </button>
           </div>
         )}
       </div>

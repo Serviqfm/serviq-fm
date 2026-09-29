@@ -50,3 +50,21 @@ export function availableStock(item: {
   const reserved = Number(item.reserved_quantity ?? 0)
   return Math.max(0, (Number.isFinite(stock) ? stock : 0) - (Number.isFinite(reserved) ? reserved : 0))
 }
+
+export type StockReserved = {
+  item: string
+  attempted: number
+  reserved: number
+}
+
+// P11: the adjustment guard's message —
+//   STOCK_RESERVED|<item name>|<attempted stock>|<reserved>
+const RESERVED_RE = /STOCK_RESERVED\|(.*?)\|(-?\d+(?:\.\d+)?)\|(-?\d+(?:\.\d+)?)(?:\s|$)/
+
+/** Returns why a stock adjustment was refused, or null for a different error. */
+export function parseReservedError(message: string | null | undefined): StockReserved | null {
+  if (!message) return null
+  const m = RESERVED_RE.exec(message)
+  if (!m) return null
+  return { item: m[1], attempted: Number(m[2]), reserved: Number(m[3]) }
+}
