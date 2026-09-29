@@ -106,6 +106,17 @@ export default function RequisitionDetailPage() {
     const out = await call('/decide', { approve, comment: comment || null }, approve ? 'approve' : 'reject')
     if (out) { setComment(''); load() }
   }
+  async function doCancel() {
+    const returns = req.status === 'approved' && stockLines.some((l: Row) => l.issued_qty != null)
+    const msg = isAr
+      ? `إلغاء ${req.requisition_number ? 'الطلب #' + req.requisition_number : 'هذا الطلب'}؟` +
+        (returns ? ' ستُعاد الأصناف المصروفة إلى المخزون.' : '')
+      : `Cancel ${req.requisition_number ? 'REQ #' + req.requisition_number : 'this requisition'}?` +
+        (returns ? ' Anything already issued goes back on the shelf.' : '')
+    if (!confirm(msg)) return
+    if (await call('/cancel', {}, 'cancel')) load()
+  }
+
   async function doConvert() {
     const out = await call('/convert', { vendor_id: vendorId || null }, 'convert')
     if (out?.purchase_order) router.push('/dashboard/purchase-orders')
@@ -132,6 +143,10 @@ export default function RequisitionDetailPage() {
   const canDecide = req.status === 'pending_approval' && currentStep?.approver_user_id === me?.id
   // Nothing to buy = nothing to convert: stock lines were issued at approval.
   const canConvert = req.status === 'approved' && isPrivileged && purchaseLines.length > 0
+  // Withdraw your own while it is in flight; undoing an APPROVED one moves stock
+  // and money back, so that is admin/manager only (the route enforces both).
+  const canCancel = ['draft', 'rejected', 'pending_approval', 'approved'].includes(req.status)
+    && (req.status === 'approved' ? isPrivileged : isCreator || isPrivileged)
 
   const fieldCls = 'w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
 
@@ -397,7 +412,7 @@ export default function RequisitionDetailPage() {
         )}
 
         {/* Actions */}
-        {(canSubmit || canDecide || canConvert) && (
+        {(canSubmit || canDecide || canConvert || canCancel) && (
           <div className="bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-sm p-6 space-y-4">
             {canDecide && (
               <div>
@@ -443,6 +458,12 @@ export default function RequisitionDetailPage() {
                 <button onClick={doConvert} disabled={busy !== ''}
                   className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50">
                   {busy === 'convert' ? '…' : (isAr ? 'تحويل إلى أمر شراء' : 'Convert to purchase order')}
+                </button>
+              )}
+              {canCancel && (
+                <button onClick={doCancel} disabled={busy !== ''}
+                  className="px-5 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant text-sm font-semibold hover:bg-surface-container-low disabled:opacity-50 transition-colors ms-auto">
+                  {busy === 'cancel' ? '…' : (isAr ? 'إلغاء الطلب' : 'Cancel requisition')}
                 </button>
               )}
             </div>

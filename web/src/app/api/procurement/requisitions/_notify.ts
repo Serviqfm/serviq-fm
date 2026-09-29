@@ -131,3 +131,60 @@ export async function notifyCreatorDecided(
     }),
   ])
 }
+
+// P10: an issue can push an item under its reorder level, which is exactly when
+// the storekeeper wants to know. Emitted AFTER the issue committed, from the
+// three routes where a status change can hand stock out (submit, decide,
+// portal submit) — a database-side raise would roll the approval back.
+//
+// Dedupe is per item per day: an item sitting below its minimum for a week
+// alerts once a day, not once per requisition.
+export async function notifyLowStockAfterIssue(
+  admin: SupabaseClient,
+  orgId: string,
+  requisitionId: string
+): Promise<void> {
+  const { data: lines } = await admin
+    .from('requisition_items')
+    .select('item_id')
+    .eq('requisition_id', requisitionId)
+    .eq('line_type', 'stock')
+    .not('issued_qty', 'is', null)
+  const itemIds = Array.from(new Set((lines ?? []).map(l => l.item_id).filter(Boolean))) as string[]
+  if (itemIds.length === 0) return
+
+  const { data: items } = await admin
+    .from('inventory_items')
+    .select('id, name, unit, stock_quantity, minimum_stock_level')
+    .eq('organisation_id', orgId)
+    .in('id', itemIds)
+
+  const low = (items ?? []).filter(i =>
+    Number(i.minimum_stock_level ?? 0) > 0 &&
+    Number(i.stock_quantity ?? 0) <= Number(i.minimum_stock_level)
+  )
+  if (low.length === 0) return
+
+  const { data: admins } = await admin
+    .from('users').select('id')
+    .eq('organisation_id', orgId).eq('role', 'admin').eq('is_active', true)
+  if (!admins || admins.length === 0) return
+
+  const day = new Date().toISOString().slice(0, 10)
+  await Promise.allSettled(low.flatMap(i => {
+    const qty = `${Number(i.stock_quantity ?? 0)} ${i.unit ?? ''}`.trim()
+    const title = `${i.name} is low on stock`
+    const body = `${qty} left, minimum is ${Number(i.minimum_stock_level)}.`
+    return admins.map(a =>
+      NotificationService.insertInApp(a.id as string, orgId, 'part_low_stock', {
+        title,
+        body,
+        link: `${APP_URL}/dashboard/inventory/${i.id}`,
+        dedupeKey: `part_low_stock:${i.id}:${day}:${a.id}`,
+        localized: {
+          ar: { title: `${i.name} أوشك على النفاد`, body: `المتبقي ${qty}، الحد الأدنى ${Number(i.minimum_stock_level)}.` },
+        },
+      })
+    )
+  }))
+}

@@ -113,7 +113,6 @@ export const NOTIFICATION_TYPES = {
     key: 'part_low_stock',
     label: 'A part becomes low stock',
     category: 'parts_inventory',
-    emitted: false,
   },
 
   // Summary & Reports
