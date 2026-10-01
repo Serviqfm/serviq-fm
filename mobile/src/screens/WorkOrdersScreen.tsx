@@ -83,7 +83,7 @@ export default function WorkOrdersScreen() {
     if (!profile) return
     setLoading(true)
     const query = supabase.from('work_orders')
-      .select('*, asset:asset_id(name), site:site_id(name)')
+      .select('*, asset:asset_id(name), site:site_id(name), space:space_id(name)')
       .eq('organisation_id', profile.organisation_id)
       .order('created_at', { ascending: false })
 
@@ -154,7 +154,7 @@ export default function WorkOrdersScreen() {
         <View style={styles.woFooter}>
           <View style={styles.woFooterItem}>
             <Ionicons name='location-outline' size={12} color={colors.textLight} />
-            <Text style={styles.woFooterText}>{item.site?.name ?? item.asset?.name ?? t('unassigned')}</Text>
+            <Text style={styles.woFooterText}>{[item.site?.name, item.space?.name].filter(Boolean).join(' · ') || item.asset?.name || t('unassigned')}</Text>
           </View>
           {item.due_at && (
             <View style={styles.woFooterItem}>

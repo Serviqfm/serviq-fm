@@ -11,6 +11,9 @@ import { useLanguage } from '@/context/LanguageContext'
 type Plan = { id: string; name: string; site_id: string; image_url: string | null }
 type Pin = { id: string; floor_plan_id: string; space_id: string | null; asset_id: string | null; label: string | null; x: number; y: number }
 
+type LinkedWo = { id: string; wo_number: number | null; title: string; status: string }
+type LinkedReq = { id: string; title: string; status: string }
+
 export default function FloorPlansPage() {
   const supabase = createClient()
   const { lang } = useLanguage()
@@ -40,6 +43,8 @@ export default function FloorPlansPage() {
   const [pinSpace, setPinSpace] = useState('')
   const [pinAsset, setPinAsset] = useState('')
   const [openPin, setOpenPin] = useState<string | null>(null)
+  // Open requests / work orders per space, for the pins on the selected plan.
+  const [bySpace, setBySpace] = useState<Record<string, { wos: LinkedWo[]; reqs: LinkedReq[] }>>({})
 
   const canWrite = currentUser && ['admin', 'manager'].includes(currentUser.role)
   const selected = plans.find(p => p.id === selectedId) || null
@@ -76,6 +81,26 @@ export default function FloorPlansPage() {
     const { data } = await supabase.from('floor_plan_pins')
       .select('id, floor_plan_id, space_id, asset_id, label, x, y').eq('floor_plan_id', id)
     setPins((data ?? []) as Pin[])
+    await loadLinked((data ?? []) as Pin[])
+  }
+
+  // Floor-plan link: every pin with a space shows that space's open work orders + pending requests.
+  async function loadLinked(list: Pin[]) {
+    const ids = Array.from(new Set(list.map(p => p.space_id).filter(Boolean))) as string[]
+    if (!ids.length) { setBySpace({}); return }
+    const [{ data: wos }, { data: reqs }] = await Promise.all([
+      supabase.from('work_orders').select('id, wo_number, title, status, space_id')
+        .in('space_id', ids).not('status', 'in', '("completed","closed","cancelled")').order('created_at', { ascending: false }).limit(200),
+      supabase.from('requests').select('id, title, status, space_id')
+        .in('space_id', ids).eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
+    ])
+    const map: Record<string, { wos: LinkedWo[]; reqs: LinkedReq[] }> = {}
+    ids.forEach(id => { map[id] = { wos: [], reqs: [] } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(wos ?? []).forEach((w: any) => map[w.space_id]?.wos.push(w))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(reqs ?? []).forEach((r: any) => map[r.space_id]?.reqs.push(r))
+    setBySpace(map)
   }
 
   async function createPlan(e: React.FormEvent) {
@@ -229,13 +254,30 @@ export default function FloorPlansPage() {
                     onClick={e => { e.stopPropagation(); setOpenPin(openPin === p.id ? null : p.id) }}
                     title={pinLabelText(p)}
                     className="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-primary border-2 border-on-primary shadow-md hover:scale-125 transition-transform"
-                    style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+                    style={{ left: `${p.x}%`, top: `${p.y}%`, background: p.space_id && bySpace[p.space_id]?.wos.length ? 'var(--color-error, #ba1a1a)' : undefined }}>
                     {openPin === p.id && (
                       <div onClick={e => e.stopPropagation()}
-                        className="absolute left-1/2 -translate-x-1/2 top-6 z-10 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg p-3 w-[200px] text-start cursor-default">
+                        className="absolute left-1/2 -translate-x-1/2 top-6 z-10 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg p-3 w-[260px] text-start cursor-default">
                         <p className="text-sm font-semibold text-on-surface mb-1">{pinLabelText(p)}</p>
                         {p.space_id && <p className="text-xs text-on-surface-variant">{T('Space: ', 'مساحة: ')}{spaces.find(s => s.id === p.space_id)?.name}</p>}
                         {p.asset_id && <p className="text-xs text-on-surface-variant">{T('Asset: ', 'أصل: ')}{assets.find(a => a.id === p.asset_id)?.name}</p>}
+                        {p.space_id && (
+                          <div className="mt-2 space-y-1">
+                            {(bySpace[p.space_id]?.reqs ?? []).map(r => (
+                              <a key={r.id} href={`/dashboard/requests/${r.id}`} className="block text-xs text-primary hover:underline truncate">
+                                {T('Request: ', 'طلب: ')}{r.title}
+                              </a>
+                            ))}
+                            {(bySpace[p.space_id]?.wos ?? []).map(w => (
+                              <a key={w.id} href={`/dashboard/work-orders/${w.id}`} className="block text-xs text-primary hover:underline truncate">
+                                {w.wo_number ? `WO-${String(w.wo_number).padStart(4, '0')} ` : ''}{w.title}
+                              </a>
+                            ))}
+                            <a href={`/dashboard/work-orders/new?space_id=${p.space_id}`} className="block text-xs font-semibold text-primary hover:underline">
+                              {T('+ New work order here', '+ أمر عمل جديد هنا')}
+                            </a>
+                          </div>
+                        )}
                         {canWrite && (
                           <button onClick={() => deletePin(p.id)}
                             className="mt-2 text-error text-xs font-semibold hover:underline">{T('Remove pin', 'إزالة الدبوس')}</button>

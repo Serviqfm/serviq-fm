@@ -25,6 +25,7 @@ export default function NewWorkOrderPage() {
   const searchParams = useSearchParams()
   const prefilledAssetId = searchParams.get('asset_id') ?? ''
   const prefilledSiteId = searchParams.get('site_id') ?? ''
+  const prefilledSpaceId = searchParams.get('space_id') ?? ''
   const { t, lang } = useLanguage()
   const supabase = createClient()
   const { isHidden, isRequired, loading: configLoading } = useFieldConfig('work_orders_new')
@@ -35,6 +36,8 @@ export default function NewWorkOrderPage() {
   const [assets, setAssets] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sites, setSites] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [spaces, setSpaces] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [technicians, setTechnicians] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
@@ -60,6 +63,7 @@ export default function NewWorkOrderPage() {
     category: '',
     site_id: prefilledSiteId,
     asset_id: prefilledAssetId,
+    space_id: prefilledSpaceId,
     assigned_to: '',
     team_id: '',
     due_at: '',
@@ -96,6 +100,13 @@ export default function NewWorkOrderPage() {
     if (!profile) return
     const orgId = profile.organisation_id
     setIsManager(profile.role === 'admin' || profile.role === 'manager')
+    const { data: spaceData } = await supabase.from('spaces').select('id, name, floor, site_id').eq('organisation_id', orgId).order('name')
+    if (spaceData) {
+      setSpaces(spaceData)
+      // Deep link from a floor plan: ?space_id= alone also fixes the site.
+      const sp = spaceData.find(x => x.id === prefilledSpaceId)
+      if (sp) setForm(prev => ({ ...prev, site_id: prev.site_id || sp.site_id }))
+    }
     const [{ data: assetData }, { data: siteData }, { data: techData }, { data: vendorData }, { data: templateData }, { data: teamData }] = await Promise.all([
       supabase.from('assets').select('id, name, site_id').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('sites').select('id, name').eq('organisation_id', orgId).eq('is_active', true),
@@ -182,6 +193,8 @@ export default function NewWorkOrderPage() {
       }
       // WO-29: switching site clears an asset that belongs to a different site.
       if (name === 'site_id' && value) {
+        const space = spaces.find(s => s.id === next.space_id)
+        if (space && space.site_id !== value) next.space_id = ''
         const asset = assets.find(a => a.id === next.asset_id)
         if (asset?.site_id && asset.site_id !== value) next.asset_id = ''
       }
@@ -264,6 +277,7 @@ export default function NewWorkOrderPage() {
         category: form.category,
         site_id: form.site_id,
         asset_id: form.asset_id,
+        space_id: form.space_id,
         assigned_to: form.assigned_to,
         due_at: form.due_at,
         sla_hours: form.sla_hours,
@@ -455,6 +469,15 @@ export default function NewWorkOrderPage() {
                   {sites.length === 0 && <p className="text-xs text-on-surface-variant mt-1">No sites added yet</p>}
                 </div>
               )}
+              <div>
+                <label className={labelCls}>{lang === 'ar' ? 'المساحة' : 'Space'}</label>
+                <select name="space_id" value={form.space_id} onChange={handleChange} className={inputCls}>
+                  <option value="">{lang === 'ar' ? 'اختر المساحة' : 'Select space'}</option>
+                  {spaces.filter(s => !form.site_id || s.site_id === form.site_id).map(s => (
+                    <option key={s.id} value={s.id}>{s.floor ? `${s.floor} · ` : ''}{s.name}</option>
+                  ))}
+                </select>
+              </div>
               {!isHidden('asset_id') && (
                 <div>
                   <label className={labelCls}>

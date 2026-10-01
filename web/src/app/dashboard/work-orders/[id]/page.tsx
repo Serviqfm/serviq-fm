@@ -346,7 +346,7 @@ export default function WorkOrderDetailPage() {
   async function fetchWorkOrder() {
     const { data } = await supabase
       .from('work_orders')
-      .select('*, assignee:assigned_to(full_name, email), vendor:assigned_vendor_id(company_name), asset:asset_id(name, warranty_expiry), site:site_id(name, invoicing_enabled), team:team_id(name, name_ar)')
+      .select('*, assignee:assigned_to(full_name, email), vendor:assigned_vendor_id(company_name), asset:asset_id(name, warranty_expiry), site:site_id(name, invoicing_enabled), space:space_id(name, floor), team:team_id(name, name_ar)')
       .eq('id', id)
       .single()
     if (data) {
@@ -1026,6 +1026,8 @@ export default function WorkOrderDetailPage() {
             { label: 'Asset', value: (wo.asset as any)?.name ?? '—' },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: 'Site', value: (wo.site as any)?.name ?? '—' },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { label: lang === 'ar' ? 'المساحة' : 'Space', value: (wo as any).space ? `${(wo as any).space.floor ? (wo as any).space.floor + ' · ' : ''}${(wo as any).space.name}` : '—' },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: 'Assigned To', value: (wo.assignee as any)?.full_name ?? ((wo.vendor as any)?.company_name ? `${(wo.vendor as any).company_name} (Vendor)` : 'Unassigned') },
             ...((wo as any).signed_off_by
