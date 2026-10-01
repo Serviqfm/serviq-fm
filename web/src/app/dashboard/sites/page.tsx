@@ -105,6 +105,9 @@ export default function SitesPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-on-surface">{sp.name}</span>
           {sp.floor && <span className="text-xs text-on-surface-variant">({sp.floor})</span>}
+          <Link href={`/dashboard/floor-plans?space_id=${sp.id}`} className="text-xs font-semibold text-primary hover:underline">
+            {lang === 'ar' ? 'المخطط' : 'Floor plan'}
+          </Link>
           <label className="text-[11px] text-on-surface-variant ms-auto">{lang === 'ar' ? 'ضمن:' : 'Under:'}</label>
           <select value={sp.parent_space_id ?? ''} onChange={e => setParent(sp.id, e.target.value || null)}
             className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-2 py-1 text-xs text-on-surface outline-none max-w-[160px]">

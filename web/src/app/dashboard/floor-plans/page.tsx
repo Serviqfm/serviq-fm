@@ -72,6 +72,12 @@ export default function FloorPlansPage() {
     setSpaces(sp ?? [])
     setAssets(as ?? [])
     setPlans((pl ?? []) as Plan[])
+    // Deep link ?space_id=: open the plan holding that space's pin, with the pin popup open.
+    const wantSpace = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('space_id') : null
+    if (wantSpace) {
+      const { data: hit } = await supabase.from('floor_plan_pins').select('id, floor_plan_id').eq('space_id', wantSpace).limit(1).maybeSingle()
+      if (hit) { await selectPlan(hit.floor_plan_id); setOpenPin(hit.id); return }
+    }
     if (!selectedId && pl && pl.length) selectPlan(pl[0].id)
   }
 
