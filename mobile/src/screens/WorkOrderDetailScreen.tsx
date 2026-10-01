@@ -815,6 +815,13 @@ export default function WorkOrderDetailScreen() {
                 <Text style={{ fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 20 }}>{wo.description}</Text>
               </View>
             ) : null}
+            {wo.space_id ? (
+              <TouchableOpacity onPress={() => navigation.navigate('FloorPlan', { spaceId: wo.space_id })}
+                style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name='map-outline' size={18} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 14 }}>{t('view_floor_plan')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 

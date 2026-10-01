@@ -24,6 +24,7 @@ import QRScannerScreen from '../screens/QRScannerScreen'
 import CreateWorkOrderScreen from '../screens/CreateWorkOrderScreen'
 import CreateAssetScreen from '../screens/CreateAssetScreen'
 import LocationsScreen from '../screens/LocationsScreen'
+import FloorPlanScreen from '../screens/FloorPlanScreen'
 import RequestSubmitScreen from '../screens/RequestSubmitScreen'
 import RunInspectionScreen from '../screens/RunInspectionScreen'
 
@@ -154,6 +155,8 @@ function RootNavigator() {
             options={{ headerShown: true, title: 'Asset', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='Locations' component={LocationsScreen}
             options={{ headerShown: true, title: 'Locations', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
+          <Stack.Screen name='FloorPlan' component={FloorPlanScreen}
+            options={{ headerShown: true, title: 'Floor Plan', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen name='RunInspection' component={RunInspectionScreen}
             options={{ headerShown: true, title: 'Inspection', headerStyle: { backgroundColor: colors.primary }, headerTintColor: 'white' }} />
           <Stack.Screen

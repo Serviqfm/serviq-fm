@@ -93,6 +93,9 @@ export default function LocationsScreen() {
               </Text>
               {item.floor ? <Text style={styles.spaceMeta}>{t('floor')}: {item.floor}</Text> : null}
             </View>
+            <TouchableOpacity hitSlop={10} style={{ marginRight: 14 }} onPress={() => navigation.navigate('FloorPlan', { spaceId: item.id })}>
+              <Ionicons name='map-outline' size={20} color={colors.primary} />
+            </TouchableOpacity>
             <Ionicons name='create-outline' size={18} color={colors.textLight} />
           </TouchableOpacity>
         )}
