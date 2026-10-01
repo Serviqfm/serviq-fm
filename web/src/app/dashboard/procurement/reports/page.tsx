@@ -67,7 +67,7 @@ export default function ProcurementReportsPage() {
       // Tolerated: a tenant without the P1 migration has no requisitions, which
       // costs the cycle-time and cost-center views but not the spend charts.
       supabase.from('requisitions')
-        .select('id, status, created_at, submitted_at, decided_at, cost_center_id, cost_center:cost_center_id(name)')
+        .select('id, status, created_at, submitted_at, decided_at, cost_center_id, cost_center:cost_centers(name)')
         .eq('organisation_id', org),
     ])
 
@@ -106,7 +106,7 @@ export default function ProcurementReportsPage() {
     const today = new Date().toISOString().slice(0, 10)
     const { data: periods, error: pErr } = await supabase
       .from('budget_periods')
-      .select('id, amount, starts_on, ends_on, cost_center_id, cost_center:cost_center_id(name)')
+      .select('id, amount, starts_on, ends_on, cost_center_id, cost_center:cost_centers(name)')
       .eq('organisation_id', org)
       .lte('starts_on', today)
       .gte('ends_on', today)

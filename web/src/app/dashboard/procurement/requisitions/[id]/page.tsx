@@ -67,7 +67,7 @@ export default function RequisitionDetailPage() {
 
     const [rRes, lRes, sRes, vRes] = await Promise.all([
       supabase.from('requisitions')
-        .select('*, site:site_id(name), cost_center:cost_center_id(name, code), creator:created_by(full_name)')
+        .select('*, site:site_id(name), cost_center:cost_centers(name, code), creator:created_by(full_name)')
         .eq('id', id).maybeSingle(),
       supabase.from('requisition_items').select('*, item:item_id(name, sku)').eq('requisition_id', id),
       supabase.from('requisition_approvals')
