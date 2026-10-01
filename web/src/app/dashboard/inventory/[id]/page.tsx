@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { availableStock, parseReservedError } from '@/lib/stock'
 
 export default function InventoryItemDetailPage() {
   const { id } = useParams()
@@ -14,6 +15,7 @@ export default function InventoryItemDetailPage() {
   const [adjustQty, setAdjustQty] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
   const [adjusting, setAdjusting] = useState(false)
+  const [adjustError, setAdjustError] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchItem() }, [id])
@@ -27,14 +29,37 @@ export default function InventoryItemDetailPage() {
   async function adjustStock(direction: 'add' | 'remove') {
     if (!adjustQty || parseFloat(adjustQty) <= 0) return
     setAdjusting(true)
+    setAdjustError('')
     const qty = parseFloat(adjustQty)
     const newQty = direction === 'add'
       ? (item.stock_quantity + qty)
       : Math.max(0, item.stock_quantity - qty)
-    await supabase.from('inventory_items').update({
+    const { error } = await supabase.from('inventory_items').update({
       stock_quantity: newQty,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
+    if (error) {
+      // P11: the DB refuses a decrease that would eat into stock other
+      // requisitions are holding. Say which requisition-held quantity is in the
+      // way rather than showing a raw Postgres message.
+      const held = parseReservedError(error.message)
+      setAdjustError(held
+        ? `Cannot go below ${held.reserved} — that much is held by requisitions awaiting approval. Cancel one first, or adjust to ${held.reserved} or more.`
+        : error.message)
+      setAdjusting(false)
+      return
+    }
+    // The ledger is the record of WHY stock moved; a manual adjustment used to
+    // leave no trace at all, so the note the user typed was thrown away.
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('stock_transactions').insert({
+      organisation_id: item.organisation_id,
+      item_id: id,
+      delta: direction === 'add' ? qty : -(item.stock_quantity - newQty),
+      reason: 'adjust',
+      note: adjustNote || null,
+      created_by: user?.id ?? null,
+    })
     setAdjustQty('')
     setAdjustNote('')
     await fetchItem()
@@ -49,6 +74,8 @@ export default function InventoryItemDetailPage() {
   const stockColor = isOut ? '#b71c1c' : isLow ? '#f57f17' : '#2e7d32'
   const stockBg = isOut ? '#fce4ec' : isLow ? '#fff8e1' : '#e8f5e9'
   const totalValue = item.unit_cost ? (item.stock_quantity * item.unit_cost).toFixed(2) : null
+  const held = Number(item.reserved_quantity ?? 0)
+  const free = availableStock(item)
 
   return (
     <div style={{ padding: '2rem', maxWidth: 760, margin: '0 auto' }}>
@@ -69,6 +96,11 @@ export default function InventoryItemDetailPage() {
           <p style={{ fontSize: 12, color: stockColor, margin: '0 0 6px', fontWeight: 500 }}>Current Stock</p>
           <p style={{ fontSize: 28, fontWeight: 700, margin: 0, color: stockColor }}>{item.stock_quantity} {item.unit}</p>
           <p style={{ fontSize: 12, margin: '4px 0 0', color: stockColor }}>{isOut ? 'Out of stock' : isLow ? 'Below minimum level' : 'In stock'}</p>
+          {held > 0 && (
+            <p style={{ fontSize: 12, margin: '6px 0 0', color: '#f57f17', fontWeight: 500 }}>
+              {held} {item.unit} held by requisitions · {free} free
+            </p>
+          )}
         </div>
         <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1rem' }}>
           <p style={{ fontSize: 12, color: '#999', margin: '0 0 6px', fontWeight: 500 }}>Minimum Level</p>
@@ -97,6 +129,16 @@ export default function InventoryItemDetailPage() {
 
       <div style={{ background: 'white', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem' }}>
         <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px' }}>Adjust Stock</p>
+        {held > 0 && (
+          <p style={{ fontSize: 12, color: '#666', margin: '-6px 0 12px' }}>
+            You can remove at most {free} {item.unit} — {held} is held for requisitions awaiting approval.
+          </p>
+        )}
+        {adjustError && (
+          <p style={{ fontSize: 13, color: '#b71c1c', background: '#fce4ec', border: '1px solid #ef9a9a', borderRadius: 8, padding: '8px 12px', margin: '0 0 12px' }}>
+            {adjustError}
+          </p>
+        )}
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 120 }}>
             <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Quantity</label>

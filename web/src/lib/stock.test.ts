@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseStockError, availableStock } from './stock'
+import { parseStockError, availableStock, parseReservedError } from './stock'
 
 describe('parseStockError', () => {
   it('reads the item and the numbers out of a raised STOCK_SHORT', () => {
@@ -32,5 +32,21 @@ describe('availableStock', () => {
   it('treats missing values as zero', () => {
     expect(availableStock({})).toBe(0)
     expect(availableStock({ stock_quantity: '8', reserved_quantity: null })).toBe(8)
+  })
+})
+
+describe('parseReservedError', () => {
+  it('reads the item, the attempt and the held quantity', () => {
+    expect(parseReservedError('STOCK_RESERVED|Mop heads|3|4.00')).toEqual({
+      item: 'Mop heads', attempted: 3, reserved: 4,
+    })
+  })
+  it('survives the scaffolding Postgres wraps around it', () => {
+    expect(parseReservedError('ERROR:  STOCK_RESERVED|A4 paper|1.00|6.00 CONTEXT: ...'))
+      .toEqual({ item: 'A4 paper', attempted: 1, reserved: 6 })
+  })
+  it('is null for a different error', () => {
+    expect(parseReservedError('STOCK_SHORT|A4 paper|7.00|6.00')).toBeNull()
+    expect(parseReservedError(undefined)).toBeNull()
   })
 })

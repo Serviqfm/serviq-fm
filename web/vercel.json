@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/tenant-invoice-autodraft",
       "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/cron/stale-reservations",
+      "schedule": "0 7 * * *"
     }
   ]
 }

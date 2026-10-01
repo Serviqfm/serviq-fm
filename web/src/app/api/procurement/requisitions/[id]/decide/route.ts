@@ -38,6 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const requisition = data as {
     id: string; organisation_id: string; status: string
     requisition_number: number | null; title: string | null; created_by: string | null
+    requester_email: string | null; requester_name: string | null
   }
 
   try {
