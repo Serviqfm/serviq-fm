@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
     category: cleaned.category ? cleaned.category : null,
     site_id: cleaned.site_id ? cleaned.site_id : null,
     asset_id: cleaned.asset_id ? cleaned.asset_id : null,
+    space_id: null as string | null,
     assigned_to: cleaned.assigned_to ? cleaned.assigned_to : null,
     due_at: cleaned.due_at ? cleaned.due_at : null,
     sla_hours: slaParsed,
@@ -115,6 +116,14 @@ export async function POST(req: NextRequest) {
     // recurrence_frequency below, not by the source column.
     source: 'manual',
     photo_urls: Array.isArray(cleaned.photos) ? cleaned.photos : photoUrls,
+  }
+
+  // Floor-plan link: optional space, must belong to the caller's org (admin client bypasses RLS).
+  if (typeof body.space_id === 'string' && body.space_id) {
+    const { data: sp } = await admin.from('spaces').select('id')
+      .eq('id', body.space_id).eq('organisation_id', profile.organisation_id).maybeSingle()
+    if (!sp) return NextResponse.json({ error: 'Invalid space' }, { status: 400 })
+    insertRow.space_id = sp.id
   }
 
   // FM-03: apply the org's SLA policy for this priority. The response target

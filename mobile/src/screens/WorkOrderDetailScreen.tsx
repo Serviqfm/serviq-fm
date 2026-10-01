@@ -201,7 +201,7 @@ export default function WorkOrderDetailScreen() {
   async function fetchWO() {
     const { data, error: woError } = await supabase
       .from('work_orders')
-      .select('*, asset:asset_id(name, category), site:site_id(name), assignee:assigned_to(full_name)')
+      .select('*, asset:asset_id(name, category), site:site_id(name), space:space_id(name, floor), assignee:assigned_to(full_name)')
       .eq('id', route.params.id)
       .single()
     if (woError) console.log('WO Error:', JSON.stringify(woError))
@@ -797,6 +797,7 @@ export default function WorkOrderDetailScreen() {
             {[
               { label: t('asset'),       value: wo.asset?.name },
               { label: t('site'),        value: wo.site?.name },
+              { label: t('space'),       value: wo.space ? (wo.space.floor ? wo.space.floor + ' · ' : '') + wo.space.name : undefined },
               { label: t('assigned_to'), value: wo.assignee?.full_name ?? t('unassigned') },
               { label: t('due_date'),    value: wo.due_at ? format(new Date(wo.due_at), 'dd MMM yyyy') : null },
               { label: lang === 'ar' ? 'بدأ في' : 'Started', value: wo.started_at ? format(new Date(wo.started_at), 'dd MMM HH:mm') : null },

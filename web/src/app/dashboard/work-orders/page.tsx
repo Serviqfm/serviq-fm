@@ -34,6 +34,7 @@ interface WorkOrder {
   team_id?: string
   asset?: { name: string }
   site?: { name: string }
+  space?: { name: string } | null
   team?: { name: string }
   creator?: { full_name: string }
   assignee?: { full_name: string }
@@ -75,6 +76,7 @@ const LIST_COLUMNS: { key: string; label: string; always?: boolean; get: (w: Wor
   { key: 'title',      label: 'Title',     always: true, get: w => w.title ?? '' },
   { key: 'asset',      label: 'Asset',     get: w => w.asset?.name ?? '' },
   { key: 'site',       label: 'Site',      get: w => w.site?.name ?? '' },
+  { key: 'space',      label: 'Space',     get: w => w.space?.name ?? '' },
   { key: 'category',   label: 'Category',  get: w => w.category ?? '' },
   { key: 'priority',   label: 'Priority',  get: w => w.priority ?? '' },
   { key: 'status',     label: 'Status',    get: w => w.status ?? '' },
@@ -93,7 +95,7 @@ const LIST_COLUMNS: { key: string; label: string; always?: boolean; get: (w: Wor
 
 // Columns shown in the table by default (matches the original layout). The chooser
 // persists deviations from this in localStorage per browser (WO-14).
-const DEFAULT_VISIBLE = ['wo_number','title','asset','site','category','priority','status','assignee','due_at','created_at']
+const DEFAULT_VISIBLE = ['wo_number','title','asset','site','space','category','priority','status','assignee','due_at','created_at']
 const VISIBLE_COLS_KEY = 'wo-list-visible-cols'
 
 export default function WorkOrdersPage() {
@@ -282,7 +284,7 @@ export default function WorkOrdersPage() {
   function buildQuery(withCount: boolean) {
     let q = supabase.from('work_orders')
       // WO-12: archived WOs are hidden from the list.
-      .select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name)', withCount ? { count: 'exact' } : undefined)
+      .select('*, assignee:assigned_to(full_name), creator:created_by(full_name), team:team_id(name), vendor:assigned_vendor_id(company_name), asset:asset_id(name), site:site_id(name), space:space_id(name)', withCount ? { count: 'exact' } : undefined)
       .is('archived_at', null)
       .order('created_at', { ascending: false })
     // Wait for the profile: CORE-21 technician scoping must be known before showing rows.

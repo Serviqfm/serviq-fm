@@ -45,6 +45,8 @@ export default function CreateWorkOrderScreen() {
   const [category, setCategory] = useState<string | null>(null)
   const [siteId, setSiteId] = useState<string | null>(null)
   const [assetId, setAssetId] = useState<string | null>(null)
+  const [spaceId, setSpaceId] = useState<string | null>(null)
+  const [spaces, setSpaces] = useState<any[]>([])
   const [dueKey, setDueKey] = useState('none')
   const [customDue, setCustomDue] = useState<Date | null>(null)
   const [pickerMode, setPickerMode] = useState<null | 'date' | 'time'>(null)
@@ -65,20 +67,25 @@ export default function CreateWorkOrderScreen() {
 
   async function fetchOptions() {
     if (!profile?.organisation_id) return
-    const [sitesRes, assetsRes] = await Promise.all([
+    const [sitesRes, assetsRes, spacesRes] = await Promise.all([
       supabase.from('sites').select('id, name')
         .eq('organisation_id', profile.organisation_id)
         .order('name', { ascending: true }),
       supabase.from('assets').select('id, name, site_id')
         .eq('organisation_id', profile.organisation_id)
         .order('name', { ascending: true }),
+      supabase.from('spaces').select('id, name, floor, site_id')
+        .eq('organisation_id', profile.organisation_id)
+        .order('name', { ascending: true }),
     ])
+    if (spacesRes.data) setSpaces(spacesRes.data)
     if (sitesRes.data) setSites(sitesRes.data)
     if (assetsRes.data) setAssets(assetsRes.data)
   }
 
   function onSiteChange(value: string | null) {
     setSiteId(value)
+    if (value && spaceId && spaces.find(s => s.id === spaceId)?.site_id !== value) setSpaceId(null)
     // Clear the asset if it belongs to a different site.
     if (value && assetId) {
       const asset = assets.find(a => a.id === assetId)
@@ -181,6 +188,7 @@ export default function CreateWorkOrderScreen() {
       category,
       site_id: siteId,
       asset_id: assetId,
+      space_id: spaceId,
       due_at: dueAt,
       status: 'new',
       source: 'manual',
@@ -260,6 +268,14 @@ export default function CreateWorkOrderScreen() {
             value={siteId}
             options={sites.map(s => ({ value: s.id, label: s.name }))}
             onChange={onSiteChange}
+          />
+
+          <SelectField
+            label={t('space')}
+            placeholder={t('select_space')}
+            value={spaceId}
+            options={spaces.filter(s => !siteId || s.site_id === siteId).map(s => ({ value: s.id, label: (s.floor ? s.floor + ' · ' : '') + s.name }))}
+            onChange={v => { setSpaceId(v); const sp = spaces.find(s => s.id === v); if (sp?.site_id) setSiteId(sp.site_id) }}
           />
 
           <SelectField
