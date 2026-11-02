@@ -1,0 +1,1985 @@
+{
+ "groups": [
+  {
+   "name": "Every day",
+   "blurb": "The screens most people open every shift."
+  },
+  {
+   "name": "Planned work",
+   "blurb": "Maintenance that happens on a rule rather than a complaint."
+  },
+  {
+   "name": "Setup",
+   "blurb": "The structure everything else hangs off. Get these right first."
+  },
+  {
+   "name": "People",
+   "blurb": "Who is in the system and what they can reach."
+  },
+  {
+   "name": "Money",
+   "blurb": "Purchasing, invoicing and your own subscription."
+  },
+  {
+   "name": "Governance",
+   "blurb": "Reporting, compliance, audit and integration."
+  }
+ ],
+ "onboarding": [
+  {
+   "key": "settings",
+   "title": "Configure the organisation",
+   "desc": "Branding, categories and SLA targets under Settings."
+  },
+  {
+   "key": "sites",
+   "title": "Create sites and spaces",
+   "desc": "Buildings first, then floors and rooms. Everything else references a site."
+  },
+  {
+   "key": "assets",
+   "title": "Load the asset register",
+   "desc": "Import equipment, set the hierarchy and mark criticality."
+  },
+  {
+   "key": "users",
+   "title": "Invite your team",
+   "desc": "Roles and site scoping. Keep admins to two or three."
+  },
+  {
+   "key": "pm",
+   "title": "Set up PM schedules",
+   "desc": "Attach checklists and choose the recurrence basis carefully."
+  },
+  {
+   "key": "work_orders",
+   "title": "Run the first work order",
+   "desc": "Raise it, assign it, close it. Then check the Dashboard reflects it."
+  }
+ ],
+ "modules": [
+  {
+   "key": "dashboard",
+   "icon": "dashboard",
+   "en": "Dashboard",
+   "ar": "لوحة التحكم",
+   "path": "/dashboard",
+   "group": "Every day",
+   "tag": "Core",
+   "short": "Live KPIs for open work, overdue jobs, PM due today and PM compliance.",
+   "summary": "The Dashboard is the landing screen after sign-in. It reads your whole organisation in real time and answers four questions: how much work is open, how much is late, what preventive maintenance falls due today, and whether the PM programme is being kept. Everything on it is a link into the module behind the number.",
+   "steps": [
+    {
+     "t": "Read the four tiles",
+     "d": "Open Work Orders, Overdue, PM Due Today and PM Compliance %. Overdue counts open jobs whose due date has passed; PM Compliance is active schedules that have at least one completion, as a percentage.",
+     "tip": ""
+    },
+    {
+     "t": "Check the status bars",
+     "d": "The breakdown splits open work into assigned / in progress, new-and-unassigned, and on hold. A growing \"new\" bar means jobs are arriving faster than they are being assigned.",
+     "tip": "If the unassigned bar is over 20% of open work, go straight to Work Orders and use the Unassigned quick filter plus bulk assign."
+    },
+    {
+     "t": "Scan recent activity",
+     "d": "The last four audit-log entries show who changed what and when. Click one to open the record it refers to.",
+     "tip": ""
+    },
+    {
+     "t": "Drill in",
+     "d": "Every tile and bar links through to a pre-filtered list. Nothing on the Dashboard is edited here — it is a read-only view.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Sees organisation-wide figures across every site.",
+    "Sees organisation-wide figures, scoped to their assigned sites where site scoping is switched on.",
+    "Sees the same layout, but counts are limited to work orders assigned to them.",
+    "No dashboard access — requesters land on their request list."
+   ],
+   "faq": [
+    {
+     "q": "The numbers look stale.",
+     "a": "The Dashboard queries on load, not on a timer. Refresh the page to recount."
+    },
+    {
+     "q": "PM Compliance shows 0%.",
+     "a": "It is the share of active PM schedules with a recorded completion. A brand-new account with no completions yet will read 0% until the first PM is closed."
+    },
+    {
+     "q": "A technician sees different totals to me.",
+     "a": "That is expected. Technician scoping limits every count to their own assigned work."
+    }
+   ],
+   "related": [
+    "work_orders",
+    "pm",
+    "reports"
+   ]
+  },
+  {
+   "key": "work_orders",
+   "icon": "assignment",
+   "en": "Work Orders",
+   "ar": "أوامر العمل",
+   "path": "/dashboard/work-orders",
+   "group": "Every day",
+   "tag": "Core",
+   "short": "The core record. Create, assign, track, cost and close every maintenance job.",
+   "summary": "A work order is the unit of work in ServiqFM. Everything else — requests, PM schedules, inspections, meters — eventually produces one. The list screen carries KPI tiles, saved views, server-side filters, bulk assignment, column control and CSV export; the detail screen carries tasks, parts, labour, costs, files and the full audit trail.",
+   "steps": [
+    {
+     "t": "Create a work order",
+     "d": "New Work Order opens the create form. Title and site are the minimum. Link an asset whenever the job is about a specific piece of equipment — that is what builds asset history.",
+     "tip": "Templates (Work Orders → Templates) pre-fill category, priority, tasks and checklists for jobs you raise repeatedly."
+    },
+    {
+     "t": "Assign it",
+     "d": "Set Assigned To for a single technician, or Team for a crew, or Assigned Vendor for outsourced work. Additional workers can be added on the detail screen. Saving an assignment moves status from new to assigned and notifies the assignee.",
+     "tip": "Select several rows with the checkboxes and use the bulk bar to assign them all to one technician in a single action."
+    },
+    {
+     "t": "Work it",
+     "d": "The technician moves status to in progress, ticks off tasks and checklist items, logs parts consumed from Inventory and records labour hours. Photos and documents attach on the Files tab.",
+     "tip": ""
+    },
+    {
+     "t": "Close it",
+     "d": "Set status to completed, record a failure code if the job was a breakdown, and confirm costs. Completed work orders leave the default Open view but stay fully searchable under All.",
+     "tip": ""
+    },
+    {
+     "t": "Filter and save a view",
+     "d": "Status chips, priority chips, category, technician and a date range all filter server-side, so counts and paging stay correct. Save current view stores the filter set by name and the URL always mirrors the filters, so a filtered list can be shared as a link.",
+     "tip": ""
+    },
+    {
+     "t": "Export",
+     "d": "Export opens a column picker and writes a CSV of the entire filtered set, not just the page you are looking at. Import (managers and admins) takes a CSV the other way.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Title",
+     "req": true,
+     "desc": "One-line description of the job. Searchable. Keep it specific: \"AHU-3 belt replacement\", not \"AC problem\"."
+    },
+    {
+     "name": "WO Number",
+     "req": false,
+     "desc": "Generated automatically. Search accepts WO-0012, 0012 or 12."
+    },
+    {
+     "name": "Site",
+     "req": true,
+     "desc": "Where the work happens. Drives site scoping, so users limited to certain sites only see matching work orders."
+    },
+    {
+     "name": "Asset",
+     "req": false,
+     "desc": "Links the job to a piece of equipment. Required if you want the job in that asset's history, downtime or cost figures."
+    },
+    {
+     "name": "Category",
+     "req": false,
+     "desc": "HVAC, electrical, plumbing and so on. Configured per organisation under Settings."
+    },
+    {
+     "name": "Priority",
+     "req": true,
+     "desc": "Critical, high, medium or low. Drives the Urgent KPI tile and any SLA policy attached to the category."
+    },
+    {
+     "name": "Status",
+     "req": true,
+     "desc": "New, assigned, in progress, on hold, completed, closed. Custom statuses can be added under Settings."
+    },
+    {
+     "name": "Assigned To",
+     "req": false,
+     "desc": "The responsible technician. Leaving it empty puts the job in the Unassigned quick filter."
+    },
+    {
+     "name": "Team",
+     "req": false,
+     "desc": "Assign to a crew instead of an individual. Every member sees the job."
+    },
+    {
+     "name": "Assigned Vendor",
+     "req": false,
+     "desc": "For outsourced work. The vendor record carries contact details and invoices."
+    },
+    {
+     "name": "Due At",
+     "req": false,
+     "desc": "Deadline. Past due on an open job marks the row overdue and counts toward the Overdue tile."
+    },
+    {
+     "name": "Description",
+     "req": false,
+     "desc": "Full detail, access notes, safety notes. Supports Arabic."
+    },
+    {
+     "name": "Tasks / Checklist",
+     "req": false,
+     "desc": "Ordered steps the technician ticks off. Pulled from a template or a saved checklist."
+    },
+    {
+     "name": "Custom Fields",
+     "req": false,
+     "desc": "Organisation-defined extra fields, configured under Settings → Custom Fields. Can be made mandatory per status."
+    },
+    {
+     "name": "Failure Code",
+     "req": false,
+     "desc": "Why it broke. Recorded on completion; feeds reliability reporting."
+    }
+   ],
+   "perms": [
+    "Full control — create, edit, assign, delete, archive, import, export, configure statuses and custom fields.",
+    "Create, edit, assign and close any work order in their scope. Import and export. Cannot change organisation settings.",
+    "Sees only work orders assigned to them or where they are listed as an additional worker. Can update status, tasks, parts, labour and files. Cannot reassign or delete.",
+    "No access to the work-order list. Requesters see progress through Requests instead."
+   ],
+   "faq": [
+    {
+     "q": "A technician says the list is empty.",
+     "a": "Technicians are scoped to their own work. If nothing is assigned to them, the list is genuinely empty. Assign a job and it appears."
+    },
+    {
+     "q": "Completed jobs disappeared.",
+     "a": "The default view is Open, which excludes completed and closed. Click All."
+    },
+    {
+     "q": "The export only gave me one page.",
+     "a": "It should not — export pulls the full filtered set in chunks. If you got a short file, a filter was still applied. Clear filters and export again."
+    },
+    {
+     "q": "Where did an old work order go?",
+     "a": "It may be archived. Archived work orders are hidden from the list by design; retrieve them through Reports or ask an admin to un-archive."
+    },
+    {
+     "q": "Can I undo a bulk assign?",
+     "a": "Not as one action. Re-select the rows and bulk assign to the correct person, or fix them individually. Every change is in the audit log."
+    }
+   ],
+   "related": [
+    "requests",
+    "assets",
+    "pm",
+    "inventory"
+   ]
+  },
+  {
+   "key": "requests",
+   "icon": "inbox",
+   "en": "Requests",
+   "ar": "الطلبات",
+   "path": "/dashboard/requests",
+   "group": "Every day",
+   "tag": "Admin + Mgr",
+   "short": "Intake from tenants and staff. Triage, chat, then convert to a work order.",
+   "summary": "Requests are the front door. A tenant, occupant or staff member submits a problem — by QR code on a space, by portal link, or from the mobile app — and it lands here as pending. Managers triage it, talk to the requester in the thread, then either convert it into a work order or decline it with a reason.",
+   "steps": [
+    {
+     "t": "Watch the badge",
+     "d": "The red count on the Requests sidebar item is pending requests. It is the one number that should be worked to zero daily.",
+     "tip": ""
+    },
+    {
+     "t": "Open and read",
+     "d": "Each request carries the requester, the space or site, a description and any photos they attached.",
+     "tip": ""
+    },
+    {
+     "t": "Ask questions in the thread",
+     "d": "The message thread is visible to the requester. Use it to confirm access times or get a clearer photo before committing a technician.",
+     "tip": ""
+    },
+    {
+     "t": "Convert to a work order",
+     "d": "Convert carries the title, description, site, space and attachments across, then links the two records so the requester sees progress without access to the work-order list.",
+     "tip": "Set priority at conversion time, not after — SLA timers start from the work order."
+    },
+    {
+     "t": "Or decline",
+     "d": "Declining requires a reason. The requester is notified and the thread stays on record.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Title",
+     "req": true,
+     "desc": "What is wrong, in the requester’s own words. Do not rewrite it on conversion — put your interpretation in the work-order description."
+    },
+    {
+     "name": "Site",
+     "req": true,
+     "desc": "Which building. Pre-filled when the request comes from a QR scan."
+    },
+    {
+     "name": "Space",
+     "req": false,
+     "desc": "The room or area. Pre-filled by QR; otherwise the requester picks from the site’s space list."
+    },
+    {
+     "name": "Category",
+     "req": false,
+     "desc": "HVAC, electrical, plumbing and so on. Helps triage but requesters often pick wrong — verify before converting."
+    },
+    {
+     "name": "Description",
+     "req": false,
+     "desc": "Detail, access times, and anything the technician needs to know before arriving."
+    },
+    {
+     "name": "Attachments",
+     "req": false,
+     "desc": "Photos from the requester. The single most useful field for deciding priority without a site visit."
+    },
+    {
+     "name": "Status",
+     "req": true,
+     "desc": "Pending, approved or rejected. Set by triage, not by the requester."
+    },
+    {
+     "name": "Decline reason",
+     "req": false,
+     "desc": "Required when rejecting. Sent to the requester and kept on the thread."
+    }
+   ],
+   "perms": [
+    "Full access, including the QR and portal settings that generate requests.",
+    "Triage, reply, convert and decline.",
+    "No access to the request queue — they see the resulting work order.",
+    "Submits requests and sees only their own, with the thread and status."
+   ],
+   "faq": [
+    {
+     "q": "Duplicate requests for the same fault.",
+     "a": "Convert one, decline the rest with \"duplicate of REQ-xxx\". Both requesters still get notified."
+    },
+    {
+     "q": "A requester cannot see their request.",
+     "a": "Check they submitted while signed in. Anonymous QR submissions are not attached to an account and can only be tracked by the reference given at submission."
+    }
+   ],
+   "related": [
+    "work_orders",
+    "sites",
+    "users"
+   ]
+  },
+  {
+   "key": "assets",
+   "icon": "inventory_2",
+   "en": "Assets",
+   "ar": "الأصول",
+   "path": "/dashboard/assets",
+   "group": "Every day",
+   "tag": "Core",
+   "short": "Equipment register with hierarchy, criticality, warranty, depreciation and downtime.",
+   "summary": "The asset register is what turns scattered jobs into equipment history. Every asset has a parent-child hierarchy, a criticality rating, a status, custom fields, checkout tracking, warranty and claim records, depreciation, operating hours and an automatic downtime log driven by work-order status.",
+   "steps": [
+    {
+     "t": "Build the hierarchy first",
+     "d": "Create top-level assets (a chiller plant, a building system) then nest children under them. Costs and downtime roll up the tree, so getting this right early pays off.",
+     "tip": "Import a CSV rather than typing a large register by hand."
+    },
+    {
+     "t": "Set criticality",
+     "d": "Criticality drives which failures escalate and which reports an asset appears in. Be honest — if everything is critical, nothing is.",
+     "tip": ""
+    },
+    {
+     "t": "Attach documents",
+     "d": "Manuals, warranty certificates and commissioning records live on the asset's Files tab, so a technician on site has them in the mobile app.",
+     "tip": ""
+    },
+    {
+     "t": "Track condition",
+     "d": "Status, operating hours and meter readings each tell a different part of the story. Downtime is calculated automatically from linked work orders — you do not enter it.",
+     "tip": ""
+    },
+    {
+     "t": "Check out and back in",
+     "d": "For portable assets, checkout records who has it and since when.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Name",
+     "req": true,
+     "desc": "Equipment name. Include the tag where you have one: \"AHU-03 — Level 2 East\"."
+    },
+    {
+     "name": "Asset Tag / Code",
+     "req": false,
+     "desc": "Your own identifier. Printed on QR labels."
+    },
+    {
+     "name": "Site",
+     "req": true,
+     "desc": "Location. Drives scoping and reporting."
+    },
+    {
+     "name": "Space",
+     "req": false,
+     "desc": "The room or area within the site."
+    },
+    {
+     "name": "Parent Asset",
+     "req": false,
+     "desc": "Places this asset in the hierarchy. Leave empty for a top-level asset."
+    },
+    {
+     "name": "Category / Type",
+     "req": false,
+     "desc": "Groups assets for reporting and PM templates."
+    },
+    {
+     "name": "Criticality",
+     "req": false,
+     "desc": "How badly a failure hurts. Drives escalation and reliability reporting."
+    },
+    {
+     "name": "Status",
+     "req": false,
+     "desc": "Operational, down, in repair, retired. Custom statuses configurable."
+    },
+    {
+     "name": "Purchase Date & Cost",
+     "req": false,
+     "desc": "Feeds depreciation and total-cost-of-ownership figures."
+    },
+    {
+     "name": "Warranty Expiry",
+     "req": false,
+     "desc": "Enables warranty claims against the asset and flags jobs that may be recoverable."
+    },
+    {
+     "name": "Custom Fields",
+     "req": false,
+     "desc": "Organisation-defined; configured under Settings."
+    }
+   ],
+   "perms": [
+    "Full control, including hierarchy, custom fields, depreciation and retirement.",
+    "Create and edit assets in scope; record checkouts and claims.",
+    "Read-only, plus readings and files added through the work orders they hold.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Downtime shows zero on a machine that was clearly down.",
+     "a": "Downtime derives from work orders linked to that asset with a down status. If the job was raised without an asset link, there is nothing to count."
+    },
+    {
+     "q": "Can I delete an asset with history?",
+     "a": "Retire it instead. Deleting breaks the history on closed work orders."
+    }
+   ],
+   "related": [
+    "asset_log",
+    "work_orders",
+    "pm",
+    "meters"
+   ]
+  },
+  {
+   "key": "asset_log",
+   "icon": "list_alt",
+   "en": "Asset Log",
+   "ar": "سجل الأصول",
+   "path": "/dashboard/asset-log",
+   "group": "Every day",
+   "tag": "Operations",
+   "short": "Chronological record of everything that happened to each asset.",
+   "summary": "The asset log is the audit trail at equipment level: every status change, work order, reading, checkout, move and cost event against an asset, in order. Its companion Reports view aggregates the same data across the register.",
+   "steps": [
+    {
+     "t": "Pick an asset or a date range",
+     "d": "The log defaults to the whole register. Narrow by asset, site or event type.",
+     "tip": ""
+    },
+    {
+     "t": "Read the chain",
+     "d": "Each entry carries the actor, the timestamp and the source record. Click through to the work order or reading behind it.",
+     "tip": ""
+    },
+    {
+     "t": "Run the report",
+     "d": "Asset Log Reports summarises events by asset, type and period — the fastest way to see which equipment consumes the most attention.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Full log and reports.",
+    "Full log and reports within scope.",
+    "Entries for assets on their own work orders.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "An event is missing from the log.",
+     "a": "The log records changes made through ServiqFM. Work done and closed outside the system — on paper, or by a vendor who never got an account — leaves no entry."
+    },
+    {
+     "q": "Can entries be edited or deleted?",
+     "a": "No. The log is append-only by design; that is what makes it usable as evidence."
+    }
+   ],
+   "related": [
+    "assets",
+    "reports",
+    "work_orders"
+   ]
+  },
+  {
+   "key": "asset_log_reports",
+   "icon": "summarize",
+   "en": "Asset Log Reports",
+   "ar": "تقارير سجل الأصول",
+   "path": "/dashboard/asset-log/reports",
+   "group": "Governance",
+   "tag": "Operations",
+   "short": "Aggregated view of asset-log events by asset, type and period.",
+   "summary": "Where the Asset Log is a chronological stream, Asset Log Reports summarises it: events grouped by asset, event type and time period. It is the quickest way to see which equipment consumes the most attention and where activity is trending up.",
+   "steps": [
+    {
+     "t": "Choose the period",
+     "d": "Month, quarter or a custom range. Comparisons read better over at least three periods.",
+     "tip": ""
+    },
+    {
+     "t": "Group the data",
+     "d": "By asset, by site or by event type. Grouping by event type answers \"what are we spending time on\"; grouping by asset answers \"on what\".",
+     "tip": ""
+    },
+    {
+     "t": "Spot the outliers",
+     "d": "An asset with far more events than its peers is either failing or badly specified. Both are worth acting on.",
+     "tip": ""
+    },
+    {
+     "t": "Export",
+     "d": "CSV or PDF, with your organisation's branding on the PDF.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "All reports across the register.",
+    "Reports within their site scope.",
+    "No access.",
+    "No access."
+   ],
+   "faq": [],
+   "related": [
+    "asset_log",
+    "assets",
+    "reports"
+   ]
+  },
+  {
+   "key": "pm",
+   "icon": "event_repeat",
+   "en": "PM Schedules",
+   "ar": "جدول الصيانة",
+   "path": "/dashboard/pm-schedules",
+   "group": "Planned work",
+   "tag": "Core",
+   "short": "Recurring maintenance that raises work orders automatically, by date or by meter.",
+   "summary": "A PM schedule is a rule: this asset, this task list, this often. ServiqFM generates the work order when it falls due, tracks completion, and recalculates the next due date from either the schedule or the completion date depending on how you set recurrence. Schedules can also be driven by meter readings rather than the calendar, and grouped so a whole plant room is served by one route.",
+   "steps": [
+    {
+     "t": "Choose the trigger",
+     "d": "Calendar-based (every 30 days, every quarter) or meter-based (every 500 running hours). Meter-based schedules need a meter on the asset first.",
+     "tip": ""
+    },
+    {
+     "t": "Attach a checklist",
+     "d": "PM checklists define what the technician actually does. Without one, the generated work order is just a title and the value of the programme drops sharply.",
+     "tip": ""
+    },
+    {
+     "t": "Set recurrence behaviour",
+     "d": "Fixed recurrence keeps the original cadence regardless of when the job was done. Completion-based recurrence counts forward from the completion date. Use fixed for statutory work, completion-based for wear-driven work.",
+     "tip": "Getting this wrong is the single most common PM setup error. Statutory inspections must be fixed."
+    },
+    {
+     "t": "Assign ownership",
+     "d": "Set the default technician, team or vendor so generated work orders arrive assigned rather than sitting unassigned.",
+     "tip": ""
+    },
+    {
+     "t": "Activate and watch compliance",
+     "d": "Only active schedules generate work. PM Compliance on the Dashboard is the share of active schedules with a recorded completion.",
+     "tip": ""
+    },
+    {
+     "t": "Group routes",
+     "d": "PM groups bundle several schedules that a technician performs in one visit, so they generate together.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Name",
+     "req": true,
+     "desc": "What the maintenance is. \"Quarterly AHU filter change\"."
+    },
+    {
+     "name": "Asset",
+     "req": true,
+     "desc": "What is being maintained. Drives the generated work order's asset link."
+    },
+    {
+     "name": "Frequency",
+     "req": true,
+     "desc": "Interval and unit — days, weeks, months, or meter units."
+    },
+    {
+     "name": "Recurrence basis",
+     "req": true,
+     "desc": "Fixed schedule or from last completion. See step 3."
+    },
+    {
+     "name": "Next Due At",
+     "req": true,
+     "desc": "When the next work order generates. Set the first one manually; ServiqFM maintains it after that."
+    },
+    {
+     "name": "Checklist",
+     "req": false,
+     "desc": "The task list copied into each generated work order."
+    },
+    {
+     "name": "Default Assignee / Team / Vendor",
+     "req": false,
+     "desc": "Who the generated work order goes to."
+    },
+    {
+     "name": "Priority",
+     "req": false,
+     "desc": "Priority stamped on generated work orders."
+    },
+    {
+     "name": "Active",
+     "req": true,
+     "desc": "Inactive schedules stop generating but keep their history."
+    }
+   ],
+   "perms": [
+    "Create, edit, activate and delete schedules and PM groups.",
+    "Same within their site scope.",
+    "Sees the generated work orders, not the schedules.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "A schedule is not generating work orders.",
+     "a": "Check it is Active and that Next Due At is set. An inactive schedule or an empty due date generates nothing."
+    },
+    {
+     "q": "Two work orders generated for the same PM.",
+     "a": "Usually a duplicated schedule on the same asset. Deactivate one — do not delete, or you lose its completion history."
+    },
+    {
+     "q": "Compliance dropped after we completed jobs.",
+     "a": "Compliance counts active schedules with at least one completion. Adding new schedules lowers the percentage until each has been done once."
+    }
+   ],
+   "related": [
+    "assets",
+    "meters",
+    "work_orders",
+    "inspections"
+   ]
+  },
+  {
+   "key": "meters",
+   "icon": "speed",
+   "en": "Meters",
+   "ar": "العدادات",
+   "path": "/dashboard/meters",
+   "group": "Planned work",
+   "tag": "Operations",
+   "short": "Readings on equipment — running hours, consumption, pressure — that can trigger PM.",
+   "summary": "Meters record a number against an asset over time. Beyond trending, their main job is driving usage-based maintenance: a schedule set to every 500 hours fires when the readings say so, not when the calendar says so.",
+   "steps": [
+    {
+     "t": "Create the meter on the asset",
+     "d": "Name it, pick the asset, and set the unit and the start reading.",
+     "tip": ""
+    },
+    {
+     "t": "Record readings",
+     "d": "Enter them here, or from the mobile app on site.",
+     "tip": ""
+    },
+    {
+     "t": "Link a PM schedule",
+     "d": "In PM Schedules, choose a meter trigger and set the interval in meter units.",
+     "tip": ""
+    },
+    {
+     "t": "Watch the trend",
+     "d": "The reading history shows drift. A rising consumption trend on a stable asset is usually a fault developing.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Name",
+     "req": true,
+     "desc": "What is being measured. \"Chiller 2 — running hours\"."
+    },
+    {
+     "name": "Asset",
+     "req": true,
+     "desc": "The equipment the meter belongs to. A meter cannot exist without one."
+    },
+    {
+     "name": "Unit",
+     "req": true,
+     "desc": "Hours, kWh, m³, bar, °C. Shown on every reading and used by meter-triggered PM."
+    },
+    {
+     "name": "Start reading",
+     "req": false,
+     "desc": "The value at commissioning. Sets the baseline for interval calculations."
+    },
+    {
+     "name": "Reading value",
+     "req": true,
+     "desc": "Entered per reading."
+    },
+    {
+     "name": "Reading date",
+     "req": true,
+     "desc": "When it was taken, not when it was entered. Backdating is allowed and is correct for readings collected on paper."
+    }
+   ],
+   "perms": [
+    "Create meters, edit and correct readings.",
+    "Same within scope.",
+    "Records readings; cannot delete them.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "A meter-triggered PM never fires.",
+     "a": "Readings have to keep coming in. With no new readings the interval never elapses, so the schedule sits idle."
+    }
+   ],
+   "related": [
+    "assets",
+    "pm",
+    "reports"
+   ]
+  },
+  {
+   "key": "inspections",
+   "icon": "fact_check",
+   "en": "Inspections",
+   "ar": "التفتيش",
+   "path": "/dashboard/inspections",
+   "group": "Planned work",
+   "tag": "Operations",
+   "short": "Scheduled walk-round checks with pass/fail items that raise work orders on failure.",
+   "summary": "Inspections are structured checks on a schedule — fire extinguishers, emergency lighting, plant rooms. Each item passes or fails; every failed item raises a work order automatically, and the completed inspection goes to a recipient list.",
+   "steps": [
+    {
+     "t": "Build the template",
+     "d": "List the items to check and what a pass means. Keep items binary; ambiguity is what makes inspection data useless.",
+     "tip": ""
+    },
+    {
+     "t": "Set the schedule",
+     "d": "Frequency, site, and who performs it. Inspection schedules are separate from PM schedules.",
+     "tip": ""
+    },
+    {
+     "t": "Set recipients",
+     "d": "Named people get the completed inspection, pass or fail. Usually the FM manager and the compliance owner.",
+     "tip": ""
+    },
+    {
+     "t": "Perform it",
+     "d": "On the mobile app, item by item, with photos on failures.",
+     "tip": ""
+    },
+    {
+     "t": "Handle failures",
+     "d": "Each failed item automatically becomes a work order linked back to the inspection record, so the fix is auditable against the check.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Template name",
+     "req": true,
+     "desc": "What is being inspected. \"Monthly fire extinguisher check\"."
+    },
+    {
+     "name": "Items",
+     "req": true,
+     "desc": "The checks themselves, in the order they are performed. Each is pass or fail."
+    },
+    {
+     "name": "Site",
+     "req": true,
+     "desc": "Where the round happens."
+    },
+    {
+     "name": "Frequency",
+     "req": true,
+     "desc": "How often it recurs. Separate from PM schedule frequency."
+    },
+    {
+     "name": "Assigned to",
+     "req": false,
+     "desc": "Who performs it. Leaving it empty means nobody is prompted."
+    },
+    {
+     "name": "Recipients",
+     "req": false,
+     "desc": "Who receives the completed inspection by email, pass or fail."
+    },
+    {
+     "name": "Photo required on fail",
+     "req": false,
+     "desc": "Forces evidence. Worth switching on for anything statutory."
+    }
+   ],
+   "perms": [
+    "Templates, schedules, recipients, results.",
+    "Same within scope.",
+    "Performs inspections and records results.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Failures are not raising work orders.",
+     "a": "Work orders are created automatically when an inspection is submitted with failed items. If none appeared, check the items were actually marked fail before submitting, then search Work Orders for titles starting \"Inspection Fail:\"."
+    },
+    {
+     "q": "Should statutory checks be inspections or PM schedules?",
+     "a": "Inspections, when the output is a pass/fail record per item. PM schedules, when the output is work performed. Many organisations run both against the same asset."
+    }
+   ],
+   "related": [
+    "compliance",
+    "pm",
+    "work_orders"
+   ]
+  },
+  {
+   "key": "inventory",
+   "icon": "category",
+   "en": "Inventory",
+   "ar": "المخزون",
+   "path": "/dashboard/inventory",
+   "group": "Planned work",
+   "tag": "Operations",
+   "short": "Spare parts, stock levels, minimum-stock alerts and consumption against work orders.",
+   "summary": "Inventory holds the parts your technicians consume. Stock decrements when a part is logged on a work order, so the register stays honest without a separate stocktake process, and the minimum stock level flags what to buy before a job stalls.",
+   "steps": [
+    {
+     "t": "Create part records",
+     "d": "Part number, description, unit, unit cost and storage location.",
+     "tip": ""
+    },
+    {
+     "t": "Set a minimum stock level",
+     "d": "Parts at or below the minimum show Low Stock; parts at zero show Out of Stock.",
+     "tip": ""
+    },
+    {
+     "t": "Receive stock",
+     "d": "Record deliveries against a purchase order so cost and quantity reconcile.",
+     "tip": ""
+    },
+    {
+     "t": "Consume on work orders",
+     "d": "Technicians log parts used on the job. That is the only routine way stock should leave the register.",
+     "tip": "If stock and reality diverge, look for parts taken without being logged on a work order."
+    },
+    {
+     "t": "Reconcile",
+     "d": "Adjustments are recorded with a reason and show in the audit log.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Part name",
+     "req": true,
+     "desc": "Plain description. \"Filter, primary, 595×595×48\"."
+    },
+    {
+     "name": "Part number",
+     "req": false,
+     "desc": "Manufacturer or your own code. Searchable, and what purchasing orders against."
+    },
+    {
+     "name": "Unit",
+     "req": true,
+     "desc": "Each, metre, litre, box. Changing it later does not convert existing stock."
+    },
+    {
+     "name": "Unit cost",
+     "req": false,
+     "desc": "Feeds work-order cost when the part is consumed."
+    },
+    {
+     "name": "Quantity on hand",
+     "req": true,
+     "desc": "Current stock. Moves automatically on consumption and receipt; manual changes are adjustments."
+    },
+    {
+     "name": "Minimum level",
+     "req": false,
+     "desc": "At or below this, the part shows Low Stock. At zero it shows Out of Stock."
+    },
+    {
+     "name": "Storage location",
+     "req": false,
+     "desc": "Store, shelf, bin. Saves more technician time than any other field here."
+    },
+    {
+     "name": "Adjustment reason",
+     "req": true,
+     "desc": "Required on any manual stock change. Appears in the audit log."
+    }
+   ],
+   "perms": [
+    "Full control including adjustments and cost changes.",
+    "Create parts, receive stock, adjust with a reason.",
+    "Consumes parts on their own work orders.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Stock on screen does not match the shelf.",
+     "a": "Almost always parts taken without being logged on a work order. Adjust with a reason, then tighten the habit — the register is only as good as the logging."
+    },
+    {
+     "q": "A part shows negative stock.",
+     "a": "More was consumed than the system thought existed. Adjust to the physical count; the audit log keeps the history."
+    }
+   ],
+   "related": [
+    "purchase_orders",
+    "work_orders",
+    "vendors"
+   ]
+  },
+  {
+   "key": "sites",
+   "icon": "location_city",
+   "en": "Sites",
+   "ar": "المواقع",
+   "path": "/dashboard/sites",
+   "group": "Setup",
+   "tag": "Admin + Mgr",
+   "short": "Buildings and locations, with spaces, floor plans, QR tokens and GPS.",
+   "summary": "A site is a building or location. Everything else hangs off it: assets, work orders, users, scoping and reporting. Within a site, spaces form their own hierarchy — floors, zones, rooms — and each space can carry a QR token that lets an occupant raise a request by scanning it.",
+   "steps": [
+    {
+     "t": "Create the site",
+     "d": "Name, address and GPS point. GPS enables location-aware assignment on the mobile app.",
+     "tip": ""
+    },
+    {
+     "t": "Add the space hierarchy",
+     "d": "Floors, then zones, then rooms. Depth matters less than consistency across sites.",
+     "tip": ""
+    },
+    {
+     "t": "Generate QR tokens",
+     "d": "Each space can issue a QR code. Print and post it; a scan opens a pre-filled request for that space.",
+     "tip": ""
+    },
+    {
+     "t": "Upload floor plans",
+     "d": "Plans render under the site, and assets can be pinned to them.",
+     "tip": ""
+    },
+    {
+     "t": "Scope users",
+     "d": "Assign users to sites so they only see work at their own buildings.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Site name",
+     "req": true,
+     "desc": "What people call the building. Appears on every work order, asset and report."
+    },
+    {
+     "name": "Address",
+     "req": false,
+     "desc": "Used on printed documents and for navigation from the mobile app."
+    },
+    {
+     "name": "GPS coordinates",
+     "req": false,
+     "desc": "Enables location-aware assignment and check-in on the mobile app."
+    },
+    {
+     "name": "Space name",
+     "req": true,
+     "desc": "Per space. Floor, zone or room."
+    },
+    {
+     "name": "Parent space",
+     "req": false,
+     "desc": "Builds the hierarchy. Empty means top level within the site."
+    },
+    {
+     "name": "Space type",
+     "req": false,
+     "desc": "Floor, zone, room, plant room. Used for filtering and reporting."
+    },
+    {
+     "name": "QR token",
+     "req": false,
+     "desc": "Generated per space. A scan opens a request pre-filled with that site and space."
+    },
+    {
+     "name": "Floor plan",
+     "req": false,
+     "desc": "Image or PDF. Assets can be pinned onto it."
+    }
+   ],
+   "perms": [
+    "Create sites, spaces, floor plans, QR tokens, and assign scope.",
+    "Manage spaces and plans at their own sites.",
+    "Read-only.",
+    "Sees the site on their own requests."
+   ],
+   "faq": [
+    {
+     "q": "How deep should the space hierarchy go?",
+     "a": "As deep as you would search. Site → floor → room covers most buildings. Consistency across sites matters more than depth."
+    },
+    {
+     "q": "A QR code opens the wrong space.",
+     "a": "The token is bound to the space it was generated from. A relabelled or moved space needs a fresh code printed."
+    }
+   ],
+   "related": [
+    "assets",
+    "requests",
+    "users"
+   ]
+  },
+  {
+   "key": "vendors",
+   "icon": "business",
+   "en": "Vendors",
+   "ar": "الموردون",
+   "path": "/dashboard/vendors",
+   "group": "Setup",
+   "tag": "Admin + Mgr",
+   "short": "Contractor records, contacts, assigned work and their invoices.",
+   "summary": "Vendors are the contractors you assign outsourced work to. Each record holds contact details, the work orders assigned to them, and their invoices with approval status — so the cost of outsourced maintenance is visible next to in-house cost.",
+   "steps": [
+    {
+     "t": "Create the vendor",
+     "d": "Company name, contacts, trade and, where relevant, VAT registration for ZATCA-compliant invoicing.",
+     "tip": ""
+    },
+    {
+     "t": "Assign work",
+     "d": "On a work order, set Assigned Vendor instead of a technician.",
+     "tip": ""
+    },
+    {
+     "t": "Record their invoices",
+     "d": "Vendor invoices attach to the vendor and, where applicable, to specific work orders. Status moves through draft, submitted, approved, paid.",
+     "tip": ""
+    },
+    {
+     "t": "Review performance",
+     "d": "Vendor work orders and invoice history together give a straightforward view of who is worth keeping.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Company name",
+     "req": true,
+     "desc": "Legal trading name, matching what appears on their invoices."
+    },
+    {
+     "name": "Trade / speciality",
+     "req": false,
+     "desc": "What they do. Used to filter when assigning outsourced work."
+    },
+    {
+     "name": "Primary contact",
+     "req": false,
+     "desc": "Name, phone and email. Shown on any work order assigned to them."
+    },
+    {
+     "name": "VAT registration number",
+     "req": false,
+     "desc": "Required for ZATCA-compliant invoice handling in Saudi Arabia."
+    },
+    {
+     "name": "Sites",
+     "req": false,
+     "desc": "Which buildings they cover. Restricts where they can be assigned."
+    },
+    {
+     "name": "Contract dates",
+     "req": false,
+     "desc": "Start and end. An expired contract does not block assignment but is visible on the record."
+    },
+    {
+     "name": "Status",
+     "req": true,
+     "desc": "Active vendors can be assigned work; inactive ones are kept for history only."
+    }
+   ],
+   "perms": [
+    "Full control including invoice approval.",
+    "Create vendors, assign work, submit invoices for approval.",
+    "Sees the vendor name on a shared job.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "A vendor cannot sign in to see their jobs.",
+     "a": "Vendor records and vendor user accounts are separate. Create a user account and link it if the contractor needs portal access."
+    },
+    {
+     "q": "Can a vendor be deleted?",
+     "a": "Set them inactive instead. Deleting breaks the link on closed work orders and past invoices."
+    }
+   ],
+   "related": [
+    "work_orders",
+    "invoices",
+    "purchase_orders"
+   ]
+  },
+  {
+   "key": "purchase_orders",
+   "icon": "shopping_cart",
+   "en": "Purchase Orders",
+   "ar": "أوامر الشراء",
+   "path": "/dashboard/purchase-orders",
+   "group": "Money",
+   "tag": "Admin + Mgr",
+   "short": "Raise, approve and receive purchase orders against vendors and cost centres.",
+   "summary": "Purchasing covers the buying side: a PO against a vendor, lines with quantities and prices, an approval step, then receipt which feeds Inventory. POs can be coded to cost centres so spend reports by department as well as by asset.",
+   "steps": [
+    {
+     "t": "Raise the PO",
+     "d": "Vendor, cost centre, and one line per item with quantity and unit price.",
+     "tip": ""
+    },
+    {
+     "t": "Send for approval",
+     "d": "Approval is a separate action from creation, so the person raising is not the person committing spend.",
+     "tip": ""
+    },
+    {
+     "t": "Receive",
+     "d": "Record what actually arrived. Partial receipts are supported; stock increments in Inventory.",
+     "tip": ""
+    },
+    {
+     "t": "Match the invoice",
+     "d": "The vendor invoice reconciles against the PO.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Vendor",
+     "req": true,
+     "desc": "Who is being ordered from. Pulls their contact and VAT details onto the PO."
+    },
+    {
+     "name": "Cost centre",
+     "req": false,
+     "desc": "Codes the spend for departmental reporting."
+    },
+    {
+     "name": "Line item",
+     "req": true,
+     "desc": "One row per part or service, with description, quantity and unit price."
+    },
+    {
+     "name": "Expected delivery",
+     "req": false,
+     "desc": "Drives the overdue-delivery flag."
+    },
+    {
+     "name": "Notes",
+     "req": false,
+     "desc": "Delivery instructions, site access, contact on arrival."
+    },
+    {
+     "name": "Status",
+     "req": true,
+     "desc": "Draft, pending approval, approved, partially received, received, closed."
+    },
+    {
+     "name": "Received quantity",
+     "req": false,
+     "desc": "Entered per line at receipt. Partial receipts are supported and increment stock as they arrive."
+    }
+   ],
+   "perms": [
+    "Raise, approve, receive and close.",
+    "Raise and receive; approval depends on your organisation's threshold settings.",
+    "No access.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Stock did not increase after delivery.",
+     "a": "Receipt has to be recorded against the PO line. Approving a PO alone does not move stock."
+    },
+    {
+     "q": "The PO needs changing after approval.",
+     "a": "Approved POs are locked. Cancel and reissue, so the approval trail stays intact."
+    }
+   ],
+   "related": [
+    "inventory",
+    "vendors",
+    "invoices"
+   ]
+  },
+  {
+   "key": "invoices",
+   "icon": "receipt_long",
+   "en": "Invoices",
+   "ar": "الفواتير",
+   "path": "/dashboard/invoices",
+   "group": "Money",
+   "tag": "Admin + Mgr",
+   "short": "Tenant invoicing with ZATCA-compliant output, plus vendor invoice approval.",
+   "summary": "Invoicing runs both directions. Tenant invoices bill occupants for chargeable work and can auto-draft from completed work orders; vendor invoices record what contractors bill you. Saudi VAT output follows ZATCA requirements including the QR field.",
+   "steps": [
+    {
+     "t": "Check the feature is on",
+     "d": "Invoicing is a feature flag. If the module is missing from the sidebar, an admin needs to enable it under Settings.",
+     "tip": ""
+    },
+    {
+     "t": "Auto-draft from work orders",
+     "d": "Chargeable completed work orders can draft a tenant invoice automatically, carrying labour and parts across.",
+     "tip": ""
+    },
+    {
+     "t": "Review and issue",
+     "d": "Check lines, VAT and the ZATCA fields before issuing. Issued invoices should not be edited — credit and reissue instead.",
+     "tip": ""
+    },
+    {
+     "t": "Track status",
+     "d": "Draft, issued, paid, overdue. Vendor invoices follow their own approval chain.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Customer / tenant",
+     "req": true,
+     "desc": "Who is being billed. Carries their address and VAT number onto the invoice."
+    },
+    {
+     "name": "Invoice number",
+     "req": true,
+     "desc": "Generated sequentially. Gaps in the sequence are a compliance problem, which is why issued invoices cannot be deleted."
+    },
+    {
+     "name": "Issue date",
+     "req": true,
+     "desc": "Date of supply for VAT purposes."
+    },
+    {
+     "name": "Due date",
+     "req": false,
+     "desc": "Drives the overdue status."
+    },
+    {
+     "name": "Line items",
+     "req": true,
+     "desc": "Description, quantity, unit price and VAT rate per line. Auto-drafted invoices carry labour and parts across from the work order."
+    },
+    {
+     "name": "VAT rate",
+     "req": true,
+     "desc": "Applied per line. The organisation default is set under Settings."
+    },
+    {
+     "name": "Linked work order",
+     "req": false,
+     "desc": "Ties the charge to the job, so the tenant can see what they are paying for."
+    },
+    {
+     "name": "Status",
+     "req": true,
+     "desc": "Draft, issued, paid, overdue, cancelled. Only drafts are editable."
+    }
+   ],
+   "perms": [
+    "Full control both directions, including VAT settings.",
+    "Draft and issue tenant invoices; submit vendor invoices for approval.",
+    "No access.",
+    "Sees invoices addressed to them, if the tenant portal is enabled."
+   ],
+   "faq": [
+    {
+     "q": "Invoices is missing from my sidebar.",
+     "a": "It is gated by the invoicing feature flag and limited to admins and managers. Both conditions have to be met."
+    }
+   ],
+   "related": [
+    "vendors",
+    "billing",
+    "work_orders"
+   ]
+  },
+  {
+   "key": "billing",
+   "icon": "payments",
+   "en": "Billing",
+   "ar": "الفوترة",
+   "path": "/dashboard/billing",
+   "group": "Money",
+   "tag": "Admin only",
+   "short": "Your ServiqFM subscription — plan, seats, payment method and invoices.",
+   "summary": "Billing is about your account with ServiqFM, not about your tenants. It shows the current plan, seat count, payment method and subscription invoices, and is where plan changes happen. Admin only.",
+   "steps": [
+    {
+     "t": "Check plan and seats",
+     "d": "Seat count is active users. Deactivating a user frees a seat at the next billing cycle.",
+     "tip": ""
+    },
+    {
+     "t": "Update payment method",
+     "d": "Handled through Stripe; card details never touch ServiqFM.",
+     "tip": ""
+    },
+    {
+     "t": "Download subscription invoices",
+     "d": "Every charge has a downloadable invoice.",
+     "tip": ""
+    },
+    {
+     "t": "Change plan",
+     "d": "Upgrades take effect immediately; downgrades at the end of the period.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Full access.",
+    "No access.",
+    "No access.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "We were charged for a user who left.",
+     "a": "Seats are counted at the billing date. Deactivating frees the seat from the next cycle, not retroactively."
+    },
+    {
+     "q": "Who can see Billing?",
+     "a": "Admins only. Managers cannot see it at all, which is deliberate."
+    }
+   ],
+   "related": [
+    "users",
+    "settings"
+   ]
+  },
+  {
+   "key": "users",
+   "icon": "group",
+   "en": "Users",
+   "ar": "المستخدمون",
+   "path": "/dashboard/users",
+   "group": "People",
+   "tag": "Admin + Mgr",
+   "short": "Invite people, set roles, scope them to sites, deactivate leavers.",
+   "summary": "Users carry the role that decides what they can see and do. ServiqFM has four: admin, manager, technician and requester. Invitations go out by email with a temporary password and a forced change on first sign-in; site scoping narrows what a user sees to their own buildings.",
+   "steps": [
+    {
+     "t": "Invite",
+     "d": "Name, email, role. The invite sends a temporary password and forces a change at first sign-in.",
+     "tip": ""
+    },
+    {
+     "t": "Pick the right role",
+     "d": "Admin for system owners only. Manager for supervisors. Technician for field staff — they see only their own work. Requester for tenants and occupants.",
+     "tip": "Keep admins to two or three. Admin can change billing, security and organisation settings."
+    },
+    {
+     "t": "Scope to sites",
+     "d": "Assign a user to specific sites and every list they open is filtered to those sites.",
+     "tip": ""
+    },
+    {
+     "t": "Deactivate leavers",
+     "d": "Deactivate rather than delete. Their history on work orders stays intact and the seat is released.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Full Name",
+     "req": true,
+     "desc": "Shown on assignments and the audit log."
+    },
+    {
+     "name": "Email",
+     "req": true,
+     "desc": "The sign-in identity. Also where notifications go."
+    },
+    {
+     "name": "Role",
+     "req": true,
+     "desc": "Admin, manager, technician or requester. Determines access throughout."
+    },
+    {
+     "name": "Sites",
+     "req": false,
+     "desc": "Restricts what this user can see. Empty means organisation-wide."
+    },
+    {
+     "name": "Team",
+     "req": false,
+     "desc": "Adds them to a crew so team-assigned work reaches them."
+    },
+    {
+     "name": "Phone",
+     "req": false,
+     "desc": "Used for contact and, where enabled, SMS notification."
+    },
+    {
+     "name": "Active",
+     "req": true,
+     "desc": "Inactive users cannot sign in and do not consume a seat."
+    }
+   ],
+   "perms": [
+    "Invite, edit, change roles, deactivate, reset passwords.",
+    "Invite technicians and requesters; cannot create admins.",
+    "Sees their own profile.",
+    "Sees their own profile."
+   ],
+   "faq": [
+    {
+     "q": "The invite email never arrived.",
+     "a": "Check spam, then confirm the address. An admin can resend or reset the temporary password from the user record."
+    },
+    {
+     "q": "A technician can see work at a site they left.",
+     "a": "Site scoping is per-user. Update their Sites list."
+    }
+   ],
+   "related": [
+    "teams",
+    "security",
+    "settings"
+   ]
+  },
+  {
+   "key": "teams",
+   "icon": "groups",
+   "en": "Teams",
+   "ar": "الفرق",
+   "path": "/dashboard/teams",
+   "group": "People",
+   "tag": "Admin + Mgr",
+   "short": "Crews you can assign work to as a unit.",
+   "summary": "A team is a named group of users. Assigning a work order to a team makes it visible to every member, which suits shift crews and trade groups where whoever is free picks it up.",
+   "steps": [
+    {
+     "t": "Create the team",
+     "d": "Name it after the function, not the person leading it — \"Night Shift Electrical\" outlasts \"Ahmed's team\".",
+     "tip": ""
+    },
+    {
+     "t": "Add members",
+     "d": "Any user can belong to more than one team.",
+     "tip": ""
+    },
+    {
+     "t": "Assign work to it",
+     "d": "On a work order, set Team instead of Assigned To.",
+     "tip": ""
+    },
+    {
+     "t": "Narrow later",
+     "d": "When someone picks the job up, set Assigned To so responsibility is clear.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Create, edit and delete teams.",
+    "Same within scope.",
+    "Sees teams they belong to.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Nobody picked up a team-assigned job.",
+     "a": "Shared ownership is no ownership. Use teams for visibility, then set Assigned To once someone starts."
+    },
+    {
+     "q": "Can a vendor be in a team?",
+     "a": "No. Teams are internal users. Outsourced work uses Assigned Vendor on the work order."
+    }
+   ],
+   "related": [
+    "users",
+    "work_orders"
+   ]
+  },
+  {
+   "key": "files",
+   "icon": "folder",
+   "en": "Files",
+   "ar": "الملفات",
+   "path": "/dashboard/files",
+   "group": "Setup",
+   "tag": "Operations",
+   "short": "Every document in the organisation, across work orders, assets and sites.",
+   "summary": "Files is the central view of documents that are otherwise attached to individual records. Manuals, photos, certificates, reports. Storage is access-controlled, so a file is only visible to people who can see the record it hangs off.",
+   "steps": [
+    {
+     "t": "Upload in context",
+     "d": "Attach files on the record they belong to — the work order, asset or site — not here. This screen is for finding them again.",
+     "tip": ""
+    },
+    {
+     "t": "Search and filter",
+     "d": "By entity type, site or date.",
+     "tip": ""
+    },
+    {
+     "t": "Mind the access rules",
+     "d": "A technician sees files on their own work orders only. Uploading a site-wide document to one work order effectively hides it.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "All files.",
+    "Files within their scope.",
+    "Files on records they can access.",
+    "Files on their own requests."
+   ],
+   "faq": [
+    {
+     "q": "A technician cannot open a document I uploaded.",
+     "a": "File access follows record access. If they cannot see the record it is attached to, they cannot see the file. Attach site-wide documents to the site, not to one work order."
+    },
+    {
+     "q": "Is there a file size limit?",
+     "a": "Yes, per upload. Large plan sets should be split or linked rather than uploaded whole."
+    }
+   ],
+   "related": [
+    "assets",
+    "work_orders",
+    "compliance"
+   ]
+  },
+  {
+   "key": "compliance",
+   "icon": "verified_user",
+   "en": "Compliance",
+   "ar": "الامتثال",
+   "path": "/dashboard/compliance",
+   "group": "Governance",
+   "tag": "Admin + Mgr",
+   "short": "Certificates, permits, expiry tracking and the PDPL record.",
+   "summary": "Compliance tracks the documents that carry an expiry date — certificates, permits to work, statutory inspections — and warns before they lapse. It also holds the PDPL data-protection record required for Saudi operations.",
+   "steps": [
+    {
+     "t": "Register certificates",
+     "d": "Type, issuing body, issue and expiry dates, and the document itself.",
+     "tip": ""
+    },
+    {
+     "t": "Set warning lead time",
+     "d": "How far ahead of expiry to notify. Statutory items usually want 60–90 days.",
+     "tip": ""
+    },
+    {
+     "t": "Issue permits to work",
+     "d": "Permits attach to work orders for hot work, confined space and similar controlled activity.",
+     "tip": ""
+    },
+    {
+     "t": "Review the expiry board",
+     "d": "Anything amber is inside its warning window; anything red has lapsed.",
+     "tip": ""
+    }
+   ],
+   "fields": [
+    {
+     "name": "Certificate type",
+     "req": true,
+     "desc": "Fire safety certificate, lift inspection, permit to work, insurance. Drives which reports it appears in."
+    },
+    {
+     "name": "Issuing body",
+     "req": false,
+     "desc": "Who issued it. Needed when renewing."
+    },
+    {
+     "name": "Reference number",
+     "req": false,
+     "desc": "The certificate’s own number, for cross-referencing with the issuer."
+    },
+    {
+     "name": "Issue date",
+     "req": true,
+     "desc": "When it was granted."
+    },
+    {
+     "name": "Expiry date",
+     "req": true,
+     "desc": "When it lapses. This is the field the whole module runs on."
+    },
+    {
+     "name": "Warning lead time",
+     "req": false,
+     "desc": "Days before expiry to start warning. 60–90 for statutory items, which need renewal time."
+    },
+    {
+     "name": "Linked site or asset",
+     "req": false,
+     "desc": "What it covers. A certificate with no link is hard to act on later."
+    },
+    {
+     "name": "Document",
+     "req": true,
+     "desc": "The scanned certificate itself. A record without the document proves nothing in an audit."
+    }
+   ],
+   "perms": [
+    "Full access including PDPL records.",
+    "Register and renew certificates; issue permits.",
+    "Sees permits attached to their own work.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "We got no warning before an expiry.",
+     "a": "Check the lead time on that record and that notification rules under Settings route compliance alerts to a real person."
+    },
+    {
+     "q": "What happens on expiry?",
+     "a": "The record flags red and stays on the board. Nothing is deleted or hidden — a lapsed certificate is exactly what you need visible."
+    }
+   ],
+   "related": [
+    "inspections",
+    "files",
+    "security"
+   ]
+  },
+  {
+   "key": "reports",
+   "icon": "bar_chart",
+   "en": "Reports",
+   "ar": "التقارير",
+   "path": "/dashboard/reports",
+   "group": "Governance",
+   "tag": "Admin + Mgr",
+   "short": "Standard reports, a custom report builder, and scheduled email delivery.",
+   "summary": "Reports covers the standard set — work-order throughput, PM compliance, asset cost, downtime, vendor spend — plus a builder for combinations that are not in the standard set. Any report can be scheduled to email a recipient list on a recurring basis, which is usually better than asking people to log in and look.",
+   "steps": [
+    {
+     "t": "Start with a standard report",
+     "d": "They cover most monthly reporting needs and are already scoped to your permissions.",
+     "tip": ""
+    },
+    {
+     "t": "Build a custom one",
+     "d": "Report Builder lets you pick the entity, the columns, the filters and the grouping.",
+     "tip": ""
+    },
+    {
+     "t": "Schedule delivery",
+     "d": "Set frequency and recipients. Delivery is PDF or CSV.",
+     "tip": ""
+    },
+    {
+     "t": "Export",
+     "d": "Anything on screen exports to CSV or PDF with your organisation's branding.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "All reports across the organisation.",
+    "Reports within their site scope.",
+    "No access.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Reports is missing from my sidebar.",
+     "a": "It is gated by the advanced reporting feature flag and limited to admins and managers."
+    }
+   ],
+   "related": [
+    "dashboard",
+    "asset_log",
+    "invoices"
+   ]
+  },
+  {
+   "key": "reports_builder",
+   "icon": "dashboard_customize",
+   "en": "Report Builder",
+   "ar": "منشئ التقارير",
+   "path": "/dashboard/reports/builder",
+   "group": "Governance",
+   "tag": "Admin + Mgr",
+   "short": "Build custom reports: pick the entity, columns, filters and grouping.",
+   "summary": "The Report Builder covers what the standard reports do not. You choose an entity — work orders, assets, PM schedules, invoices — then the columns, filters and grouping, and save the definition so it can be re-run or scheduled. Like Reports, it is gated by the advanced reporting feature flag and limited to admins and managers.",
+   "steps": [
+    {
+     "t": "Pick the entity",
+     "d": "This decides which columns and filters are available. One entity per report.",
+     "tip": ""
+    },
+    {
+     "t": "Choose columns",
+     "d": "Only what the reader needs. A report with forty columns gets exported to a spreadsheet and rebuilt by hand, which defeats the point.",
+     "tip": ""
+    },
+    {
+     "t": "Set filters and grouping",
+     "d": "Filters narrow the rows; grouping produces the subtotals. Grouping by site and priority covers most management reporting.",
+     "tip": ""
+    },
+    {
+     "t": "Save the definition",
+     "d": "Named definitions can be re-run by anyone with access and scheduled for email delivery.",
+     "tip": ""
+    },
+    {
+     "t": "Schedule it",
+     "d": "Frequency, format and recipient list, set on the Reports screen.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Build, save, run and schedule any report.",
+    "Same within their site scope.",
+    "No access.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "Report Builder is missing from my sidebar.",
+     "a": "It needs the advanced reporting feature flag switched on and an admin or manager role. Both conditions have to be met."
+    }
+   ],
+   "related": [
+    "reports",
+    "asset_log_reports",
+    "dashboard"
+   ]
+  },
+  {
+   "key": "security",
+   "icon": "security",
+   "en": "Security",
+   "ar": "الأمان",
+   "path": "/dashboard/security",
+   "group": "Governance",
+   "tag": "Operations",
+   "short": "Audit log, session control, password policy and SSO domain settings.",
+   "summary": "Security is where you see who did what and control how people get in. The audit log records every create, update and delete with actor and timestamp. Admins additionally control password policy, session behaviour and SSO domain binding.",
+   "steps": [
+    {
+     "t": "Search the audit log",
+     "d": "By user, entity type or date range. This is the answer to \"who changed this?\".",
+     "tip": ""
+    },
+    {
+     "t": "Review sessions",
+     "d": "Active sessions can be revoked if a device is lost.",
+     "tip": ""
+    },
+    {
+     "t": "Set password policy",
+     "d": "Minimum length, complexity and forced rotation.",
+     "tip": ""
+    },
+    {
+     "t": "Bind an SSO domain",
+     "d": "Admins can tie a verified email domain to single sign-on so staff use existing corporate credentials.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Everything, including policy and SSO.",
+    "Audit log within their scope.",
+    "Their own sessions and password.",
+    "Their own sessions and password."
+   ],
+   "faq": [
+    {
+     "q": "How far back does the audit log go?",
+     "a": "For the life of the organisation. It is append-only and entries cannot be edited or removed."
+    },
+    {
+     "q": "A user is locked out.",
+     "a": "Check active sessions and password policy. An admin can reset the password from the user record; forced rotation may simply have come due."
+    },
+    {
+     "q": "Can SSO and passwords run side by side?",
+     "a": "Yes. Binding a domain to SSO covers users on that domain; contractors on other domains keep password sign-in."
+    }
+   ],
+   "related": [
+    "users",
+    "compliance",
+    "developers"
+   ]
+  },
+  {
+   "key": "developers",
+   "icon": "code",
+   "en": "Developers",
+   "ar": "المطورون",
+   "path": "/dashboard/developers",
+   "group": "Governance",
+   "tag": "Admin only",
+   "short": "API keys, webhooks, delivery logs and error logs.",
+   "summary": "The developer area exposes the public API and webhook system for integrating ServiqFM with BMS, finance or helpdesk systems. Keys are scoped and revocable; webhook deliveries are logged with retry history. Admin only.",
+   "steps": [
+    {
+     "t": "Create an API key",
+     "d": "Scope it to the minimum the integration needs. The secret is shown once — store it immediately.",
+     "tip": ""
+    },
+    {
+     "t": "Register a webhook",
+     "d": "Give an endpoint URL and choose the events. Deliveries retry on failure with backoff.",
+     "tip": ""
+    },
+    {
+     "t": "Watch delivery logs",
+     "d": "Failed deliveries show the response code and body, which is normally enough to debug the receiving end.",
+     "tip": ""
+    },
+    {
+     "t": "Check error logs",
+     "d": "Application errors recorded against your organisation, useful when raising a support ticket.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Full access.",
+    "No access.",
+    "No access.",
+    "No access."
+   ],
+   "faq": [
+    {
+     "q": "The API key secret was lost.",
+     "a": "It is shown once and never again. Revoke the key and issue a new one."
+    },
+    {
+     "q": "Webhooks stopped arriving.",
+     "a": "Check delivery logs. After repeated failures deliveries back off; fix the endpoint, then re-enable the webhook."
+    }
+   ],
+   "related": [
+    "security",
+    "settings"
+   ]
+  },
+  {
+   "key": "settings",
+   "icon": "settings",
+   "en": "Settings",
+   "ar": "الإعدادات",
+   "path": "/dashboard/settings",
+   "group": "Setup",
+   "tag": "Core",
+   "short": "Organisation profile, branding, categories, custom fields, SLA, feature flags, notifications.",
+   "summary": "Settings configures how ServiqFM behaves for your organisation: branding on documents, work-order categories and custom statuses, custom fields and when they become mandatory, SLA policies, cost centres, shifts, announcements, each person's notification preferences, language defaults, and the feature flags that show or hide whole modules.",
+   "steps": [
+    {
+     "t": "Set the organisation profile and branding",
+     "d": "Name, VAT number, logo and colours. These appear on PDF reports and invoices.",
+     "tip": ""
+    },
+    {
+     "t": "Configure categories and statuses",
+     "d": "Work-order categories and any custom statuses beyond the built-in six.",
+     "tip": ""
+    },
+    {
+     "t": "Define custom fields",
+     "d": "Extra fields on work orders and assets, with the option to make them mandatory at a given status — this is how you stop jobs being closed without a failure code or a cost.",
+     "tip": ""
+    },
+    {
+     "t": "Set SLA policies",
+     "d": "Response and resolution targets per category and priority.",
+     "tip": ""
+    },
+    {
+     "t": "Review feature flags",
+     "d": "Invoicing and advanced reporting are flags. If a module is missing for everyone, check here first.",
+     "tip": "A module missing for only some people is a role issue, not a flag issue."
+    },
+    {
+     "t": "Set notification preferences",
+     "d": "Notifications are per person, not per role. Each user ticks the events they want, picks the language their emails and alerts arrive in, and uses the On shift switch — while off shift, non-critical push is muted; critical alerts such as overdue work orders still come through.",
+     "tip": ""
+    }
+   ],
+   "fields": [],
+   "perms": [
+    "Everything.",
+    "Read-only on most settings; can manage categories where permitted.",
+    "Own profile and notification preferences only.",
+    "Own profile only."
+   ],
+   "faq": [
+    {
+     "q": "Which settings should a new account do first?",
+     "a": "Branding, categories and SLA policies. Custom fields can wait until you know what you actually need to capture."
+    }
+   ],
+   "related": [
+    "users",
+    "security",
+    "invoices"
+   ]
+  }
+ ]
+}
