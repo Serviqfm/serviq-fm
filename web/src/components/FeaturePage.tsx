@@ -69,7 +69,7 @@ export default function FeaturePage({ eyebrow, title, description, image, market
 
         {/* CTA */}
         <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-          <Link href="/#waitlist" className="bg-primary text-on-primary px-6 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">Join the waitlist</Link>
+          <Link href="/#get-started" className="bg-primary text-on-primary px-6 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">Get started</Link>
           <a href="mailto:admin@serviqfm.com?subject=Book%20a%20demo" className="border border-outline-variant text-on-surface px-6 py-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-colors">Book a 20-min demo</a>
         </div>
       </main>

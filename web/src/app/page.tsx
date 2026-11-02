@@ -19,20 +19,12 @@ const ar = "'Readex Pro', sans-serif"
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [daysLeft, setDaysLeft] = useState<number | string>('—')
   const [industry, setIndustry] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [wlName, setWlName] = useState('')
   const [wlCompany, setWlCompany] = useState('')
   const [wlEmail, setWlEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  useEffect(() => {
-    const launch = new Date('2026-08-01T00:00:00+03:00')
-    const now = new Date()
-    const diff = Math.max(0, Math.ceil((launch.getTime() - now.getTime()) / 86400000))
-    setDaysLeft(diff > 0 ? diff : '🚀')
-  }, [])
-
   useEffect(() => {
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -46,11 +38,15 @@ export default function LandingPage() {
     return () => obs.disconnect()
   }, [])
 
-  async function handleWaitlist(e: React.FormEvent) {
+  function handleGetStarted(e: React.FormEvent) {
     e.preventDefault()
     if (!wlName || !wlEmail) return
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 800))
+    const subject = encodeURIComponent(`Serviq FM demo request — ${wlCompany || wlName}`)
+    const body = encodeURIComponent(
+      `Name: ${wlName}\nCompany: ${wlCompany || '-'}\nEmail: ${wlEmail}\nIndustry: ${industry || '-'}\n\nSubmitted from serviqfm.com`
+    )
+    window.location.href = `mailto:admin@serviqfm.com?subject=${subject}&body=${body}`
     setSubmitted(true)
     setSubmitting(false)
   }
@@ -104,10 +100,10 @@ export default function LandingPage() {
           .hero-stats-wrap { flex-direction: column !important; gap: 24px !important; }
           .hero-stat { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.08) !important; padding: 16px 0 !important; }
           .hero-stat:last-child { border-bottom: none !important; }
-          .waitlist-name-row { grid-template-columns: 1fr !important; }
+          .get-started-name-row { grid-template-columns: 1fr !important; }
         }
         @media (max-width:600px) {
-          .waitlist-name-row { grid-template-columns: 1fr !important; }
+          .get-started-name-row { grid-template-columns: 1fr !important; }
           .cta-form-box { padding: 24px 20px !important; }
         }
       `}</style>
@@ -120,7 +116,7 @@ export default function LandingPage() {
             <button onClick={() => setMenuOpen(false)} style={{ fontSize:28, cursor:'pointer', color:navy, background:'none', border:'none', lineHeight:1 }}>×</button>
           </div>
           <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:4, flex:1 }}>
-            {[['#features','Features','المزايا'],['#verticals','Industries','القطاعات'],['/about','About','عن الشركة'],['#waitlist','Join Waitlist','قائمة الانتظار']].map(([href,en_,ar_]) => (
+            {[['#features','Features','المزايا'],['#verticals','Industries','القطاعات'],['/about','About','عن الشركة'],['#get-started','Get Started','ابدأ الآن']].map(([href,en_,ar_]) => (
               <li key={href}>
                 <a href={href} onClick={() => setMenuOpen(false)} style={{ display:'block', fontSize:18, fontWeight:500, color:navy, padding:'14px 0', borderBottom:`1px solid ${border}` }}>
                   {en_} <span style={{ fontFamily:ar, fontSize:13, color:muted }}>/ {ar_}</span>
@@ -129,9 +125,9 @@ export default function LandingPage() {
             ))}
           </ul>
           <div style={{ marginTop:32 }}>
-            <a href="#waitlist" onClick={() => setMenuOpen(false)}
+            <a href="#get-started" onClick={() => setMenuOpen(false)}
               style={{ display:'block', textAlign:'center', background:grad, color:'#fff', padding:'14px', borderRadius:8, fontWeight:700, fontSize:15, fontFamily:en }}>
-              انضم لقائمة الانتظار — Join Waitlist
+              ابدأ الآن — Get Started
             </a>
           </div>
         </div>
@@ -154,8 +150,8 @@ export default function LandingPage() {
             </ul>
             <div className="nav-cta-wrap" style={{ display:'flex', alignItems:'center', gap:10 }}>
               <Link href="/login/employee" style={{ fontSize:14, fontWeight:500, color:navy, padding:'7px 14px', borderRadius:6 }}>Sign in</Link>
-              <a href="#waitlist" style={{ display:'inline-flex', alignItems:'center', gap:8, background:grad, color:'#fff', padding:'9px 20px', borderRadius:8, fontFamily:en, fontSize:14, fontWeight:600, cursor:'pointer', border:'none' }}>
-                🚀 Coming Soon — 1 Aug 2026
+              <a href="#get-started" style={{ display:'inline-flex', alignItems:'center', gap:8, background:grad, color:'#fff', padding:'9px 20px', borderRadius:8, fontFamily:en, fontSize:14, fontWeight:600, cursor:'pointer', border:'none' }}>
+                Get Started →
               </a>
             </div>
             {/* Hamburger */}
@@ -186,17 +182,17 @@ export default function LandingPage() {
               Arabic-first. Mobile-first. Priced in SAR.
             </div>
             <div className="hero-btns" style={{ display:'flex', gap:14, justifyContent:'center', flexWrap:'wrap', marginBottom:72 }}>
-              <a href="#waitlist" style={{ display:'inline-flex', alignItems:'center', gap:8, background:grad, color:'#fff', padding:'13px 28px', borderRadius:8, fontFamily:en, fontSize:15, fontWeight:600, cursor:'pointer', border:'none' }}>
-                انضم لقائمة الانتظار — Join the Waitlist →
+              <a href="#get-started" style={{ display:'inline-flex', alignItems:'center', gap:8, background:grad, color:'#fff', padding:'13px 28px', borderRadius:8, fontFamily:en, fontSize:15, fontWeight:600, cursor:'pointer', border:'none' }}>
+                ابدأ الآن — Get Started →
               </a>
-              <a href="#waitlist" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'transparent', color:'#fff', border:'1.5px solid rgba(255,255,255,0.45)', padding:'13px 28px', borderRadius:8, fontFamily:en, fontSize:15, fontWeight:600 }}>
-                Launching 1 August 2026
-              </a>
+              <Link href="/login/employee" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'transparent', color:'#fff', border:'1.5px solid rgba(255,255,255,0.45)', padding:'13px 28px', borderRadius:8, fontFamily:en, fontSize:15, fontWeight:600 }}>
+                Sign in — تسجيل الدخول
+              </Link>
             </div>
             <div style={{ width:1, height:40, background:'rgba(255,255,255,0.12)', margin:'0 auto 48px' }}/>
             <div className="hero-stats hero-stats-wrap" style={{ display:'flex', gap:0, justifyContent:'center', flexWrap:'wrap' }}>
               {[
-                [String(daysLeft), 'Days to Launch'],
+                ['Web + Mobile', 'iOS · Android · Browser'],
                 ['1–3',   'Days to Go Live'],
                 ['70%',   'Cheaper than other apps'],
                 ['100%',  'Arabic + English'],
@@ -384,34 +380,34 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* WAITLIST CTA */}
-      <section id="waitlist" style={{ background:grad135, padding:'100px 0', textAlign:'center', position:'relative', overflow:'hidden' }}>
+      {/* GET STARTED CTA */}
+      <section id="get-started" style={{ background:grad135, padding:'100px 0', textAlign:'center', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize:'40px 40px', pointerEvents:'none' }}/>
         <div style={{ maxWidth:1140, margin:'0 auto', padding:'0 24px', position:'relative', zIndex:1 }}>
           <div style={{ maxWidth:640, margin:'0 auto' }}>
             <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', color:'#fff', fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'6px 18px', borderRadius:999, marginBottom:28 }}>
-              🚀 &nbsp; LAUNCHING 1 AUGUST 2026
+              🟢 &nbsp; NOW LIVE · متاح الآن
             </div>
             <div style={{ fontFamily:ar, fontSize:36, fontWeight:700, color:'#fff', direction:'rtl', lineHeight:1.5, marginBottom:10 }}>
-              كن من أوائل المستخدمين<br/>لسيرفيك FM
+              ابدأ مع سيرفيك FM<br/>اليوم
             </div>
-            <div style={{ fontSize:19, fontWeight:400, color:'rgba(255,255,255,0.75)', marginBottom:12 }}>Be first to access Serviq FM</div>
-            <div style={{ fontSize:13, color:'rgba(255,255,255,0.50)', marginBottom:40 }}>Join the waitlist — get early access, a 3-month discount, and priority onboarding.</div>
+            <div style={{ fontSize:19, fontWeight:400, color:'rgba(255,255,255,0.75)', marginBottom:12 }}>Get started with Serviq FM today</div>
+            <div style={{ fontSize:13, color:'rgba(255,255,255,0.50)', marginBottom:40 }}>Tell us about your facilities — we&apos;ll book a demo and have your team live in 1–3 days.</div>
 
             <div className="cta-form-box" style={{ background:'rgba(255,255,255,0.10)', border:'1px solid rgba(255,255,255,0.18)', borderRadius:16, padding:'36px 32px', textAlign:'left' }}>
               {submitted ? (
                 <div style={{ textAlign:'center', padding:'24px 0' }}>
                   <div style={{ fontSize:48, marginBottom:16 }}>🎉</div>
-                  <div style={{ fontFamily:ar, fontSize:20, fontWeight:700, color:'#fff', direction:'rtl', marginBottom:8 }}>شكراً لانضمامك!</div>
-                  <div style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:12 }}>You&apos;re on the list!</div>
+                  <div style={{ fontFamily:ar, fontSize:20, fontWeight:700, color:'#fff', direction:'rtl', marginBottom:8 }}>شكراً لتواصلك!</div>
+                  <div style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:12 }}>Thanks — almost done!</div>
                   <div style={{ fontSize:14, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>
-                    We&apos;ll email you at launch on <strong style={{ color:'#fff' }}>1 August 2026</strong> with your early access link and exclusive discount.<br/>
-                    سنراسلك عند الإطلاق في 1 أغسطس 2026.
+                    Your email app should open with your details — just hit send. If it didn&apos;t, email us at <a href="mailto:admin@serviqfm.com" style={{ color:'#fff', fontWeight:700 }}>admin@serviqfm.com</a>.<br/>
+                    أرسل الرسالة من بريدك وسنتواصل معك لترتيب العرض التوضيحي.
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleWaitlist}>
-                  <div className="waitlist-name-row" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
+                <form onSubmit={handleGetStarted}>
+                  <div className="get-started-name-row" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
                     <div>
                       <label style={{ display:'block', fontSize:12, fontWeight:600, color:'rgba(255,255,255,0.6)', marginBottom:6, letterSpacing:'0.04em' }}>Full Name <span style={{ fontFamily:ar, fontSize:11, color:'rgba(255,255,255,0.35)' }}>الاسم</span></label>
                       <input type="text" value={wlName} onChange={e => setWlName(e.target.value)} placeholder="Ahmed Al-Rashidi" required
@@ -441,10 +437,10 @@ export default function LandingPage() {
                   </div>
                   <button type="submit" disabled={submitting}
                     style={{ width:'100%', padding:14, background:'#fff', color:navy, border:'none', borderRadius:8, fontSize:15, fontWeight:700, fontFamily:en, cursor:'pointer', transition:'all 0.18s', opacity: submitting ? 0.7 : 1 }}>
-                    {submitting ? 'Joining...' : 'Join the Waitlist — انضم لقائمة الانتظار →'}
+                    {submitting ? 'Sending...' : 'Request a Demo — اطلب عرضاً توضيحياً →'}
                   </button>
                   <p style={{ fontSize:12, color:'rgba(255,255,255,0.35)', textAlign:'center', marginTop:14 }}>
-                    No spam. Unsubscribe anytime. · لا رسائل مزعجة. إلغاء الاشتراك في أي وقت.
+                    No spam. We only use your details to contact you. · نستخدم بياناتك للتواصل معك فقط.
                   </p>
                 </form>
               )}
