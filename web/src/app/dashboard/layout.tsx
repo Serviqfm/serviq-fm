@@ -1,4 +1,5 @@
 import Sidebar from '@/components/Sidebar'
+import HelpLink from '@/components/HelpLink'
 import PlatformImpersonationBanner from '@/components/PlatformImpersonationBanner'
 import TenantAnnouncementsBanner from '@/components/TenantAnnouncementsBanner'
 import { LanguageProvider } from '@/context/LanguageContext'
@@ -17,6 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <main className="flex-1 min-w-0 overflow-y-auto">
             {children}
           </main>
+          <HelpLink />
         </div>
       </ActiveSiteProvider>
     </LanguageProvider>

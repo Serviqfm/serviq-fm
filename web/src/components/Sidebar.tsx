@@ -290,6 +290,16 @@ export default function Sidebar() {
           </div>
         )}
 
+        {/* Help Center */}
+        <Link href="/dashboard/help" title={collapsed ? (isAr ? 'مركز المساعدة' : 'Help Center') : undefined}
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all w-full ${
+            pathname.startsWith('/dashboard/help') ? 'bg-primary/10 text-primary font-semibold' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+          } ${collapsed ? 'justify-center' : ''}`}
+        >
+          <span className="material-symbols-outlined text-xl flex-shrink-0">help</span>
+          {!collapsed && <span className="text-sm">{isAr ? 'مركز المساعدة' : 'Help Center'}</span>}
+        </Link>
+
         {/* Language toggle */}
         <button
           onClick={() => setLang(isAr ? 'en' : 'ar')}
