@@ -6,7 +6,7 @@ import { format, isPast } from 'date-fns'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
-import { archiveConfirmMessage, nextDueOnDaysOfWeek, applySeasonalWindow, setPmScheduleActive, clearOpenGeneratedWorkOrders, DELETE_CLEARABLE_STATUSES } from '../pm-utils'
+import { archiveConfirmMessage, nextDueOnDaysOfWeek, applySeasonalWindow, nextActiveDate, loadInactivePeriods, setPmScheduleActive, clearOpenGeneratedWorkOrders, DELETE_CLEARABLE_STATUSES } from '../pm-utils'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function calculateNextDue(schedule: any): string {
@@ -109,10 +109,12 @@ export default function PMScheduleDetailPage() {
       created_by: user.id,
     })
     if (!error) {
-      // Roll next_due_at, resuming past any seasonal inactive window (1C-04).
-      const nextDue = applySeasonalWindow(
-        new Date(calculateNextDue(schedule)),
-        schedule.is_seasonal, schedule.seasonal_start_month, schedule.seasonal_end_month,
+      // Roll next_due_at, resuming past any seasonal window (1C-04) and any inactive
+      // period (1C-27; none when w7-01 isn't run).
+      const rolled = new Date(calculateNextDue(schedule))
+      const periods = (await loadInactivePeriods(supabase, [schedule.id])).get(schedule.id) ?? []
+      const nextDue = (nextActiveDate(rolled, schedule, periods)
+        ?? applySeasonalWindow(rolled, schedule.is_seasonal, schedule.seasonal_start_month, schedule.seasonal_end_month)
       ).toISOString()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const update: any = {

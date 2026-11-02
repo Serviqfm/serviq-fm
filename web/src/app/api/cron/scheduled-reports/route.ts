@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { captureAndAlert } from '@/lib/errorLog'
+import { renderStandardReport, isStandardReportType, STANDARD_REPORT_TITLES } from '@/lib/reports/standardReport'
 
 const ROUTE = '/api/cron/scheduled-reports'
 
@@ -32,6 +33,7 @@ interface ScheduleRow {
     from?: string
     to?: string
     status?: string
+    standard?: string
   } | null
 }
 
@@ -141,7 +143,19 @@ async function run() {
         continue
       }
 
-      const bodyHtml = await renderPack(admin, s)
+      // Standard packs (scheduled from the Reports page) go out as the same PDF a
+      // user downloads, attached; builder schedules render an inline HTML table.
+      let bodyHtml: string
+      let attachments: { filename: string; content: Buffer }[] | undefined
+      const std = s.config?.standard
+      if (isStandardReportType(std)) {
+        const { data: org } = await admin.from('organisations').select('name').eq('id', s.organisation_id).maybeSingle()
+        const pdf = await renderStandardReport(admin, std, s.organisation_id, org?.name ?? 'Organisation')
+        attachments = [{ filename: `${std}-${now.toISOString().slice(0, 10)}.pdf`, content: pdf }]
+        bodyHtml = `<p style="color:#334155;line-height:1.6">Your <strong>${esc(STANDARD_REPORT_TITLES[std])}</strong> report is attached as a PDF.</p>`
+      } else {
+        bodyHtml = await renderPack(admin, s)
+      }
       const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -155,7 +169,7 @@ async function run() {
 
       let anyFailed = false
       for (const to of recipients) {
-        const r = await sendEmail(to, `${s.name} — ServIQ-FM Report`, html)
+        const r = await sendEmail(to, `${s.name} — ServIQ-FM Report`, html, attachments)
         if (!r.success) { anyFailed = true; errors.push(`${s.id} -> ${to}: ${r.error}`) }
         await logNotification(admin, s.organisation_id, 'scheduled_report', r.success ? 'sent' : 'failed', r.error)
       }

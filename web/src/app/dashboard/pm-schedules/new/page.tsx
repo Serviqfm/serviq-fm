@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
-import { rollNextDue } from '../pm-utils'
+import { rollNextDue, nextActiveDate, saveInactivePeriods, type InactivePeriod } from '../pm-utils'
+import InactivePeriodsEditor from '../InactivePeriodsEditor'
 import { stampChecklistTasks } from '../checklist-stamp'
 import { fetchWoCategories, catLabel, type WoCategory } from '@/lib/woCategories'
 
@@ -49,6 +50,7 @@ export default function NewPMSchedulePage() {
   const [assetSearch, setAssetSearch] = useState('')
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
   const [createFirstWO, setCreateFirstWO] = useState(false)
+  const [inactivePeriods, setInactivePeriods] = useState<InactivePeriod[]>([])  // 1C-27
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadFormData() }, [])
@@ -116,8 +118,21 @@ export default function NewPMSchedulePage() {
       is_active: true,
     }))
     const { data: created, error: insertError } = await supabase.from('pm_schedules').insert(rows)
-      .select('id, title, description, frequency, priority, category, asset_id, site_id, assigned_to, checklist_template_id, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day')
+      .select('id, title, description, frequency, priority, category, asset_id, site_id, assigned_to, checklist_template_id, estimated_duration_minutes, organisation_id, next_due_at, end_date, days_of_week, scheduling_mode, interval_count, interval_unit, anchor_day, is_seasonal, seasonal_start_month, seasonal_end_month')
     if (insertError) { setError(insertError.message); setLoading(false); return }
+
+    // 1C-27: every created schedule (one per asset) gets the same inactive periods.
+    // The schedules already exist at this point, so a failure here is reported but
+    // doesn't block (re-submitting would duplicate the schedules) — periods can be
+    // added later from Edit.
+    if (created && created.length > 0 && inactivePeriods.length > 0) {
+      const periodsError = await saveInactivePeriods(supabase, profile.organisation_id, created.map(c => c.id), inactivePeriods, lang)
+      if (periodsError) {
+        window.alert(lang === 'ar'
+          ? `تم إنشاء الجدول، لكن لم يتم حفظ فترات التوقف: ${periodsError}`
+          : `The schedule was created, but its inactive periods were not saved: ${periodsError}`)
+      }
+    }
 
     // Optionally create the first work order immediately — same WO shape as
     // /api/cron/pm-generate, then roll next_due_at forward like the cron does.
@@ -148,7 +163,9 @@ export default function NewPMSchedulePage() {
         // Floating: next due is one interval after this WO would complete — approximate
         // from now (cron re-anchors off the real completed_at). Fixed: roll off due date.
         const rollFrom = pm.scheduling_mode === 'floating' ? new Date() : new Date(pm.next_due_at)
-        const nextDue = rollNextDue(rollFrom, pm.frequency, pm.days_of_week, rec)
+        const rolled = rollNextDue(rollFrom, pm.frequency, pm.days_of_week, rec)
+        // Resume past the seasonal window / inactive periods, like the cron (1C-04/1C-27).
+        const nextDue = nextActiveDate(rolled, pm, inactivePeriods) ?? rolled
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const upd: any = { next_due_at: nextDue.toISOString(), last_generated_at: new Date().toISOString() }
         if (pm.end_date && nextDue > new Date(pm.end_date)) upd.is_active = false
@@ -417,6 +434,7 @@ export default function NewPMSchedulePage() {
             </div>
           )}
         </div>
+        <InactivePeriodsEditor lang={lang} periods={inactivePeriods} onChange={setInactivePeriods} fieldStyle={fieldStyle} labelStyle={labelStyle} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '10px 14px', cursor: 'pointer' }}>
           <input type='checkbox' checked={createFirstWO} onChange={e => setCreateFirstWO(e.target.checked)} style={{ width: 16, height: 16 }} />
           <span style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>

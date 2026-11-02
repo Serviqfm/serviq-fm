@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { isMonthInSeasonalWindow, nextSeasonStart, rollByInterval, type Recurrence } from '@/app/dashboard/pm-schedules/pm-utils'
+import { isScheduleInactiveOn, nextActiveDate, loadInactivePeriods, rollByInterval, type Recurrence } from '@/app/dashboard/pm-schedules/pm-utils'
 import { stampChecklistTasks } from '@/app/dashboard/pm-schedules/checklist-stamp'
 import { captureAndAlert } from '@/lib/errorLog'
 
@@ -138,6 +138,10 @@ async function run() {
   const meterGenerated = await runMeterPass(admin, orgAdmin)
   if (!due || due.length === 0) return { error: null, generated: meterGenerated, scanned: 0 }
 
+  // 1C-27: every due schedule's inactive periods in ONE batched query. Returns an
+  // empty map (= no periods) if w7-01-pm-inactive-periods.sql hasn't been run.
+  const periodsBySchedule = await loadInactivePeriods(admin, due.map(pm => pm.id))
+
   let generated = 0
   const errors: string[] = []
 
@@ -159,17 +163,18 @@ async function run() {
       const lead = pm.lead_time_days ?? 2
       if (!isFloating && new Date(pm.next_due_at!) > addDays(now, lead)) continue
 
-      // 1C-04: if the due date falls in the seasonal inactive window, generate nothing
-      // and roll next_due_at to the start of the next active season.
-      if (pm.is_seasonal && pm.seasonal_start_month && pm.seasonal_end_month) {
-        const dueMonth = new Date(pm.next_due_at!).getUTCMonth() + 1
-        if (!isMonthInSeasonalWindow(dueMonth, pm.seasonal_start_month, pm.seasonal_end_month)) {
-          const resume = nextSeasonStart(new Date(pm.next_due_at!), pm.seasonal_start_month)
-          const upd: Record<string, unknown> = { next_due_at: resume.toISOString() }
-          if (pm.end_date && resume > new Date(pm.end_date)) upd.is_active = false
-          await admin.from('pm_schedules').update(upd).eq('id', pm.id)
-          continue
-        }
+      // 1C-04 + 1C-27: if the due date falls outside the seasonal window or inside any
+      // inactive period, generate nothing and roll next_due_at to the next active date
+      // (past every period, wrap-around aware). If the schedule is inactive all year
+      // (nextActiveDate → null) leave next_due_at as-is and generate nothing.
+      const periods = periodsBySchedule.get(pm.id) ?? []
+      if (isScheduleInactiveOn(new Date(pm.next_due_at!), pm, periods)) {
+        const resume = nextActiveDate(new Date(pm.next_due_at!), pm, periods)
+        if (!resume) continue
+        const upd: Record<string, unknown> = { next_due_at: resume.toISOString() }
+        if (pm.end_date && resume > new Date(pm.end_date)) upd.is_active = false
+        await admin.from('pm_schedules').update(upd).eq('id', pm.id)
+        continue
       }
 
       // 1C-09 floating (after-completion): the next WO is due `interval` after the
@@ -253,11 +258,10 @@ async function run() {
       // the prior due date. Both honor the 1C-10 interval config via rollForward.
       const baseDue = isFloating ? (floatingCompletedAt ?? now) : new Date(pm.next_due_at!)
       let nextDueDate = rollForward(baseDue, pm)
-      // If the rolled date lands in the seasonal inactive window, jump to next season.
-      if (pm.is_seasonal && pm.seasonal_start_month && pm.seasonal_end_month
-          && !isMonthInSeasonalWindow(nextDueDate.getUTCMonth() + 1, pm.seasonal_start_month, pm.seasonal_end_month)) {
-        nextDueDate = nextSeasonStart(nextDueDate, pm.seasonal_start_month)
-      }
+      // If the rolled date lands outside the season or in an inactive period, jump to
+      // the next active date. null (inactive all year) keeps the rolled date — the
+      // pre-check above then generates nothing for it.
+      nextDueDate = nextActiveDate(nextDueDate, pm, periods) ?? nextDueDate
       const update: Record<string, unknown> = { next_due_at: nextDueDate.toISOString() }
       // Rolled past the end date: this was the last cycle — deactivate.
       if (pm.end_date && nextDueDate > new Date(pm.end_date)) update.is_active = false

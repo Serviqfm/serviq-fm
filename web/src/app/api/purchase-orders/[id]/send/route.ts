@@ -5,6 +5,7 @@
 // marked 'sent' is a promise that the vendor actually received it, so a failed
 // send leaves the PO in draft to be retried rather than silently advancing.
 
+import { waitUntil } from '@vercel/functions'
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveCaller } from '../../_helpers'
 import { poPdfBuffer, type PoLine, type PoRecord } from '@/lib/po-pdf'
@@ -102,13 +103,13 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     )
   }
 
-  // P7: fire-and-forget — fireErpEvent never throws, and the vendor already has
+  // P7: fireErpEvent never throws; waitUntil keeps the push alive after we respond. The vendor already has
   // the PO, so nothing about the ERP may delay or fail this response.
-  void fireErpEvent(orgId, 'po.sent', params.id, {
+  waitUntil(fireErpEvent(orgId, 'po.sent', params.id, {
     po_number: po.po_number,
     vendor_email: vendorEmail,
     sent_at: updated.sent_at,
-  })
+  }))
 
   return NextResponse.json({ purchase_order: updated, sent_to: vendorEmail })
 }

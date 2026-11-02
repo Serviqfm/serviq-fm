@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { fetchWoCategories, catLabel, type WoCategory } from '@/lib/woCategories'
+import InactivePeriodsEditor from '../../InactivePeriodsEditor'
+import { loadInactivePeriods, saveInactivePeriods, type InactivePeriod } from '../../pm-utils'
 
 export default function EditPMSchedulePage() {
   const router = useRouter()
@@ -32,6 +34,9 @@ export default function EditPMSchedulePage() {
     scheduling_mode: 'fixed', interval_count: '', interval_unit: 'month', anchor_day: '',
   })
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
+  // 1C-27: multiple inactive periods (empty when w7-01 isn't run).
+  const [inactivePeriods, setInactivePeriods] = useState<InactivePeriod[]>([])
+  const [orgId, setOrgId] = useState('')
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
@@ -42,6 +47,7 @@ export default function EditPMSchedulePage() {
     const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
     if (!profile) return
     const orgId = profile.organisation_id
+    setOrgId(orgId)
     const [{ data: pm }, { data: assetData }, { data: siteData }, { data: techData }, { data: checklistData }] = await Promise.all([
       supabase.from('pm_schedules').select('*').eq('id', id).single(),
       supabase.from('assets').select('id, name').eq('organisation_id', orgId).eq('status', 'active'),
@@ -78,6 +84,7 @@ export default function EditPMSchedulePage() {
     })
     if (pm) setDaysOfWeek(Array.isArray(pm.days_of_week) ? pm.days_of_week : [])
     if (pm) setRequiresSignature(pm.requires_signature ?? false)
+    if (pm) setInactivePeriods((await loadInactivePeriods(supabase, [pm.id])).get(pm.id) ?? [])
     setLoading(false)
   }
 
@@ -119,8 +126,11 @@ export default function EditPMSchedulePage() {
         ? parseInt(form.anchor_day) : null,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
-    if (updateError) { setError(updateError.message); setSaving(false) }
-    else router.push('/dashboard/pm-schedules')
+    if (updateError) { setError(updateError.message); setSaving(false); return }
+    // 1C-27: replace this schedule's inactive periods (org-scoped rows).
+    const periodsError = await saveInactivePeriods(supabase, orgId, [String(id)], inactivePeriods, lang)
+    if (periodsError) { setError(periodsError); setSaving(false); return }
+    router.push('/dashboard/pm-schedules')
   }
 
   const fieldStyle = { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const, background: 'white' }
@@ -297,6 +307,7 @@ export default function EditPMSchedulePage() {
             </div>
           )}
         </div>
+        <InactivePeriodsEditor lang={lang} periods={inactivePeriods} onChange={setInactivePeriods} fieldStyle={fieldStyle} labelStyle={labelStyle} />
         <div style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 8, padding: '1rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={labelStyle}>{lang === 'ar' ? 'نمط الجدولة' : 'Scheduling Mode'}</label>

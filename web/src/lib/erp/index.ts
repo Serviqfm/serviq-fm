@@ -1,27 +1,26 @@
-// P7 — ERP integration framework. ONE interface + ONE no-op implementation.
-//
-// ponytail: this is the whole framework on purpose. No Oracle / Dynamics / Odoo
-// classes, no registry, no retry queue — live connectors are Phase Q behind an
-// owner decision gate. When the first real provider lands it implements
-// ErpAdapter and resolveAdapter() gains one branch; nothing else changes.
+// P7 — ERP integration framework: ONE interface, a no-op implementation, and
+// (W7-02) three live connectors — Odoo, Business Central, Oracle Fusion — in
+// sibling files that implement the same ErpAdapter contract. resolveAdapter()
+// picks the org's provider; nothing else in the app knows which ERP is behind it.
 //
 // The one rule that matters: an ERP problem must NEVER slow or break the flow
 // that triggered it. fireErpEvent() never throws and callers `void` it, the same
-// posture as lib/webhookDelivery.ts.
+// posture as lib/webhookDelivery.ts. A connector failure is logged 'failed' in
+// erp_sync_log (with a secret-free message) and can be retried from settings.
 //
-// ponytail: `void` on Next 14 / Vercel means a pending write CAN be dropped if the
-// function freezes right after responding. Acceptable for a framework whose V1
-// adapter only writes an audit row; upgrade path is waitUntil() from
-// @vercel/functions (or after() on Next 15) once a real connector needs delivery
-// guarantees.
+// Callers that must not delay their response wrap the call in waitUntil() from
+// @vercel/functions (PO send, invoice approval) so Vercel keeps the function alive
+// until the push finishes instead of freezing it mid-request. Never use bare `void`.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { connectorForOrg } from './connectors'
+import { isConnectorProvider } from './fields'
 
 export type ErpProvider = 'oracle' | 'dynamics' | 'odoo' | 'none'
 export type ErpObjectType = 'vendor' | 'purchase_order' | 'payment' | 'budget' | 'invoice'
 export type SyncStatus = 'pending' | 'success' | 'failed' | 'skipped'
 
-export type SyncResult = { status: SyncStatus; error?: string }
+export type SyncResult = { status: SyncStatus; error?: string; externalId?: string }
 
 /** The contract every provider implements. Payloads carry business identifiers — never secrets. */
 export interface ErpAdapter {
@@ -42,12 +41,14 @@ export type LogRow = {
   status: SyncStatus
   payload: Record<string, unknown> | null
   error: string | null
+  /** The ERP's id for the object, on a successful live push (w7-02 column). */
+  external_id?: string
 }
 
 export type LogWriter = (row: LogRow) => Promise<void>
 
 /**
- * V1's only adapter: records what WOULD have been synced and sends nothing.
+ * The 'none' provider's adapter: records what WOULD have been synced and sends nothing.
  * Every call resolves 'skipped' — never 'success', because nothing was delivered
  * and the log must not claim otherwise.
  */
@@ -108,26 +109,40 @@ function serviceClient(): SupabaseClient | null {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
+export function erpLogWriter(db: SupabaseClient): LogWriter {
+  return async row => {
+    const { error: insErr } = await db.from('erp_sync_log').insert(row)
+    if (insErr) throw new Error(insErr.message)
+  }
+}
+
 /**
  * The org's adapter, or null when the org has no ACTIVE connection. Null means
  * "this tenant doesn't use ERP" and costs nothing further — no row, no write.
- * Every provider is a NoopAdapter in V1; a real connector adds one branch here.
+ * Provider 'none' → NoopAdapter (records, sends nothing); odoo / dynamics /
+ * oracle → the live connector (or an UnavailableConnector that logs 'failed'
+ * when its credentials / encryption key are missing).
  */
 export async function resolveAdapter(orgId: string, db: SupabaseClient | null = serviceClient()): Promise<ErpAdapter | null> {
   if (!db) return null
   const { data, error } = await db
     .from('erp_connections')
-    .select('provider, is_active')
+    .select('provider, is_active, config')
     .eq('organisation_id', orgId)
     .maybeSingle()
   // Missing table (migration not run) or no row: the framework is simply off.
   if (error || !data || !data.is_active) return null
 
-  const writeLog: LogWriter = async row => {
-    const { error: insErr } = await db.from('erp_sync_log').insert(row)
-    if (insErr) throw new Error(insErr.message)
+  const writeLog = erpLogWriter(db)
+  if (isConnectorProvider(data.provider)) {
+    return connectorForOrg(db, orgId, data.provider, (data.config ?? {}) as Record<string, unknown>, writeLog)
   }
   return new NoopAdapter(data.provider as ErpProvider, orgId, writeLog)
+}
+
+/** Which event re-drives a sync-log row on Retry. payment / budget have no event. */
+export function eventForObjectType(t: string): ErpEvent | null {
+  return t === 'vendor' ? 'vendor.created' : t === 'purchase_order' ? 'po.sent' : t === 'invoice' ? 'invoice.approved' : null
 }
 
 /**
