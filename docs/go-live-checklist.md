@@ -133,6 +133,16 @@ supabase db pull
 Run in this order. Each file is safe to run twice.
 
 - ⬜ `SQL Files/w7-01-pm-inactive-periods.sql`: multiple inactive periods per PM schedule.
-- ⬜ `SQL Files/w7-02-erp-connectors.sql`: ERP connector credentials and sync references.
+- ⬜ `SQL Files/w7-02-erp-connectors.sql`: ERP connector credentials and sync references. ⚠️ Run it **right after this PR deploys**, not before: it removes the old page's direct database writes, so the ERP settings page can only save through the new server route. Set `ERP_ENCRYPTION_KEY` in Vercel first.
 
-(The app keeps working before you run them; the new features stay hidden or inactive until you do.)
+(Until you run them the rest of the app works normally. PM periods can't be saved, and ERP connectors can't store credentials.)
+
+---
+
+## 8. ERP connectors: test against a sandbox before real use
+
+Oracle Fusion, Dynamics 365 Business Central and Odoo connectors are built, but they've only been tested against simulated responses. Before switching one on for a customer:
+
+- ⬜ Get a **sandbox/trial** of that ERP (Odoo has a free trial; Business Central has a sandbox environment; Oracle needs a test pod from the customer).
+- ⬜ Settings → **ERP Integration** → pick the provider → enter the details → **Test connection**.
+- ⬜ Create a vendor, send a PO and approve an invoice in Serviq. Check each appears in the ERP and shows **success** in the sync log. Send Claude any **failed** messages; field names may need adjusting for that ERP's setup.

@@ -20,9 +20,10 @@
 
 **Landing page:** switched from pre-launch/waitlist to "Now Live / Get Started" (Nov 2026). Demo-request form opens a pre-filled email to admin@serviqfm.com. The old root `index.html` static page was deleted.
 
-### In progress (Nov 2026)
+### Shipped Nov 2026 (needs owner SQL / env)
 - Multiple inactive periods per PM schedule (1C-27) — SQL `w7-01-pm-inactive-periods.sql`.
-- Real ERP connectors: Oracle Fusion, Dynamics 365 Business Central, Odoo — SQL `w7-02-erp-connectors.sql`, env `ERP_ENCRYPTION_KEY`.
+- Real ERP connectors: Oracle Fusion, Dynamics 365 Business Central, Odoo — SQL `w7-02-erp-connectors.sql` (run right after deploy), env `ERP_ENCRYPTION_KEY`. Built against mocked APIs only; validate each against a sandbox before production use.
+- Standard reports can be scheduled from the Reports page (emailed as PDF).
 
 ### Owner-only (see `docs/go-live-checklist.md`)
 Store publishing · `SERVIQ_VAT_NUMBER` (invoices fall back to a placeholder VAT no.) · Stripe activation + env · Vercel WAF rate-limit rules · Supabase `db pull` DR baseline (DV-06) · media-purge cron enablement · running new SQL files.
@@ -30,6 +31,8 @@ Store publishing · `SERVIQ_VAT_NUMBER` (invoices fall back to a placeholder VAT
 ### Known open code items
 - Mobile forced-password-change gate (web-only today; deferred).
 - `Button.test.tsx` test-runner deps (ignored by Next build).
+- ERP: possible duplicate create if two pushes of the same object run at the same instant (search-before-create narrows it); DNS-rebinding window in the SSRF guard (no connection pinning).
+- PM detail page doesn't list inactive periods yet (edit form does).
 
 ### Known constraints / caveats (don't try to "fix")
 

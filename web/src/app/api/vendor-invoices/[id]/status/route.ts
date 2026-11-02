@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { capabilityDeniedForUser } from '@/lib/customRoles'
 import { fireErpEvent } from '@/lib/erp'
@@ -103,10 +104,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
       // P7: only the finance RELEASE is an ERP event; a dispute is internal.
       if (matchStatus === 'approved_for_payment') {
-        void fireErpEvent(profile.organisation_id, 'invoice.approved', id, {
+        waitUntil(fireErpEvent(profile.organisation_id, 'invoice.approved', id, {
           payment_status: mUpdated[0].status,
           match_status: mUpdated[0].match_status,
-        })
+        }))
       }
       return NextResponse.json({ ok: true, ...mUpdated[0] })
     }
