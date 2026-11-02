@@ -56,6 +56,15 @@ export default function ReportsPage() {
   const [failureCodeCounts, setFailureCodeCounts] = useState<{ code: string; label: string; label_ar: string | null; count: number }[]>([])
   const supabase = createClient()
   const { lang } = useLanguage()
+  const isAr = lang === 'ar'
+  const [orgId, setOrgId] = useState<string | null>(null)
+  const [canSchedule, setCanSchedule] = useState(false)
+  const [scheduling, setScheduling] = useState<string | null>(null)
+  const [schedName, setSchedName] = useState('')
+  const [schedRecipients, setSchedRecipients] = useState('')
+  const [schedFreq, setSchedFreq] = useState<'weekly' | 'monthly'>('monthly')
+  const [schedSaving, setSchedSaving] = useState(false)
+  const [schedMsg, setSchedMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchReports() }, [])
@@ -64,9 +73,11 @@ export default function ReportsPage() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
-    const { data: profile } = await supabase.from('users').select('organisation_id').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('users').select('organisation_id, role').eq('id', user.id).single()
     if (!profile) { setLoading(false); return }
     const orgId = profile.organisation_id
+    setOrgId(orgId)
+    setCanSchedule(['admin', 'manager'].includes(profile.role))
 
     const [{ data: wos }, { data: assets }, { data: pms }, { data: techs }] = await Promise.all([
       supabase.from('work_orders')
@@ -156,13 +167,58 @@ export default function ReportsPage() {
     await downloadPdf('/api/reports/standard/work-orders', `work-orders-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
-  async function generateStandardReport(title: string) {
-    const map: Record<string, string> = {
-      'Monthly Asset Health': 'asset-health',
-      'Technician Performance': 'technician-performance',
-      'PM Compliance': 'pm-compliance',
+  const STANDARD_TYPE: Record<string, string> = {
+    'Monthly Asset Health': 'asset-health',
+    'Technician Performance': 'technician-performance',
+    'PM Compliance': 'pm-compliance',
+  }
+
+  function openSchedule(title: string) {
+    setScheduling(title)
+    setSchedName(title)
+    setSchedRecipients('')
+    setSchedFreq(title === 'Technician Performance' ? 'weekly' : 'monthly')
+    setSchedMsg(null)
+  }
+
+  async function saveSchedule() {
+    if (!scheduling || !orgId) return
+    const recipients = schedRecipients.split(/[,;\s]+/).map(x => x.trim()).filter(Boolean)
+    const bad = recipients.filter(x => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x))
+    if (!schedName.trim() || recipients.length === 0 || bad.length > 0) {
+      setSchedMsg({ ok: false, text: bad.length > 0
+        ? (isAr ? `بريد غير صالح: ${bad.join(', ')}` : `Invalid email: ${bad.join(', ')}`)
+        : (isAr ? 'أدخل الاسم ومستلماً واحداً على الأقل.' : 'Enter a name and at least one recipient.') })
+      return
     }
-    const type = map[title]
+    setSchedSaving(true)
+    const now = new Date()
+    const next = schedFreq === 'monthly'
+      ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
+      : new Date(now.getTime() + 7 * 86_400_000)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('scheduled_reports').insert({
+      organisation_id: orgId,
+      name: schedName.trim(),
+      config: { standard: STANDARD_TYPE[scheduling] },
+      recipients,
+      frequency: schedFreq,
+      next_run_at: next.toISOString(),
+      created_by: user?.id ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+    setSchedSaving(false)
+    if (error) {
+      setSchedMsg({ ok: false, text: (isAr ? 'تعذر الحفظ: ' : 'Could not save: ') + error.message })
+      return
+    }
+    setSchedMsg({ ok: true, text: isAr
+      ? `تمت الجدولة. أول إرسال: ${next.toLocaleDateString('en-GB')}`
+      : `Scheduled. First email: ${next.toLocaleDateString('en-GB')}` })
+  }
+
+  async function generateStandardReport(title: string) {
+    const type = STANDARD_TYPE[title]
     if (!type) { alert('Unknown report.'); return }
     await downloadPdf(`/api/reports/standard/${type}`, `${type}-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
@@ -461,9 +517,9 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
-                      <button onClick={() => alert('Scheduled reports are coming soon.')} className="px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded-lg font-semibold text-xs hover:bg-surface-container-highest transition-colors flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">calendar_today</span> Schedule
-                      </button>
+                      {canSchedule && <button onClick={() => openSchedule(r.title)} className="px-3 py-1.5 bg-surface-container-high text-on-surface-variant rounded-lg font-semibold text-xs hover:bg-surface-container-highest transition-colors flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">calendar_today</span> {isAr ? 'جدولة' : 'Schedule'}
+                      </button>}
                       <button onClick={() => generateStandardReport(r.title)} className="px-3 py-1.5 bg-primary text-on-primary rounded-lg font-semibold text-xs hover:bg-primary/90 transition-colors flex items-center gap-1">
                         <span className="material-symbols-outlined text-xs">download</span> Generate
                       </button>
@@ -476,6 +532,38 @@ export default function ReportsPage() {
           </div>
         </div>
 
+      {scheduling && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !schedSaving && setScheduling(null)}>
+          <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-[12px] shadow-xl p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-on-surface mb-1">{isAr ? 'جدولة تقرير' : 'Schedule report'}</h3>
+            <p className="text-xs text-on-surface-variant mb-5">{isAr ? 'سيُرسل التقرير بصيغة PDF إلى المستلمين تلقائياً.' : 'The report is emailed to the recipients as a PDF automatically.'}</p>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">{isAr ? 'الاسم' : 'Name'}</label>
+            <input value={schedName} onChange={e => setSchedName(e.target.value)} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none mb-4" />
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">{isAr ? 'المستلمون (افصل بفاصلة)' : 'Recipients (comma-separated)'}</label>
+            <input value={schedRecipients} onChange={e => setSchedRecipients(e.target.value)} placeholder="manager@company.com, owner@company.com" dir="ltr" className="w-full bg-surface-container-low border border-outline-variant/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none mb-4" />
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">{isAr ? 'التكرار' : 'Frequency'}</label>
+            <div className="flex gap-2 mb-5">
+              {(['weekly', 'monthly'] as const).map(f => (
+                <button key={f} type="button" onClick={() => setSchedFreq(f)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${schedFreq === f ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}`}>
+                  {f === 'weekly' ? (isAr ? 'أسبوعي' : 'Weekly') : (isAr ? 'شهري (أول كل شهر)' : 'Monthly (1st of month)')}
+                </button>
+              ))}
+            </div>
+            {schedMsg && <p className={`text-sm mb-4 ${schedMsg.ok ? 'text-primary' : 'text-error'}`}>{schedMsg.text}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setScheduling(null)} disabled={schedSaving} className="border border-outline-variant text-on-surface-variant px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors">
+                {schedMsg?.ok ? (isAr ? 'إغلاق' : 'Close') : (isAr ? 'إلغاء' : 'Cancel')}
+              </button>
+              {!schedMsg?.ok && (
+                <button onClick={saveSchedule} disabled={schedSaving} className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20 disabled:opacity-60">
+                  {schedSaving ? (isAr ? 'جارٍ الحفظ...' : 'Saving...') : (isAr ? 'حفظ الجدولة' : 'Save schedule')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )
