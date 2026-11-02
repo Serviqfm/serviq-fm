@@ -1,57 +1,41 @@
 # ServIQ-FM — Project Context & Task Tracker
 
-**ServIQ-FM** is a bilingual (Arabic + English) Facility Management SaaS platform targeting the Saudi/GCC market. Phase 1 beta launch in progress.
+**ServIQ-FM** is a bilingual (Arabic + English) Facility Management SaaS platform targeting the Saudi/GCC market. **Live in production** at https://www.serviqfm.com.
 
-> **How to use this file:** Mark tasks `[x]` when done. Each sprint links to its design doc and plan. Update at the start of each session.
+> **How to use this file:** Update the status block below at the start/end of each session. Detailed per-item history lives in [`docs/execution-log.md`](docs/execution-log.md) (CAFM) and [`docs/procurement-execution-log.md`](docs/procurement-execution-log.md) (procurement). Owner-only actions live in [`docs/go-live-checklist.md`](docs/go-live-checklist.md).
 
 ---
 
-## 🟢 WEB APP — PRODUCTION (June 3, 2026)
+## 🟢 CURRENT STATUS (updated 2 Nov 2026)
 
-**`main` is live at https://www.serviqfm.com.** Both `main` and `phase-lumina` track each other (~95 commits ahead of the pre-merge state). The brand-kit'd web app shipped, the platform admin works end-to-end, tenant onboarding works end-to-end, and all the Sprint J–P15 hotfixes are in production. Build is clean (73+ routes, no warnings); `tsc` is clean outside the pre-existing `Button.test.tsx` test-runner deps which Next ignores via `eslint.ignoreDuringBuilds: true`.
+**Web app — LIVE** (`main` → Vercel auto-deploy). Shipped through Wave 6 + the procurement module:
+- CAFM core: work orders (custom statuses, tasks, sign-off, reopen, SLA/escalations), assets (custom fields, depreciation, warranty, downtime, check-in/out), PM schedules (seasonal, lead time, groups, CSV), inspections, inventory, vendors + vendor invoices, ZATCA tenant invoicing, reports + report builder + scheduled report emails, public request portal + QR, notifications (email + push).
+- Wave 6 modules: permit-to-work, incidents, cost centers/budgets, IoT/BMS monitoring, utilities, handovers, space hierarchy + floor plans, moves, automation builder, custom roles (overlay), active-site switcher + site scoping, custom branding, plan limits + usage, PDPL tools.
+- Procurement (P0–P9): requisitions + approval chains, PO lifecycle, goods receipt, 3-way match, budgets, reporting, ERP framework, stock requisitions + QR portal.
+- Platform admin (`/platform/*`): tenants, onboarding/offboarding, impersonation, billing, feature flags, MRR.
 
-### Next session — Mobile app
+**Mobile app (Expo, `mobile/`)** — feature-complete for technicians (WOs, QR, time logs, photos, signatures, offline queue, push, asset/location edit).
+- **iOS:** production build **submitted to App Store review (Aug 2026)** — confirm result in App Store Connect.
+- **Android:** production build works; **first Play Console upload not done yet** (must be manual). Steps: `docs/go-live-checklist.md` §1b.
 
-The web work is the platform foundation. The next workstream is the **Expo / React Native technician app** under `mobile/`. Start by skimming [docs/superpowers/plans/2026-04-25-week2-mobile-technician.md](docs/superpowers/plans/2026-04-25-week2-mobile-technician.md) and the existing `mobile/` scaffolding.
+**Landing page:** switched from pre-launch/waitlist to "Now Live / Get Started" (Nov 2026). Demo-request form opens a pre-filled email to admin@serviqfm.com. The old root `index.html` static page was deleted.
 
-Key references for the mobile app:
-- Brand tokens to mirror on RN: `web/src/brand/tokens.ts` (Brand Navy `#182848`, Signal Blue `#2898C8`, Service Teal `#48B8C0`)
-- Logo asset for the launcher icon: `web/public/brand/serviqfm-icon.png` (drop into `mobile/assets/brand/serviqfm-icon-1024.png`)
-- The ServiqFM brand kit's RN-specific files already exist at `ServiqFM_Brand_Package/serviqfm-brand-kit/src/brand/theme.native.ts` and `src/components/mobile/Logo.tsx`
-- API endpoints the mobile app should hit (all already deployed):
-  - `POST /api/work-orders/[id]/close` for closing a WO with photos
-  - `POST /api/upload?bucket=work-order-media&prefix=<orgId>/<woId>` for photo uploads (avoids storage RLS)
-  - `POST /api/push` for Expo push notifications
-  - Public space lookup at `GET /api/public/space-by-token/[token]` for QR scan flow
+### In progress (Nov 2026)
+- Multiple inactive periods per PM schedule (1C-27) — SQL `w7-01-pm-inactive-periods.sql`.
+- Real ERP connectors: Oracle Fusion, Dynamics 365 Business Central, Odoo — SQL `w7-02-erp-connectors.sql`, env `ERP_ENCRYPTION_KEY`.
 
-### Pending user actions (web-side) — should be DONE by now but re-listing for safety
+### Owner-only (see `docs/go-live-checklist.md`)
+Store publishing · `SERVIQ_VAT_NUMBER` (invoices fall back to a placeholder VAT no.) · Stripe activation + env · Vercel WAF rate-limit rules · Supabase `db pull` DR baseline (DV-06) · media-purge cron enablement · running new SQL files.
 
-If anything in the web app misbehaves, double-check these were applied to your Supabase project (`cnpsplprnnabhrjjeqwp`):
-
-| File | Adds |
-|---|---|
-| `sprint-e-01-foundation.sql` | `field_configs` table |
-| `sprint-f-01-foundation.sql` | platform admin schema + `INSERT INTO platform_admins` for your platform admin |
-| `sprint-f-02-metrics.sql` | DAU/MAU functions |
-| `sprint-h-01-vendor-invoices.sql` | `vendor_invoices` table |
-| `sprint-i-01-storage-buckets.sql` | storage buckets + RLS |
-| `sprint-i-02-spaces-qr-token.sql` | `spaces.qr_token` column |
-| `sprint-i-03-tenant-invoices.sql` | `tenant_invoices` table |
-| `sprint-j-01-pm-schedule-id.sql` | `work_orders.pm_schedule_id` + `pm_schedules.lead_time_days` |
-
-Manifest: [docs/superpowers/sql/PHASE-LUMINA-MIGRATIONS.md](docs/superpowers/sql/PHASE-LUMINA-MIGRATIONS.md).
-
-Vercel env vars (both Production AND Preview):
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_APP_URL=https://serviqfm.com`
-- `RESEND_API_KEY`, `RESEND_FROM_EMAIL=noreply@serviqfm.com`
-- `IMPERSONATION_SIGNING_KEY` is OPTIONAL — when missing, the app derives a signing key from `SHA-256(SUPABASE_SERVICE_ROLE_KEY)` so impersonation works without it
+### Known open code items
+- Mobile forced-password-change gate (web-only today; deferred).
+- `Button.test.tsx` test-runner deps (ignored by Next build).
 
 ### Known constraints / caveats (don't try to "fix")
 
 - **`work_orders.source` CHECK** allows only `'manual'` and `'pm_schedule'`. Routes that previously used `'requester'` or `'recurring'` were updated to `'manual'`; origin is preserved via `request_id` / `pm_schedule_id` / `is_recurring`. If you want broader source values, `ALTER TABLE work_orders DROP CONSTRAINT work_orders_source_check; ALTER TABLE ... ADD CONSTRAINT ... CHECK (source IN ('manual','pm_schedule','requester','inspection'));`
-- **Vercel Hobby cron** allows daily only — the PM auto-generator at `/api/cron/pm-generate` runs once daily at 06:00 UTC. For hourly, upgrade Vercel to Pro and change `vercel.json` schedule to `0 * * * *`. The cron also accepts `?run=1` for manual triggers.
-- **Stripe sync**: Customer/Subscription IDs persist in BillingForm but Stripe webhooks / status sync aren't wired. Treat as reference fields only.
+- **Vercel crons** — `web/vercel.json` now includes an hourly job (`/api/cron/escalations`), which requires Vercel Pro (Hobby allows daily only). The PM auto-generator runs daily at 06:00 UTC and accepts `?run=1` for manual triggers.
+- **Stripe**: checkout + signature-verified webhook + subscription sync are built and env-gated (501 until `STRIPE_*` env vars are set).
 - **Feature flags `api_access`, `custom_branding`** persist + audit but don't gate features — no API or branding UI exists yet. `invoicing`, `advanced_reporting`, `multi_site` are operational.
 - **`work_orders.is_recurring` / `recurrence_frequency`** are stripped out by `enforceFieldConfig` in the regular flow; the PM cron also doesn't write them. If you ever add them to the actual schema, the codebase tolerates either state.
 - **`web/src/lib/brand.ts`** (legacy `C`/`F`/`primaryBtn`) is still in the tree because some pre-Lumina pages may still reference it. Safe to delete in a follow-up cleanup PR.
@@ -113,7 +97,7 @@ ab9b162  feat(p4,p5): wire inventory/reports buttons + bulk QR + multi-select PM
 - [x] Invoices nav item in Sidebar
 - [x] Security checks passed (org_id scoping, env files gitignored, no hardcoded URLs)
 - [x] Vercel production deployed — auto-deploy from `main`
-- [ ] **EAS production build (iOS + Android) — PENDING (Task 7 from Week 3 plan)**
+- [x] EAS production build (iOS submitted for review; Android built, Play upload pending)
 
 ### Pre-Mobile Sprint — Landing Page & Auth Polish
 - [x] Landing page at `/` — full branded ServIQ-FM marketing page
@@ -463,17 +447,18 @@ ab9b162  feat(p4,p5): wire inventory/reports buttons + bulk QR + multi-select PM
 
 ## Backlog / Future
 
-### Next workstream — Mobile (Expo / React Native)
-- [ ] **Mobile technician app** — Expo SDK 54 scaffold under `mobile/`. Plan: [docs/superpowers/plans/2026-04-25-week2-mobile-technician.md](docs/superpowers/plans/2026-04-25-week2-mobile-technician.md). Brand tokens to mirror live in `web/src/brand/tokens.ts`; RN-specific brand kit files at `ServiqFM_Brand_Package/serviqfm-brand-kit/src/`.
-- [ ] **Mobile EAS production build** (iOS + Android)
-- [ ] **Mobile: offline mode** for WO updates + photo queue
-- [ ] **Push notification registration** wired to `/api/push`
-- [ ] **QR scanner screen** that opens `/r/[token]` for spaces (or asset detail for asset QRs)
+### Mobile (Expo / React Native)
+- [x] Mobile technician app (Waves 5–6)
+- [x] EAS production builds
+- [x] Offline mode for WO updates + photo queue
+- [x] Push notification registration
+- [x] QR scanner
+- [ ] Google Play first release + App Store approval — owner (`docs/go-live-checklist.md`)
 
 ### Web platform follow-ups (not blocking)
-- [ ] **Stripe sync**: webhooks, auto-create customers/subscriptions, payment status from Stripe (IDs are stored today, sync not wired)
+- [x] Stripe checkout + webhook sync (built; owner activates via env)
 - [ ] **Feature-flag enforcement for `api_access` and `custom_branding`** — no public API or white-labelling UI exists yet to gate
-- [ ] **Scheduled reports** (Reports page "Schedule" button surfaces "coming soon" today)
+- [x] Scheduled reports — builder schedules + standard PDF packs emailed by `/api/cron/scheduled-reports`
 - [ ] **Public request portal photo uploads** — route through `/api/upload` for parity with authenticated flows (anon flows currently rely on the `requests` bucket's permissive RLS)
 - [ ] **Arabic PDF support** in invoices and standard reports (RTL text rendering in `@react-pdf/renderer`)
 - [ ] **PM compliance reporting** improvements (Reports page has only KPI cards today, not a full compliance dashboard)
@@ -631,8 +616,8 @@ All pages are at `web/src/app/dashboard/[section]/page.tsx`:
 | Week | Focus | Status |
 |------|-------|--------|
 | Week 1 | Web brand kit + manager experience | ✅ **COMPLETE** |
-| Week 2 | Mobile technician experience + push notifications | ⬜ Pending |
-| Week 3 | Launch polish | ⬜ Pending |
+| Week 2 | Mobile technician experience + push notifications | ✅ **COMPLETE** |
+| Week 3 | Launch polish | ✅ **COMPLETE** (live) |
 
 ### Week 1 Commits (all on `main`)
 ```
